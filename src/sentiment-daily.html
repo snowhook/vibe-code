@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A股市场情绪日报</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:radial-gradient(1200px 600px at 70% -10%,#101828 0%,#0b0e14 55%);color:#d6dde8;font-family:-apple-system,'Segoe UI','Microsoft YaHei',sans-serif;font-size:13px;padding:22px 26px 30px}
+.wrap{max-width:1420px;margin:0 auto}
+header{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:14px;margin-bottom:16px}
+h1{font-size:22px;font-weight:700;letter-spacing:.5px}
+h1 .sub{font-size:12px;color:#8b95a7;font-weight:400;margin-left:10px}
+.badge{display:inline-block;background:#1d2637;color:#9fb4e8;border:1px solid #2c3a58;border-radius:6px;padding:2px 10px;font-size:12px;margin:4px 8px 0 0}
+.toolbar{display:flex;align-items:center;gap:10px;justify-content:flex-end;margin-bottom:8px;flex-wrap:wrap}
+.live-dot{width:8px;height:8px;border-radius:50%;display:inline-block;background:#3a4252}
+.live-dot.on{background:#26c281;box-shadow:0 0 6px #26c281}
+.btn{background:linear-gradient(180deg,#22304a,#1a2438);color:#9fc3ff;border:1px solid #2b3a5a;border-radius:8px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;transition:.15s}
+.btn:hover{background:#26364f;color:#c9dcff}
+.btn:disabled{opacity:.55;cursor:wait}
+input[type=date]{background:#0e1320;border:1px solid #2c3a58;color:#d6dde8;border-radius:8px;padding:6px 10px;font-size:12px;font-family:inherit;color-scheme:dark;outline:none}
+.note{background:#2a2118;border:1px solid #5a4a2a;color:#e8a06b;border-radius:8px;padding:8px 12px;font-size:11px;margin-bottom:12px;line-height:1.6}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.kpi{background:linear-gradient(160deg,#161c2b,#12161f);border:1px solid #232b3a;border-radius:10px;padding:12px 16px}
+.kpi .t{font-size:11px;color:#8b95a7;margin-bottom:6px;letter-spacing:.5px}
+.kpi .v{font-size:22px;font-weight:700;font-family:Consolas,'Courier New',monospace}
+.kpi .d{font-size:11px;color:#8b95a7;margin-top:5px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px}
+.card{background:#131824;border:1px solid #232b3a;border-radius:10px;padding:14px 16px}
+.card h2{font-size:13px;font-weight:600;color:#e8edf5;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.dot{width:8px;height:8px;border-radius:2px;display:inline-block}
+.grid2{display:grid;grid-template-columns:3fr 2fr;gap:12px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{color:#8b95a7;font-weight:500;text-align:left;padding:6px 8px;border-bottom:1px solid #232b3a;font-size:11px;white-space:nowrap;position:sticky;top:0;background:#131824;z-index:2}
+td{padding:5px 8px;border-bottom:1px solid #1b2332;white-space:nowrap}
+tr:hover td{background:#1a2233}
+.mono{font-family:Consolas,'Courier New',monospace}
+.dim{color:#8b95a7}
+.reason{color:#aab6c8;font-size:11px;white-space:normal;min-width:220px;max-width:320px;line-height:1.35}
+.scroll{overflow-y:auto;max-height:560px}
+.scroll-sm{overflow-y:auto;max-height:520px}
+.up{color:#ff5257} .down{color:#26c281}
+footer{margin-top:14px;padding:14px 16px;background:#10141d;border:1px solid #232b3a;border-radius:10px;font-size:11px;color:#8b95a7;line-height:1.8}
+footer b{color:#aab6c8}
+.legend{font-size:11px;color:#8b95a7;margin-bottom:8px}
+#loading{position:fixed;inset:0;z-index:99;background:rgba(11,14,20,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px}
+#loading .spin{width:44px;height:44px;border-radius:50%;border:3px solid #2c3a58;border-top-color:#26c281;animation:rot .9s linear infinite}
+@keyframes rot{to{transform:rotate(360deg)}}
+#loading .msg{font-size:13px;color:#8b95a7;letter-spacing:1px}
+@media(max-width:1100px){.grid3{grid-template-columns:1fr} .grid2{grid-template-columns:1fr} .kpis{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+ <div>
+ <h1>📊 A股市场情绪日报<span class="sub">龙虎榜 · 题材热点 · 行业轮动</span></h1>
+ <div style="margin-top:8px" id="badges"></div>
+ </div>
+ <div style="text-align:right;font-size:11px;color:#8b95a7;line-height:1.7">
+ <div class="toolbar">
+ <input type="date" id="baseDate">
+ <button class="btn" onclick="loadDate()">📅 查看指定日期</button>
+ <span id="liveStatus" class="live-dot on"></span>
+ <button id="refreshBtn" class="btn" onclick="loadToday()">🔄 刷新当日实时数据</button>
+ </div>
+ <span id="headInfo">沪 000001 · 深 399001</span>
+ </div>
+</header>
+
+<div id="loading" style="display:none"><div class="spin"></div><div class="msg">正在拉取龙虎榜 + 板块数据…</div></div>
+
+<div id="notes"></div>
+<div id="content" style="opacity:.35">
+
+<div class="kpis" id="kpis"></div>
+
+<div class="grid3">
+ <div class="card">
+ <h2><span class="dot" style="background:#ff5257"></span>龙虎榜净买入 TOP12</h2>
+ <div class="legend">按净买入额降序 · 单位 ¥ 亿/万</div>
+ <div id="netChart"></div>
+ </div>
+ <div class="card">
+ <h2><span class="dot" style="background:#f5a623"></span>题材热度 TOP12（概念板块）</h2>
+ <div class="legend">东财概念板块当日涨幅榜 · 括号内为上涨家数</div>
+ <div id="conceptChart"></div>
+ </div>
+ <div class="card">
+ <h2><span class="dot" style="background:#4f8ef7"></span>行业轮动 · 领涨/领跌</h2>
+ <div class="legend">东财行业板块指数涨跌幅 · 红涨绿跌</div>
+ <div id="indChart"></div>
+ </div>
+</div>
+
+<div class="grid2">
+ <div class="card">
+ <h2><span class="dot" style="background:#ff5257"></span><span id="bbTitle">全市场龙虎榜明细</span></h2>
+ <div class="legend">来源：东方财富数据中心 RPT_DAILYBILLBOARD_DETAILSNEW · 同一股票可因多原因多次上榜</div>
+ <div class="scroll">
+ <table>
+ <thead><tr><th>#</th><th>代码</th><th>名称</th><th>涨跌幅</th><th>净买入</th><th>买入</th><th>卖出</th><th>换手率</th><th>上榜原因</th></tr></thead>
+ <tbody id="bbBody"></tbody>
+ </table>
+ </div>
+ </div>
+ <div>
+ <div class="card" style="margin-bottom:12px">
+ <h2><span class="dot" style="background:#4f8ef7"></span><span id="indTitle">行业板块涨跌排名</span></h2>
+ <div class="legend" id="indLegend"></div>
+ <div class="scroll-sm">
+ <table>
+ <thead><tr><th>#</th><th>行业</th><th>涨跌幅</th></tr></thead>
+ <tbody id="indBody"></tbody>
+ </table>
+ </div>
+ </div>
+ </div>
+</div>
+
+<footer>
+ <b>数据来源</b>：① 龙虎榜 — 东方财富数据中心（RPT_DAILYBILLBOARD_DETAILSNEW，支持按交易日回查）；② 题材热度 — 东方财富概念板块涨幅榜（原同花顺 getharden 接口已失效，已自动切换替代源）；③ 行业板块 — 东方财富行业板块指数（实时，多host自动容错）。
+ <br><b>口径说明</b>：龙虎榜净买入为 BILLBOARD_NET_AMT（买卖前五席位净额）；题材热度为概念板块当日涨幅（括号内为板块上涨家数）。
+ <br><b>免责声明</b>：本页面数据来自公开接口，仅供复盘研究参考，不构成任何投资建议。涨跌颜色遵循 A 股惯例（红涨绿跌）。
+ <br><b>自动修复</b>：选择非交易日/数据未出时，系统自动回退至最近交易日并提示；接口多host容错，单点故障自动切换。
+</footer>
+
+</div>
+</div>
+
+<script>
+var DATA=null;
+function $(id){return document.getElementById(id)}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function money(yuan){
+  var v=yuan/1e8;
+  if(Math.abs(v)>=1) return '¥'+v.toFixed(2)+'亿';
+  v=yuan/1e4;
+  return '¥'+Math.round(v).toLocaleString()+'万';
+}
+function pctColor(p){return p>0?'#ff5257':p<0?'#26c281':'#8b95a7'}
+function fmtPct(p){return (p>0?'+':'')+p.toFixed(2)+'%'}
+
+function loadToday(){
+  var t=new Date();
+  var ds=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');
+  $('baseDate').value=ds;
+  doLoad(ds);
+}
+function loadDate(){
+  var ds=$('baseDate').value;
+  if(!ds){alert('请选择日期');return}
+  doLoad(ds);
+}
+function doLoad(ds){
+  $('refreshBtn').disabled=true;
+  $('loading').style.display='flex';
+  var x=new XMLHttpRequest();
+  x.open('POST','/api/sentiment/data',true);
+  x.setRequestHeader('Content-Type','application/json');
+  x.timeout=90000;
+  x.onload=function(){
+    $('refreshBtn').disabled=false;$('loading').style.display='none';
+    try{var r=JSON.parse(x.responseText)}catch(e){alert('解析失败：'+e);return}
+    if(!r.ok){alert('数据拉取失败：'+(r.error||'未知错误'));return}
+    DATA=r.data;renderAll();
+    $('content').style.opacity='1';
+  };
+  x.onerror=function(){$('refreshBtn').disabled=false;$('loading').style.display='none';alert('网络错误，请重试')};
+  x.ontimeout=function(){$('refreshBtn').disabled=false;$('loading').style.display='none';alert('请求超时，请重试')};
+  x.send(JSON.stringify({date:ds}));
+}
+
+function renderAll(){
+  $('badges').innerHTML=
+    '<span class="badge">交易日 '+DATA.date+' '+DATA.weekday+'</span>'+
+    '<span class="badge">实时刷新于 '+DATA.generatedAt.slice(0,10)+'</span>'+
+    '<span class="badge" style="color:#e8a06b;border-color:#5a4a30">全市场 · 复盘视角</span>';
+  $('notes').innerHTML=DATA.warnings.map(function(w){return '<div class="note">⚠ '+esc(w)+'</div>'}).join('');
+
+  var bb=DATA.billboard;
+  var upN=0,downN=0,flatN=0,netSum=0;
+  bb.forEach(function(x){if(x.chg>0)upN++;else if(x.chg<0)downN++;else flatN++;netSum+=x.net});
+  var uniq={};bb.forEach(function(x){uniq[x.code]=1});
+  $('headInfo').textContent='龙虎榜 '+bb.length+' 条 / 涉及 '+Object.keys(uniq).length+' 只 · 生成 '+DATA.generatedAt.slice(11);
+
+  var hotConcept=DATA.concepts.length?DATA.concepts.filter(function(c){return c.pct>0})[0]:null;
+  var leadInd=DATA.industries.length?DATA.industries[0]:null;
+  var lagInd=DATA.industries.length?DATA.industries[DATA.industries.length-1]:null;
+
+  $('kpis').innerHTML=
+    '<div class="kpi"><div class="t">龙虎榜上榜条数</div><div class="v" style="color:#f5a623">'+bb.length+'</div><div class="d">涨 '+upN+' / 跌 '+downN+' / 平 '+flatN+'</div></div>'+
+    '<div class="kpi"><div class="t">龙虎榜净买入合计</div><div class="v" style="color:'+(netSum>=0?'#ff5257':'#26c281')+'">'+money(netSum)+'</div><div class="d">买方 vs 卖方席位对决</div></div>'+
+    '<div class="kpi"><div class="t">当日最热题材</div><div class="v" style="font-size:19px">'+(hotConcept?esc(hotConcept.name):'—')+'</div><div class="d">'+(hotConcept?fmtPct(hotConcept.pct)+' · 上涨 '+hotConcept.upCount+' 家':'')+'</div></div>'+
+    '<div class="kpi"><div class="t">领涨行业</div><div class="v" style="font-size:19px;color:#ff5257">'+(leadInd?esc(leadInd.name):'—')+'</div><div class="d">'+(leadInd?fmtPct(leadInd.pct):'')+(lagInd?' · 领跌 '+esc(lagInd.name)+' '+fmtPct(lagInd.pct):'')+'</div></div>';
+
+  renderNetChart();renderConceptChart();renderIndChart();renderTable();
+}
+
+function barSvg(items,nameFn,valFn,labelFn,color){
+  var W=420,rowH=30,x0=150,bwMax=250,top=14;
+  var max=Math.max.apply(null,items.map(function(x){return Math.abs(valFn(x))}).concat([1]));
+  var H=items.length*rowH+top+8;
+  var s='<svg viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg">';
+  items.forEach(function(x,i){
+    var y=top+i*rowH,v=valFn(x),bw=bwMax*Math.abs(v)/max;
+    s+='<text x="'+(x0-8)+'" y="'+(y+12)+'" text-anchor="end" font-size="11" fill="#d6dde8">'+esc(nameFn(x))+'</text>';
+    s+='<rect x="'+x0+'" y="'+y+'" width="'+bwMax+'" height="18" rx="3" fill="#1a2130"/>';
+    s+='<rect x="'+x0+'" y="'+y+'" width="'+bw.toFixed(1)+'" height="18" rx="3" fill="'+color+'"/>';
+    var lx=x0+bw+6;
+    if(x0+bw+60>W)lx=x0+bw-6;
+    var anchor=(x0+bw+60>W)?'end':'start';
+    var lf=(x0+bw+60>W)?'#fff':color;
+    s+='<text x="'+lx+'" y="'+(y+13)+'" text-anchor="'+anchor+'" font-size="10.5" fill="'+lf+'">'+labelFn(x)+'</text>';
+  });
+  s+='</svg>';
+  return s;
+}
+
+function renderNetChart(){
+  var top=DATA.billboard.slice(0,12);
+  $('netChart').innerHTML=top.length?barSvg(top,
+    function(x){return x.name+' '+x.code},
+    function(x){return x.net},
+    function(x){return money(x.net)},
+    '#ff5257'):'<div class="legend">暂无数据</div>';
+}
+function renderConceptChart(){
+  var top=DATA.concepts.slice(0,12);
+  $('conceptChart').innerHTML=top.length?barSvg(top,
+    function(x){return x.name},
+    function(x){return x.pct},
+    function(x){return fmtPct(x.pct)+' ('+x.upCount+'家)'},
+    '#f5a623'):'<div class="legend">概念板块数据暂不可用</div>';
+}
+function renderIndChart(){
+  if(!DATA.industries.length){$('indChart').innerHTML='<div class="legend">行业板块数据暂不可用</div>';return}
+  var pos=DATA.industries.filter(function(x){return x.pct>0});
+  var neg=DATA.industries.filter(function(x){return x.pct<0});
+  var pick=pos.slice(0,4).concat(neg.slice(-4));
+  if(pick.length<8)pick=DATA.industries.slice(0,4).concat(DATA.industries.slice(-4));
+  $('indChart').innerHTML=barSvg(pick,
+    function(x){return x.name},
+    function(x){return x.pct},
+    function(x){return fmtPct(x.pct)},
+    '#4f8ef7');
+}
+function renderTable(){
+  var bb=DATA.billboard;
+  $('bbTitle').textContent='全市场龙虎榜明细（'+bb.length+' 条 · 按净买入降序）';
+  $('bbBody').innerHTML=bb.map(function(x,i){
+    var cc=pctColor(x.chg);
+    var nc=x.net>=0?'#ff5257':'#26c281';
+    return '<tr><td class="dim">'+(i+1)+'</td>'+
+      '<td class="mono">'+x.code+'</td>'+
+      '<td>'+esc(x.name)+'</td>'+
+      '<td class="mono" style="color:'+cc+';font-weight:600">'+fmtPct(x.chg)+'</td>'+
+      '<td class="mono" style="color:'+nc+';font-weight:600">'+money(x.net)+'</td>'+
+      '<td class="mono dim">'+money(x.buy)+'</td>'+
+      '<td class="mono dim">'+money(x.sell)+'</td>'+
+      '<td class="mono">'+(x.turnover!=null?x.turnover.toFixed(2)+'%':'—')+'</td>'+
+      '<td class="reason">'+esc(x.reason)+'</td></tr>';
+  }).join('');
+
+  var inds=DATA.industries;
+  $('indTitle').textContent='行业板块涨跌排名（'+inds.length+' 个行业）';
+  var upN=inds.filter(function(x){return x.pct>0}).length;
+  $('indLegend').textContent='板块指数口径 · 涨 '+upN+' 跌 '+(inds.length-upN);
+  $('indBody').innerHTML=inds.map(function(x,i){
+    return '<tr><td class="dim">'+(i+1)+'</td><td>'+esc(x.name)+'</td>'+
+      '<td class="mono" style="color:'+pctColor(x.pct)+';font-weight:600">'+fmtPct(x.pct)+'</td></tr>';
+  }).join('');
+}
+
+(function(){
+  var t=new Date();
+  $('baseDate').value=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');
+  doLoad($('baseDate').value);
+})();
+</script>
+</body>
+</html>

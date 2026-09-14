@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>个人VIBE CODE模块中心</title>
+<style>
+:root{
+  --bg:#0c1a30; --panel:#13253f; --panel2:#1a2e4c;
+  --line:rgba(122,168,235,.16); --line2:rgba(122,168,235,.34);
+  --ink:#e8eefb; --mut:#8ea3c0; --amber:#ffb020; --led:#3ddc84;
+  --disp:Bahnschrift,'DIN Alternate','Franklin Gothic Medium','Arial Narrow','PingFang SC','Microsoft YaHei',sans-serif;
+  --body:'PingFang SC','Hiragino Sans GB','Microsoft YaHei','Noto Sans SC',sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,'SFMono-Regular',Consolas,'Courier New',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{min-height:100%}
+body{
+  font-family:var(--body);color:var(--ink);
+  background:radial-gradient(1100px 560px at 72% -8%, rgba(56,120,220,.16), transparent 62%), var(--bg);
+  overflow-x:hidden;
+}
+/* 蓝图网格背景（缓慢漂移） */
+body::before{
+  content:'';position:fixed;inset:-84px;z-index:0;pointer-events:none;
+  background:
+    repeating-linear-gradient(0deg, rgba(122,168,235,.06) 0 1px, transparent 1px 42px),
+    repeating-linear-gradient(90deg, rgba(122,168,235,.06) 0 1px, transparent 1px 42px),
+    repeating-linear-gradient(0deg, rgba(122,168,235,.026) 0 1px, transparent 1px 10.5px),
+    repeating-linear-gradient(90deg, rgba(122,168,235,.026) 0 1px, transparent 1px 10.5px);
+  animation:drift 80s linear infinite;
+}
+@keyframes drift{to{transform:translate(42px,42px)}}
+/* 顶部安全警示条纹 */
+.hazard{height:6px;background:repeating-linear-gradient(-45deg,var(--amber) 0 14px,#10182a 14px 28px);position:relative;z-index:2}
+.wrap{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:0 26px 60px}
+
+/* ── 页头：控制台风格 ── */
+header{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;
+  padding:26px 0 20px;border-bottom:1px solid var(--line2);margin-bottom:26px}
+.brand{display:flex;align-items:center;gap:16px}
+.stamp{width:52px;height:52px;border:2px solid var(--amber);border-radius:8px;display:flex;align-items:center;justify-content:center;
+  font-size:26px;transform:rotate(-4deg);box-shadow:0 0 0 3px rgba(255,176,32,.12), inset 0 0 14px rgba(255,176,32,.10);
+  transition:transform .25s}
+.brand:hover .stamp{transform:rotate(4deg) scale(1.05)}
+.brand h1{font-family:var(--disp);font-size:27px;font-weight:800;letter-spacing:1.5px;line-height:1.15}
+.brand .tag{font-family:var(--mono);font-size:10px;letter-spacing:3.5px;color:var(--mut);text-transform:uppercase;margin-top:4px}
+.readout{display:flex;align-items:center;gap:14px;border:1px solid var(--line);border-radius:8px;
+  background:linear-gradient(180deg,var(--panel2),var(--panel));padding:10px 16px}
+.readout .led{margin-top:2px}
+.readout .ro{display:flex;flex-direction:column;gap:2px}
+.readout .clk{font-family:var(--mono);font-size:19px;font-weight:700;letter-spacing:1px;color:var(--amber);font-variant-numeric:tabular-nums}
+.readout .dte{font-family:var(--mono);font-size:10.5px;color:var(--mut);letter-spacing:1px}
+.led{width:9px;height:9px;border-radius:50%;background:var(--led);box-shadow:0 0 8px var(--led);display:inline-block;animation:pulse 2.2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 8px var(--led)}50%{opacity:.45;box-shadow:0 0 2px var(--led)}}
+
+/* ── 工具条 ── */
+.toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:20px;flex-wrap:wrap}
+.toolbar .lb{display:flex;align-items:baseline;gap:12px}
+.toolbar .lb b{font-family:var(--disp);font-size:17px;letter-spacing:2px}
+.toolbar .cnt{font-family:var(--mono);font-size:11px;color:var(--amber);border:1px solid rgba(255,176,32,.4);border-radius:20px;padding:2px 11px;background:rgba(255,176,32,.08)}
+.btn-add{font-family:var(--disp);font-size:14px;font-weight:700;letter-spacing:1px;background:var(--amber);color:#1a1206;border:none;
+  border-radius:8px;padding:10px 22px;cursor:pointer;box-shadow:0 4px 16px -4px rgba(255,176,32,.5);transition:transform .15s, box-shadow .15s}
+.btn-add:hover{transform:translateY(-2px);box-shadow:0 8px 24px -4px rgba(255,176,32,.65)}
+.btn-add:active{transform:translateY(0)}
+
+/* ── 模块卡片 ── */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(285px,1fr));gap:18px}
+.mod{position:relative;background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:10px;
+  padding:20px 18px 15px;cursor:pointer;overflow:hidden;
+  transition:transform .18s ease, border-color .18s, box-shadow .18s;
+  animation:cardIn .5s cubic-bezier(.2,.7,.3,1) both}
+@keyframes cardIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+.mod::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;background:var(--mc,#ffb020);opacity:.9;transition:box-shadow .18s}
+.mod:hover{transform:translateY(-5px);border-color:var(--mc,#ffb020);
+  box-shadow:0 16px 36px -14px rgba(0,0,0,.65), 0 0 22px -8px var(--mc,#ffb020)}
+.mod:hover::before{box-shadow:0 0 14px var(--mc,#ffb020)}
+.m-top{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.m-code{font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--mut)}
+.m-acts{margin-left:auto;display:flex;gap:4px;opacity:0;transform:translateY(-3px);transition:opacity .15s, transform .15s}
+.mod:hover .m-acts{opacity:1;transform:none}
+.ab{width:24px;height:24px;border:1px solid var(--line2);background:rgba(122,168,235,.07);color:var(--mut);border-radius:5px;
+  font-size:11px;cursor:pointer;line-height:1;transition:all .13s}
+.ab:hover{color:var(--ink);border-color:var(--mc,#ffb020);background:rgba(255,255,255,.08)}
+.ab.del:hover{color:#ff6b6b;border-color:#ff6b6b}
+.m-icon{font-size:40px;line-height:1;margin-bottom:12px;filter:drop-shadow(0 4px 10px rgba(0,0,0,.4));transition:transform .2s}
+.mod:hover .m-icon{transform:scale(1.12) rotate(-3deg)}
+.m-name{font-family:var(--disp);font-size:20px;font-weight:800;letter-spacing:.5px;margin-bottom:6px}
+.m-desc{font-size:12.5px;color:var(--mut);line-height:1.6;min-height:40px;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.m-ft{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px;padding-top:11px;border-top:1px dashed var(--line)}
+.m-url{font-family:var(--mono);font-size:10.5px;color:var(--mut);letter-spacing:.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.m-go{font-family:var(--disp);font-size:12.5px;font-weight:700;color:var(--mc,#ffb020);letter-spacing:1px;white-space:nowrap}
+.m-go i{font-style:normal;display:inline-block;transition:transform .18s}
+.mod:hover .m-go i{transform:translateX(5px)}
+
+.empty{grid-column:1/-1;border:2px dashed var(--line2);border-radius:12px;padding:56px 20px;text-align:center;color:var(--mut)}
+.empty .big{font-size:38px;margin-bottom:12px}
+.empty p{font-size:14px}
+
+footer{margin-top:46px;padding-top:16px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;
+  font-family:var(--mono);font-size:10px;letter-spacing:1.5px;color:var(--mut)}
+
+/* ── 弹窗 ── */
+.ovl{position:fixed;inset:0;background:rgba(3,8,18,.74);z-index:50;display:flex;align-items:center;justify-content:center;animation:fadeIn .15s}
+@keyframes fadeIn{from{opacity:0}}
+.dlg{width:min(480px,92vw);background:#152741;border:1px solid var(--line2);border-radius:12px;
+  box-shadow:0 30px 80px -18px #000;animation:pop .2s cubic-bezier(.2,.9,.3,1.2)}
+@keyframes pop{from{opacity:0;transform:scale(.94) translateY(10px)}}
+.dlg-hd{display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid var(--line)}
+.dlg-hd::before{content:'';width:4px;height:18px;background:var(--amber);border-radius:2px}
+.dlg-hd b{font-family:var(--disp);font-size:17px;letter-spacing:1px}
+.dlg-bd{padding:18px 20px;display:flex;flex-direction:column;gap:13px}
+.fld label{display:block;font-size:11.5px;color:var(--mut);margin-bottom:5px;letter-spacing:.5px}
+.fld label em{color:var(--amber);font-style:normal}
+.fld input{width:100%;background:#0e1d33;border:1px solid var(--line2);border-radius:7px;color:var(--ink);
+  padding:9px 12px;font-size:13.5px;font-family:var(--body);transition:border-color .15s, box-shadow .15s}
+.fld input:focus{outline:none;border-color:var(--amber);box-shadow:0 0 0 3px rgba(255,176,32,.15)}
+.fld input::placeholder{color:#54689a}
+.fld .row2{display:flex;gap:10px}
+.fld .row2>div{flex:1}
+.swatches{display:flex;gap:9px;flex-wrap:wrap}
+.sw{width:27px;height:27px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform .13s, border-color .13s}
+.sw:hover{transform:scale(1.15)}
+.sw.on{border-color:#fff;transform:scale(1.18);box-shadow:0 0 10px rgba(255,255,255,.35)}
+.dlg-ft{display:flex;justify-content:flex-end;gap:10px;padding:15px 20px;border-top:1px solid var(--line)}
+.btn{border-radius:7px;padding:9px 20px;font-size:13.5px;cursor:pointer;font-family:var(--disp);font-weight:700;letter-spacing:1px;transition:all .14s;border:1px solid transparent}
+.btn.ghost{background:transparent;border-color:var(--line2);color:var(--mut)}
+.btn.ghost:hover{color:var(--ink);border-color:var(--mut)}
+.btn.pri{background:var(--amber);color:#1a1206;box-shadow:0 4px 14px -4px rgba(255,176,32,.5)}
+.btn.pri:hover{transform:translateY(-1px);box-shadow:0 7px 20px -4px rgba(255,176,32,.6)}
+
+/* 提示横幅 */
+#toast{position:fixed;top:14px;left:50%;transform:translateX(-50%) translateY(-60px);z-index:99;background:#dc2626;color:#fff;
+  padding:10px 22px;border-radius:8px;font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.4);transition:transform .25s;pointer-events:none}
+#toast.show{transform:translateX(-50%) translateY(0)}
+
+@media(max-width:640px){
+  .brand h1{font-size:21px}
+  .readout{width:100%;justify-content:space-between}
+  .wrap{padding:0 16px 44px}
+}
+</style>
+</head>
+<body>
+<div class="hazard"></div>
+<div class="wrap">
+
+<header>
+  <div class="brand">
+    <div class="stamp">⚙️</div>
+    <div>
+      <h1>个人VIBE CODE模块中心</h1>
+      <div class="tag">PERSONAL · VIBE CODE · MODULE HUB</div>
+    </div>
+  </div>
+  <div class="readout">
+    <span class="led" title="系统在线"></span>
+    <div class="ro">
+      <span class="clk" id="clk">--:--:--</span>
+      <span class="dte" id="dte">SYSTEM ONLINE</span>
+    </div>
+  </div>
+</header>
+
+<div class="toolbar">
+  <div class="lb"><b>模块列表</b><span class="cnt">共 <span id="mcount">0</span> 个模块</span></div>
+  <button class="btn-add" onclick="openAdd()">＋ 新增模块</button>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<footer>
+  <span>个人VIBE CODE模块中心 · VIBE CODING PLATFORM</span>
+  <span>PRD-SYS / NODE-01</span>
+</footer>
+
+</div>
+
+<!-- 新增/编辑弹窗 -->
+<div class="ovl hidden" id="ovl" style="display:none">
+  <div class="dlg">
+    <div class="dlg-hd"><b id="dlg-title">新增模块</b></div>
+    <div class="dlg-bd">
+      <div class="fld"><label>模块名称 <em>*</em></label><input id="f-name" placeholder="如：工艺路线系统" maxlength="30"></div>
+      <div class="fld row2" style="display:flex;gap:10px">
+        <div style="flex:0 0 96px"><label>图标</label><input id="f-icon" placeholder="🏭" maxlength="4" style="text-align:center;font-size:18px"></div>
+        <div style="flex:1"><label>链接地址 <em>*</em></label><input id="f-url" placeholder="如：routing.html 或 https://..."></div>
+      </div>
+      <div class="fld"><label>模块描述</label><input id="f-desc" placeholder="一句话说明这个模块做什么" maxlength="60"></div>
+      <div class="fld"><label>主题色</label><div class="swatches" id="swatches"></div></div>
+    </div>
+    <div class="dlg-ft">
+      <button class="btn ghost" onclick="closeDlg()">取消</button>
+      <button class="btn pri" onclick="saveDlg()">保存</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+function $(id){return document.getElementById(id)}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
+function api(path,payload){
+  var x=new XMLHttpRequest();x.open('POST',path,false);x.setRequestHeader('Content-Type','application/json');
+  try{x.send(payload?JSON.stringify(payload):null)}catch(e){return null}
+  if(x.status!==200)return null;
+  try{return JSON.parse(x.responseText)}catch(e){return null}
+}
+function toast(msg){var t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(function(){t.classList.remove('show')},3500)}
+
+var COLORS=['#ffb020','#ff7a1a','#3ddc84','#38bdf8','#5aa9e6','#a78bfa','#f472b6','#f87171','#8ea3c0'];
+var DEFAULTS=[
+  {id:'m_routing',name:'工艺路线系统',url:'routing.html',icon:'🏭',desc:'工艺路线模板 · 工序管理 · 工艺参数库 · 风险管控',color:'#ffb020'},
+  {id:'m_routegen',name:'工艺路线图生成器',url:'process-route.html',icon:'📐',desc:'按产品工艺自动生成工序流程图',color:'#38bdf8'},
+  {id:'m_tplold',name:'工艺路线模板（旧版）',url:'process-template.html',icon:'🗂️',desc:'早期版本，仅供对照参考',color:'#8ea3c0'}
+];
+var modules=[], editingId=null, selColor=COLORS[0];
+
+// 模块数据以服务器为唯一来源：每次操作后重新拉取，避免本地缓存覆盖
+function loadMods(){
+  var r=api('/api/portal/list');
+  if(r&&r.ok&&Array.isArray(r.modules)){modules=r.modules;return}
+  // 兑底：旧接口
+  var r2=api('/api/load',{key:'portal_modules'});
+  modules=(r2&&r2.ok&&Array.isArray(r2.value))?r2.value:[];
+}
+function refresh(){loadMods();render();}
+
+function render(){
+  var g=$('grid');
+  $('mcount').textContent=modules.length;
+  if(!modules.length){
+    g.innerHTML='<div class="empty"><div class="big">📭</div><p>还没有模块，点击右上角「＋ 新增模块」开始配置</p></div>';
+    return;
+  }
+  g.innerHTML=modules.map(function(m,i){
+    var code='MOD-'+String(i+1).padStart(2,'0');
+    var c=m.color||'#ffb020';
+    return '<div class="mod" style="--mc:'+c+';animation-delay:'+(i*0.06)+'s" onclick="goMod(\''+m.id+'\')">'
+      +'<div class="m-top"><span class="m-code">'+code+'</span><span class="led" title="运行中"></span>'
+      +'<span class="m-acts">'
+      +'<button class="ab" title="上移" onclick="event.stopPropagation();moveMod(\''+m.id+'\',-1)">▲</button>'
+      +'<button class="ab" title="下移" onclick="event.stopPropagation();moveMod(\''+m.id+'\',1)">▼</button>'
+      +'<button class="ab" title="编辑" onclick="event.stopPropagation();openEdit(\''+m.id+'\')">✎</button>'
+      +'<button class="ab del" title="删除" onclick="event.stopPropagation();delMod(\''+m.id+'\')">✕</button>'
+      +'</span></div>'
+      +'<div class="m-icon">'+esc(m.icon||'📦')+'</div>'
+      +'<div class="m-name">'+esc(m.name)+'</div>'
+      +'<div class="m-desc">'+esc(m.desc||'')+'</div>'
+      +'<div class="m-ft"><span class="m-url">'+esc(m.url)+'</span><span class="m-go">进入模块 <i>→</i></span></div>'
+      +'</div>';
+  }).join('');
+}
+
+function goMod(id){
+  var m=modules.filter(function(x){return x.id===id})[0];
+  if(m)window.location.href=m.url;
+}
+function moveMod(id,dir){
+  var r=api('/api/portal/move',{id:id,direction:dir});
+  if(!r||!r.ok){toast('⚠️ 移动失败');return}
+  refresh();
+}
+function delMod(id){
+  var m=modules.filter(function(x){return x.id===id})[0];
+  if(!m)return;
+  if(!confirm('确定删除模块「'+m.name+'」？（只移除入口，不删除页面文件）'))return;
+  var r=api('/api/portal/delete',{id:id});
+  if(!r||!r.ok){toast('⚠️ 删除失败');return}
+  refresh();
+}
+
+/* ── 弹窗 ── */
+function buildSwatches(){
+  $('swatches').innerHTML=COLORS.map(function(c){
+    return '<div class="sw'+(c===selColor?' on':'')+'" style="background:'+c+'" onclick="pickColor(\''+c+'\')"></div>';
+  }).join('');
+}
+function pickColor(c){selColor=c;buildSwatches()}
+function openAdd(){
+  editingId=null;$('dlg-title').textContent='新增模块';
+  $('f-name').value='';$('f-url').value='';$('f-icon').value='';$('f-desc').value='';
+  selColor=COLORS[0];buildSwatches();
+  $('ovl').style.display='flex';setTimeout(function(){$('f-name').focus()},50);
+}
+function openEdit(id){
+  var m=modules.filter(function(x){return x.id===id})[0];if(!m)return;
+  editingId=id;$('dlg-title').textContent='编辑模块';
+  $('f-name').value=m.name||'';$('f-url').value=m.url||'';$('f-icon').value=m.icon||'';$('f-desc').value=m.desc||'';
+  selColor=m.color||COLORS[0];buildSwatches();
+  $('ovl').style.display='flex';setTimeout(function(){$('f-name').focus()},50);
+}
+function closeDlg(){$('ovl').style.display='none'}
+function saveDlg(){
+  var name=$('f-name').value.trim(),url=$('f-url').value.trim();
+  var icon=$('f-icon').value.trim()||'📦',desc=$('f-desc').value.trim();
+  if(!name){alert('请填写模块名称');$('f-name').focus();return}
+  if(!url){alert('请填写链接地址');$('f-url').focus();return}
+  var r;
+  if(editingId){
+    r=api('/api/portal/update',{module:{id:editingId,name:name,url:url,icon:icon,desc:desc,color:selColor}});
+  }else{
+    r=api('/api/portal/add',{module:{id:'m_'+Date.now(),name:name,url:url,icon:icon,desc:desc,color:selColor}});
+  }
+  if(!r||!r.ok){toast('⚠️ 保存失败：'+((r&&r.error)||'请重试'));return}
+  refresh();closeDlg();
+}
+$('ovl').addEventListener('click',function(e){if(e.target===$('ovl'))closeDlg()});
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeDlg()});
+
+/* ── 时钟 ── */
+function p2(n){return n<10?'0'+n:''+n}
+function tick(){
+  var d=new Date(),w='日一二三四五六'[d.getDay()];
+  $('clk').textContent=p2(d.getHours())+':'+p2(d.getMinutes())+':'+p2(d.getSeconds());
+  $('dte').textContent=d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate())+' 星期'+w;
+}
+setInterval(tick,1000);
+
+loadMods();render();tick();
+</script>
+</body>
+</html>

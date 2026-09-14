@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 股票分析报告</title>
+<style>
+:root{
+  --paper:#f6f4ee; --card:#fffdf8; --ink:#241f1a; --mut:#8a8272;
+  --line:#e3ddd0; --line2:#cfc7b4;
+  --red:#c8402f; --red-d:#a3301f; --green:#1d6f4c; --amber:#b07d10;
+  --serif:'Noto Serif SC','Songti SC','STSong','SimSun',serif;
+  --sans:'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif;
+  --mono:'SFMono-Regular',ui-monospace,'Courier New',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  font-family:var(--sans);color:var(--ink);background:var(--paper);
+  min-height:100vh;overflow-x:hidden;position:relative;
+}
+/* 坐标纸网格背景（缓慢漂移） */
+body::before{
+  content:'';position:fixed;inset:-60px;z-index:0;pointer-events:none;
+  background:
+    repeating-linear-gradient(0deg, rgba(180,160,120,.10) 0 1px, transparent 1px 34px),
+    repeating-linear-gradient(90deg, rgba(180,160,120,.10) 0 1px, transparent 1px 34px);
+  animation:drift 90s linear infinite;
+}
+@keyframes drift{to{transform:translate(34px,34px)}}
+/* 背景装饰K线（SVG，呼吸感） */
+.bg-chart{position:fixed;bottom:-10px;left:0;right:0;z-index:0;pointer-events:none;opacity:.07}
+.bg-chart polyline{stroke:var(--red);stroke-width:2;fill:none;
+  stroke-dasharray:1200;stroke-dashoffset:1200;animation:draw 6s ease forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+
+/* ── 顶部行情带 ── */
+.tape{position:relative;z-index:2;background:#241f1a;color:#e8e2d5;overflow:hidden;
+  border-bottom:3px solid var(--red);white-space:nowrap;font-family:var(--mono);font-size:12px}
+.tape-track{display:inline-flex;gap:0;padding:8px 0;animation:tape 40s linear infinite;will-change:transform}
+.tape:hover .tape-track{animation-play-state:paused}
+@keyframes tape{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.tape-item{display:inline-flex;align-items:center;gap:8px;padding:0 22px;border-right:1px solid rgba(255,255,255,.12)}
+.tape-item .tc{color:#b8ae98}
+.tape-item .up{color:#ff8a75}
+.tape-item .dn{color:#6fd3a5}
+.tape-item .rt{font-size:10px;padding:1px 7px;border-radius:3px}
+
+.wrap{position:relative;z-index:1;max-width:1080px;margin:0 auto;padding:0 22px 70px}
+
+/* ── 报头 ── */
+.masthead{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;
+  padding:34px 0 22px;border-bottom:2px solid var(--ink);margin-bottom:8px}
+.mast-left{display:flex;align-items:flex-start;gap:18px}
+.seal{width:64px;height:64px;flex-shrink:0;border:3px solid var(--red);border-radius:8px;
+  display:flex;align-items:center;justify-content:center;transform:rotate(-6deg);
+  color:var(--red);font-family:var(--serif);font-weight:900;font-size:15px;line-height:1.15;
+  text-align:center;box-shadow:inset 0 0 0 2px rgba(200,64,47,.15);transition:transform .3s;letter-spacing:2px}
+.masthead:hover .seal{transform:rotate(3deg) scale(1.05)}
+.mast-title h1{font-family:var(--serif);font-size:clamp(30px,4.5vw,44px);font-weight:900;letter-spacing:2px;line-height:1.1}
+.mast-title .sub{font-family:var(--mono);font-size:11px;letter-spacing:3px;color:var(--mut);margin-top:6px;text-transform:uppercase}
+.mast-right{text-align:right}
+.mast-right .clk{font-family:var(--mono);font-size:26px;font-weight:700;color:var(--red);font-variant-numeric:tabular-nums}
+.mast-right .dte{font-family:var(--mono);font-size:11px;color:var(--mut);letter-spacing:1px;margin-top:2px}
+
+.lede{font-size:13px;color:var(--mut);padding:14px 0 26px;border-bottom:1px dashed var(--line2);margin-bottom:26px;line-height:1.7}
+.lede b{color:var(--ink)}
+
+/* ── 生成器 ── */
+.gen{background:var(--card);border:1px solid var(--line);border-left:5px solid var(--red);
+  border-radius:6px;padding:22px 24px;margin-bottom:34px;box-shadow:0 3px 14px rgba(60,50,30,.06)}
+.gen-hd{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.gen-hd .no{font-family:var(--mono);font-size:11px;color:var(--red);border:1px solid var(--red);
+  border-radius:3px;padding:1px 8px;letter-spacing:1px}
+.gen-hd h2{font-family:var(--serif);font-size:20px;font-weight:800}
+.gen-row{display:flex;gap:12px;flex-wrap:wrap;align-items:stretch}
+.gen-row input[type=text]{
+  flex:1;min-width:200px;font-family:var(--mono);font-size:20px;letter-spacing:3px;font-weight:700;
+  padding:12px 16px;border:1px solid var(--line2);border-radius:5px;background:#fff;color:var(--ink);
+  transition:border-color .15s, box-shadow .15s}
+.gen-row input[type=text]:focus{outline:none;border-color:var(--red);box-shadow:0 0 0 3px rgba(200,64,47,.14)}
+.gen-row input::placeholder{color:#c4bba8;letter-spacing:1px;font-size:15px;font-weight:400}
+.gen-row select{padding:12px 14px;border:1px solid var(--line2);border-radius:5px;background:#fff;
+  font-size:14px;color:var(--ink);cursor:pointer;font-family:var(--sans)}
+.btn-gen{font-family:var(--serif);font-size:17px;font-weight:800;letter-spacing:2px;
+  background:var(--red);color:#fff;border:none;border-radius:5px;padding:12px 34px;cursor:pointer;
+  box-shadow:0 4px 14px -3px rgba(200,64,47,.5);transition:all .16s;position:relative;overflow:hidden}
+.btn-gen:hover:not(:disabled){background:var(--red-d);transform:translateY(-2px);box-shadow:0 8px 20px -3px rgba(200,64,47,.55)}
+.btn-gen:active:not(:disabled){transform:translateY(0)}
+.btn-gen:disabled{background:#b0a896;cursor:wait;box-shadow:none}
+.gen-status{margin-top:14px;font-size:13px;color:var(--mut);display:none;align-items:center;gap:10px}
+.gen-status.on{display:flex}
+.spin{width:15px;height:15px;border:2px solid var(--line2);border-top-color:var(--red);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.gen-hint{margin-top:10px;font-size:11.5px;color:#b3a995}
+
+/* ── 报告台账 ── */
+.sec-hd{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:16px}
+.sec-hd h2{font-family:var(--serif);font-size:24px;font-weight:900;letter-spacing:1px}
+.sec-hd h2 .cnt{font-family:var(--mono);font-size:13px;color:var(--red);font-weight:700;vertical-align:super}
+.sec-hd .note{font-size:12px;color:var(--mut)}
+
+.ledger{background:var(--card);border:1px solid var(--line);border-radius:6px;overflow:hidden;box-shadow:0 3px 14px rgba(60,50,30,.06)}
+.lrow{display:grid;grid-template-columns:1.6fr 1fr 0.9fr 1.1fr 0.7fr 1.2fr 1fr;gap:12px;align-items:center;
+  padding:15px 20px;border-bottom:1px solid var(--line);transition:background .15s, transform .15s;
+  animation:rowIn .5s cubic-bezier(.2,.7,.3,1) both}
+@keyframes rowIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.lrow.head{background:#efece2;font-family:var(--mono);font-size:10.5px;letter-spacing:1.5px;color:var(--mut);
+  text-transform:uppercase;padding:10px 20px;border-bottom:2px solid var(--line2);animation:none}
+.lrow.data:hover{background:#fbf7ec;transform:translateX(3px)}
+.lrow.data{cursor:pointer}
+.stock .code{font-family:var(--mono);font-size:17px;font-weight:700;color:var(--ink)}
+.stock .nm{font-size:13px;color:var(--mut);margin-top:2px}
+.rating{display:inline-block;font-size:12px;font-weight:700;padding:3px 10px;border-radius:3px;white-space:nowrap}
+.rating.buy{background:rgba(200,64,47,.12);color:var(--red-d);border:1px solid rgba(200,64,47,.35)}
+.rating.hold{background:rgba(176,125,16,.12);color:var(--amber);border:1px solid rgba(176,125,16,.4)}
+.rating.sell{background:rgba(29,111,76,.12);color:var(--green);border:1px solid rgba(29,111,76,.4)}
+.rating.na{background:#f0ede3;color:var(--mut);border:1px solid var(--line2)}
+.num{font-family:var(--mono);font-size:14px;font-variant-numeric:tabular-nums;color:var(--ink)}
+.num .lbl{display:block;font-size:10px;color:#b3a995;letter-spacing:.5px}
+.gtime{font-family:var(--mono);font-size:12px;color:var(--mut)}
+.acts{display:flex;gap:8px;justify-content:flex-end}
+.abtn{font-size:12px;padding:6px 14px;border-radius:4px;cursor:pointer;border:1px solid var(--line2);
+  background:#fff;color:var(--ink);transition:all .14s;font-family:var(--sans)}
+.abtn.open{border-color:var(--red);color:var(--red-d)}
+.abtn.open:hover{background:var(--red);color:#fff}
+.abtn.pdf{border-color:#8a6d1d;color:#8a6d1d;font-weight:600}
+.abtn.pdf:hover:not(:disabled){background:#b07d10;border-color:#b07d10;color:#fff}
+.abtn.pdf:disabled{opacity:.55;cursor:wait}
+.abtn.del:hover{border-color:var(--green);color:var(--green)}
+.empty{padding:60px 20px;text-align:center;color:var(--mut)}
+.empty .big{font-size:40px;margin-bottom:12px;opacity:.5}
+.empty p{font-size:14px}
+
+footer{margin-top:44px;padding-top:18px;border-top:1px solid var(--line);
+  font-size:11px;color:#b3a995;line-height:1.8;text-align:center}
+
+/* toast */
+#toast{position:fixed;top:50px;left:50%;transform:translateX(-50%) translateY(-70px);z-index:99;
+  background:#241f1a;color:#f0ead9;padding:12px 26px;border-radius:6px;font-size:13.5px;
+  box-shadow:0 10px 30px rgba(0,0,0,.3);transition:transform .3s;border-left:4px solid var(--red);pointer-events:none}
+#toast.show{transform:translateX(-50%) translateY(0)}
+#toast.ok{border-left-color:var(--green)}
+
+@media(max-width:820px){
+  .lrow{grid-template-columns:1fr 1fr;gap:8px}
+  .lrow.head{display:none}
+  .lrow.data{padding:16px}
+  .stock{grid-column:1/-1}
+  .acts{grid-column:1/-1;justify-content:flex-start}
+  .mast-right{text-align:left}
+}
+</style>
+</head>
+<body>
+
+<svg class="bg-chart" viewBox="0 0 1200 200" preserveAspectRatio="none" width="100%" height="200">
+  <polyline points="0,160 60,140 120,150 180,110 240,125 300,90 360,105 420,70 480,95 540,60 600,80 660,45 720,70 780,40 840,65 900,30 960,55 1020,25 1080,50 1140,20 1200,40"/>
+</svg>
+
+<div class="tape"><div class="tape-track" id="tapeTrack"></div></div>
+
+<div class="wrap">
+
+  <div class="masthead">
+    <div class="mast-left">
+      <div class="seal">AI<br>研报</div>
+      <div class="mast-title">
+        <h1>AI 股票分析报告</h1>
+        <div class="sub">AI EQUITY RESEARCH · VALUE INVESTING DESK</div>
+      </div>
+    </div>
+    <div class="mast-right">
+      <div class="clk" id="clk">--:--:--</div>
+      <div class="dte" id="dte">RESEARCH TERMINAL</div>
+    </div>
+  </div>
+
+  <div class="lede">
+    输入股票代码，AI 自动拉取<b>实时行情</b>与<b>近六年财务数据</b>，运行 <b>DCF 三情景估值</b>，
+    生成结构化价值投资分析报告。框架基于《股市真规则》帕特·多尔西（晨星标准）。
+    <b>红涨绿跌</b>，评级仅供参考。
+  </div>
+
+  <div class="gen">
+    <div class="gen-hd"><span class="no">STEP 01</span><h2>生成新报告</h2></div>
+    <div class="gen-row">
+      <input type="text" id="codeInput" placeholder="输入股票代码，如 600519 / 000858 / 00700" maxlength="6"
+        onkeydown="if(event.key==='Enter')generate()">
+      <select id="marketSel">
+        <option value="A">A 股</option>
+        <option value="HK">港股</option>
+      </select>
+      <button class="btn-gen" id="genBtn" onclick="generate()">生成报告</button>
+    </div>
+    <div class="gen-status" id="genStatus"><span class="spin"></span><span id="genMsg">正在拉取数据…</span></div>
+    <div class="gen-hint">提示：生成约需 30–90 秒（取决于数据源响应速度），请耐心等待，勿关闭页面。</div>
+  </div>
+
+  <div class="sec-hd">
+    <h2>报告台账 <span class="cnt" id="rcount">0</span></h2>
+    <div class="note">点击任意一行打开完整报告 · 按生成时间倒序</div>
+  </div>
+
+  <div class="ledger" id="ledger"></div>
+
+  <footer>
+    本页面所有报告由 AI 基于公开数据（AKShare / 腾讯行情）自动生成，仅供研究参考，不构成任何投资建议。<br>
+    投资有风险，入市需谨慎 · AI EQUITY RESEARCH TERMINAL
+  </footer>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+function $(id){return document.getElementById(id)}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function toast(msg,ok){var t=$('toast');t.textContent=msg;t.className=ok?'ok show':'show';
+  clearTimeout(t._h);t._h=setTimeout(function(){t.className=''},3200)}
+function api(path,payload,timeoutMs){
+  return new Promise(function(resolve){
+    var x=new XMLHttpRequest();x.open('POST',path,true);
+    x.setRequestHeader('Content-Type','application/json');
+    if(timeoutMs)x.timeout=timeoutMs;
+    x.onload=function(){try{resolve(JSON.parse(x.responseText))}catch(e){resolve(null)}};
+    x.onerror=function(){resolve(null)};x.ontimeout=function(){resolve(null)};
+    x.send(payload?JSON.stringify(payload):null);
+  });
+}
+
+var reports=[];
+
+/* ── 时钟 ── */
+function p2(n){return n<10?'0'+n:''+n}
+function tick(){
+  var d=new Date(),w='日一二三四五六'[d.getDay()];
+  $('clk').textContent=p2(d.getHours())+':'+p2(d.getMinutes())+':'+p2(d.getSeconds());
+  $('dte').textContent=d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate())+' 星期'+w;
+}
+setInterval(tick,1000);tick();
+
+/* ── 评级样式 ── */
+function ratingClass(r){
+  if(!r)return 'na';
+  if(r.indexOf('买入')>=0||r.indexOf('关注')>=0)return 'buy';
+  if(r.indexOf('观望')>=0||r.indexOf('持有')>=0)return 'hold';
+  if(r.indexOf('回避')>=0||r.indexOf('卖出')>=0)return 'sell';
+  return 'na';
+}
+
+/* ── 行情带 ── */
+function renderTape(){
+  var items=reports.slice(0,12);
+  if(!items.length){
+    $('tapeTrack').innerHTML='<span class="tape-item"><span class="tc">AI EQUITY RESEARCH</span><span class="up">价值投资 · 深度研究</span></span>'.repeat(6);
+    return;
+  }
+  var html=items.map(function(r){
+    var price=r.price!=null?Number(r.price).toFixed(2):'--';
+    var rt=r.rating?('<span class="rt rating '+ratingClass(r.rating)+'">'+esc(r.rating.replace(/[🟢🟡🔴]\s*/,''))+'</span>'):'';
+    return '<span class="tape-item"><span class="tc">'+esc(r.code)+'</span><span>'+esc(r.name||'')+'</span><span class="up">'+price+'</span>'+rt+'</span>';
+  }).join('');
+  $('tapeTrack').innerHTML=html+html; /* 复制一份实现无缝滚动 */
+}
+
+/* ── 报告列表 ── */
+function fmtTime(ts){
+  if(!ts)return '--';
+  var d=new Date(ts);
+  return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate())+' '+p2(d.getHours())+':'+p2(d.getMinutes());
+}
+function render(){
+  $('rcount').textContent=reports.length;
+  var L=$('ledger');
+  if(!reports.length){
+    L.innerHTML='<div class="empty"><div class="big">📭</div><p>还没有报告，在上方输入股票代码生成第一份</p></div>';
+    return;
+  }
+  var h='<div class="lrow head"><span>股票</span><span>评级</span><span>现价</span><span>内在价值区间</span><span>PE</span><span>生成时间</span><span style="text-align:right">操作</span></div>';
+  reports.forEach(function(r,i){
+    var price=r.price!=null?Number(r.price).toFixed(2):'--';
+    var pe=r.pe!=null&&r.pe!==''?Number(r.pe).toFixed(1):'--';
+    h+='<div class="lrow data" style="animation-delay:'+(i*0.05)+'s" onclick="openReport(\''+esc(r.filename)+'\')">'
+      +'<div class="stock"><div class="code">'+esc(r.code)+'</div><div class="nm">'+esc(r.name||'')+'</div></div>'
+      +'<div><span class="rating '+ratingClass(r.rating)+'">'+esc(r.rating||'—')+'</span></div>'
+      +'<div class="num">'+price+'<span class="lbl">现价(元)</span></div>'
+      +'<div class="num">'+esc(r.value_range||'--')+'<span class="lbl">内在价值(元)</span></div>'
+      +'<div class="num">'+pe+'<span class="lbl">PE(TTM)</span></div>'
+      +'<div class="gtime">'+fmtTime(r.ts)+'</div>'
+      +'<div class="acts">'
+      +'<button class="abtn open" onclick="event.stopPropagation();openReport(\''+esc(r.filename)+'\')">打开</button>'
+      +'<button class="abtn pdf" id="pdfbtn-'+esc(r.filename)+'" onclick="event.stopPropagation();downloadPdf(\''+esc(r.filename)+'\',\''+esc(r.code)+'\')">⬇ PDF</button>'
+      +'<button class="abtn del" onclick="event.stopPropagation();delReport(\''+esc(r.filename)+'\',\''+esc(r.code)+'\')">删除</button>'
+      +'</div></div>';
+  });
+  L.innerHTML=h;
+}
+
+function openReport(fn){window.open('stock-reports/'+fn,'_blank')}
+
+var pdfBusy={};
+async function downloadPdf(fn,code){
+  if(pdfBusy[fn])return;
+  var btn=$('pdfbtn-'+fn);
+  pdfBusy[fn]=true;
+  var old=btn.textContent;btn.textContent='生成中…';btn.disabled=true;
+  var r=await api('/api/reports/pdf',{filename:fn},180000);
+  pdfBusy[fn]=false;btn.disabled=false;btn.textContent=old;
+  if(r&&r.ok){
+    var a=document.createElement('a');
+    a.href='stock-reports/'+r.pdf;
+    a.download=code+'_价值投资分析报告.pdf';
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    toast('⬇ '+code+' PDF 已'+(r.cached?'下载':'生成并下载'),true);
+  }else{
+    toast('❌ '+((r&&r.error)||'PDF 生成失败'));
+  }
+}
+
+async function delReport(fn,code){
+  if(!confirm('确定删除 '+code+' 的报告？'))return;
+  var r=await api('/api/reports/delete',{filename:fn});
+  if(r&&r.ok){toast('已删除 '+code+' 的报告',true);load();}
+  else toast('删除失败');
+}
+
+/* ── 生成 ── */
+var generating=false;
+var statusMsgs=['正在拉取实时行情…','正在读取近六年财务数据…','正在计算现金流…','正在运行 DCF 三情景估值…','正在撰写分析报告…'];
+var statusTimer=null;
+async function generate(){
+  if(generating)return;
+  var code=$('codeInput').value.trim();
+  if(!/^\d{5,6}$/.test(code)){toast('请输入 5-6 位数字股票代码');$('codeInput').focus();return}
+  var market=$('marketSel').value;
+  generating=true;
+  $('genBtn').disabled=true;$('genBtn').textContent='生成中…';
+  $('genStatus').classList.add('on');
+  var mi=0;$('genMsg').textContent=statusMsgs[0];
+  statusTimer=setInterval(function(){mi=(mi+1)%statusMsgs.length;$('genMsg').textContent=statusMsgs[mi]},4000);
+
+  var r=await api('/api/reports/generate',{code:code,market:market},300000);
+
+  clearInterval(statusTimer);
+  generating=false;
+  $('genBtn').disabled=false;$('genBtn').textContent='生成报告';
+  $('genStatus').classList.remove('on');
+
+  if(r&&r.ok){
+    toast('✅ '+code+' 报告已生成',true);
+    $('codeInput').value='';
+    load();
+  }else{
+    toast('❌ '+((r&&r.error)||'生成失败，请稍后重试'));
+  }
+}
+
+/* ── 加载 ── */
+async function load(){
+  var r=await api('/api/reports/list',{});
+  reports=(r&&r.ok)?r.reports:[];
+  render();renderTape();
+}
+load();
+</script>
+</body>
+</html>

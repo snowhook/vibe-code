@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>股票舆情分析 · 雪球 × 东方财富</title>
+<style>
+:root {
+  --bg: #0d1117;
+  --panel: #161b22;
+  --panel2: #1c2333;
+  --border: #2d333b;
+  --text: #e6edf3;
+  --muted: #8b949e;
+  --blue: #58a6ff;
+  --green: #3fb950;
+  --red: #f85149;
+  --orange: #d29922;
+  --purple: #bc8cff;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", sans-serif;
+  min-height: 100vh;
+}
+.header {
+  background: linear-gradient(135deg, #1a2332 0%, #0d1117 100%);
+  border-bottom: 1px solid var(--border);
+  padding: 24px 32px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.header h1 { font-size: 24px; font-weight: 700; }
+.header h1 span { color: var(--blue); }
+.header .sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+.header .refresh { float: right; }
+.btn {
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 8px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all .2s;
+}
+.btn:hover { border-color: var(--blue); color: var(--blue); }
+.btn.primary { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+.btn.primary:hover { background: #388bfd; color: #fff; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.container { max-width: 1400px; margin: 0 auto; padding: 24px 32px; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.grid.full { grid-template-columns: 1fr; }
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  position: relative;
+}
+.panel h2 {
+  font-size: 17px; font-weight: 600; margin-bottom: 14px;
+  display: flex; align-items: center; gap: 8px;
+}
+.panel h2 .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.panel h2 .tag { font-size: 11px; color: var(--muted); font-weight: 400; margin-left: auto; }
+.post-list { list-style: none; }
+.post-item { padding: 10px 0; border-bottom: 1px solid var(--border); }
+.post-item:last-child { border-bottom: none; }
+.post-item .title {
+  font-size: 14px; line-height: 1.5; color: var(--text);
+  text-decoration: none; display: block;
+}
+.post-item .title:hover { color: var(--blue); }
+.post-item .meta {
+  font-size: 12px; color: var(--muted); margin-top: 5px;
+  display: flex; gap: 12px; flex-wrap: wrap;
+}
+.post-item .meta .src { color: var(--blue); }
+.badge {
+  display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px;
+}
+.badge.bull { background: rgba(63,185,80,.15); color: var(--green); }
+.badge.bear { background: rgba(248,81,73,.15); color: var(--red); }
+.badge.neutral { background: rgba(139,148,158,.15); color: var(--muted); }
+.badge.warm { background: rgba(210,153,34,.15); color: var(--orange); }
+.badge.cold { background: rgba(140,120,200,.15); color: var(--purple); }
+.badge.signal { background: rgba(63,185,80,.2); color: var(--green); font-weight: 600; }
+
+.stock-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.stock-table th {
+  text-align: left; color: var(--muted); font-weight: 500;
+  padding: 8px 6px; border-bottom: 1px solid var(--border); font-size: 12px;
+}
+.stock-table td { padding: 8px 6px; border-bottom: 1px solid #21262d; }
+.stock-table tr:hover td { background: rgba(88,166,255,.05); }
+.rank-num {
+  width: 24px; height: 24px; border-radius: 6px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; background: var(--panel2); color: var(--muted);
+}
+.rank-1 { background: #f0b429; color: #111; }
+.rank-2 { background: #c0c0c0; color: #111; }
+.rank-3 { background: #cd7f32; color: #fff; }
+.up { color: var(--red); }
+.down { color: var(--green); }
+
+.kw-wrap { display: flex; flex-wrap: wrap; gap: 10px; }
+.kw {
+  background: var(--panel2); border: 1px solid var(--border);
+  padding: 6px 14px; border-radius: 20px; font-size: 13px;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.kw .cnt { color: var(--blue); font-size: 12px; font-weight: 600; }
+.kw.code { border-color: rgba(188,140,255,.4); }
+.kw.code .cnt { color: var(--purple); }
+
+.value-post { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.value-post:last-child { border-bottom: none; }
+.value-post .info { flex: 1; min-width: 0; }
+.value-post .info a { color: var(--text); text-decoration: none; font-size: 14px; display: block; }
+.value-post .info a:hover { color: var(--green); }
+.value-post .info .meta { font-size: 12px; color: var(--muted); margin-top: 3px; }
+.signal-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.stock-search {
+  display: flex; gap: 12px; margin-bottom: 24px;
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 12px; padding: 20px; align-items: center;
+}
+.stock-search input {
+  flex: 1; background: var(--bg); border: 1px solid var(--border);
+  color: var(--text); padding: 10px 16px; border-radius: 8px;
+  font-size: 15px; outline: none;
+}
+.stock-search input:focus { border-color: var(--blue); }
+.stock-search .hint { color: var(--muted); font-size: 12px; }
+.footer { text-align: center; color: var(--muted); font-size: 12px; padding: 30px; }
+.empty { color: var(--muted); text-align: center; padding: 30px; font-size: 14px; }
+.time-badge { color: var(--muted); font-size: 12px; }
+
+/* ===== 加载遮罩：进度条 + 动画 + 计时 ===== */
+.loading-overlay {
+  position: fixed; inset: 0; z-index: 999;
+  background: rgba(13,17,23,.94);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 18px;
+}
+.loading-overlay.hidden { display: none; }
+.spinner {
+  width: 56px; height: 56px;
+  border: 4px solid rgba(88,166,255,.2);
+  border-top-color: var(--blue);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-title { font-size: 17px; font-weight: 600; }
+.loading-stage { color: var(--muted); font-size: 14px; min-height: 20px; }
+.loading-time { color: var(--blue); font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.progress-track {
+  width: 420px; max-width: 80vw; height: 10px;
+  background: var(--panel2); border-radius: 6px; overflow: hidden;
+}
+.progress-bar {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, #1f6feb, #58a6ff);
+  border-radius: 6px; transition: width .5s ease;
+  position: relative;
+}
+.progress-bar::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent);
+  animation: shine 1.4s infinite;
+}
+@keyframes shine { 0% { transform: translateX(-100%);} 100% { transform: translateX(100%);} }
+.loading-hint { color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="refresh">
+    <button class="btn primary" id="refreshBtn" onclick="refreshData()" disabled>🔄 刷新数据</button>
+  </div>
+  <h1>📊 股票舆情分析 <span>· 雪球 × 东方财富</span></h1>
+  <div class="sub" id="fetchedInfo">数据加载中…</div>
+</div>
+
+<!-- 加载遮罩 -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="loading-title">正在抓取舆情数据</div>
+  <div class="loading-stage" id="loadStage">准备中…</div>
+  <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
+  <div class="loading-time">已用时 <span id="loadTime">0.0</span> 秒</div>
+  <div class="loading-hint">首次加载需抓取雪球 + 东财数据（约 30~60 秒），之后 5 分钟内有缓存</div>
+</div>
+
+<div class="container" id="mainContainer" style="visibility:hidden">
+  <!-- 个股舆情搜索 -->
+  <div class="stock-search">
+    <input id="stockCode" type="text" placeholder="输入股票代码，如 600519（茅台）、300059（东方财富）" onkeydown="if(event.key==='Enter')goStock()">
+    <button class="btn primary" onclick="goStock()">🔍 抓取舆情分析</button>
+    <span class="hint">将抓取雪球 + 东财股吧帖子，进行情绪分析与报告生成</span>
+  </div>
+
+  <div class="grid">
+    <div class="panel">
+      <h2><span class="dot" style="background:#f0b429"></span>🔥 十大热门帖子 <span class="src">雪球</span><span class="tag" id="xqCount"></span></h2>
+      <ul class="post-list" id="xqPosts"><div class="empty">加载中…</div></ul>
+    </div>
+    <div class="panel">
+      <h2><span class="dot" style="background:#58a6ff"></span>🔥 十大热门帖子 <span class="src">东方财富股吧</span><span class="tag" id="emCount"></span></h2>
+      <ul class="post-list" id="emPosts"><div class="empty">加载中…</div></ul>
+    </div>
+    <div class="panel">
+      <h2><span class="dot" style="background:#f85149"></span>🏆 十大热股 <span class="src">东财人气榜</span></h2>
+      <div id="hotStocks"><div class="empty">加载中…</div></div>
+    </div>
+    <div class="panel">
+      <h2><span class="dot" style="background:#bc8cff"></span>🔑 十大热门关键词</h2>
+      <div id="kwBlock"><div class="empty">加载中…</div></div>
+    </div>
+  </div>
+
+  <div class="grid full" style="margin-top:20px">
+    <div class="panel">
+      <h2><span class="dot" style="background:#3fb950"></span>💰 "低估 / 买入机会" 信号帖<span class="tag" id="vpCount"></span></h2>
+      <div id="valuePosts"><div class="empty">加载中…</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">数据来源：雪球、东方财富股吧 · 仅供研究参考，不构成投资建议 · <span id="footTime"></span></div>
+
+<script>
+var startTs = Date.now();
+var timer = null;
+
+function fmtTime(ts) {
+  if (!ts) return '';
+  var d = new Date(ts * 1000);
+  function p(n){ return n < 10 ? '0'+n : n; }
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());
+}
+
+function sentimentBadge(label) {
+  var cls = 'neutral';
+  if (label === '乐观' || label === '偏暖') cls = 'bull';
+  if (label === '悲观' || label === '偏冷') cls = 'bear';
+  return '<span class="badge '+cls+'">'+label+'</span>';
+}
+
+function renderPosts(posts) {
+  if (!posts || !posts.length) return '<div class="empty">暂无数据</div>';
+  return posts.map(function(p){
+    var title = (p.text || p.title || '').slice(0, 80);
+    var time = p.created_at || p.time || '';
+    var user = p.user || p.author || '';
+    var extra = '';
+    if (p.source === '雪球') {
+      extra = '<span>🔄 '+p.retweet_count+'</span><span>👍 '+p.fav_count+'</span>';
+    } else {
+      extra = '<span>👁 '+p.read_count+'</span><span>💬 '+p.reply_count+'</span>';
+    }
+    return '<li class="post-item">' +
+      '<a class="title" href="'+p.url+'" target="_blank">'+title+'</a>' +
+      '<div class="meta"><span>👤 '+user+'</span><span>🕐 '+time+'</span>'+extra+
+      '<span>'+sentimentBadge(p.sentiment_label)+'</span></div></li>';
+  }).join('');
+}
+
+function renderStocks(stocks) {
+  if (!stocks || !stocks.length) return '<div class="empty">暂无数据</div>';
+  var rows = stocks.map(function(s){
+    var rcls = s.rank===1 ? 'rank-1' : (s.rank===2 ? 'rank-2' : (s.rank===3 ? 'rank-3' : ''));
+    var up = s.change_pct > 0;
+    var topic = '';
+    if (s.topic_name) {
+      topic = '<div style="font-size:11px;color:var(--muted);margin-top:2px">💬 ' +
+        (s.topic_discuss ? s.topic_discuss : '') +
+        (s.topic_discuss && s.topic_views ? ' / 👁 ' : '') +
+        (s.topic_views ? s.topic_views : '') +
+        ' <a href="'+s.topic_url+'" target="_blank" style="color:var(--orange)">#'+s.topic_name+'#</a></div>';
+    }
+    return '<tr><td><span class="rank-num '+rcls+'">'+s.rank+'</span></td>' +
+      '<td>'+s.code+'</td>' +
+      '<td><a href="/sentiment/stock?code='+s.code+'" style="color:var(--blue);text-decoration:none">'+s.name+'</a></td>' +
+      '<td>'+s.price+'</td>' +
+      '<td class="'+(up?'up':'down')+'">'+(up?'+':'')+s.change_pct+'%</td>' +
+      '<td style="max-width:220px">'+topic+'</td></tr>';
+  }).join('');
+  return '<table class="stock-table"><thead><tr><th>排名</th><th>代码</th><th>名称</th><th>最新价</th><th>涨跌幅</th><th>热门话题</th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+
+function renderKeywords(kws) {
+  if (!kws || !kws.length) return '<div class="empty">暂无数据</div>';
+  return kws.map(function(k){
+    return '<span class="kw '+(k.type==='code'?'code':'')+'">'+k.word+'<span class="cnt">×'+k.count+'</span></span>';
+  }).join('');
+}
+
+function renderValuePosts(posts) {
+  if (!posts || !posts.length) return '<div class="empty">当前没有检测到"低估/买入机会"信号帖</div>';
+  return posts.map(function(p){
+    var title = p.title || (p.text||'').slice(0,60);
+    var user = p.user || p.author || '';
+    var time = p.created_at || p.time || '';
+    var tags = (p.signals||[]).map(function(s){return '<span class="badge neutral">'+s+'</span>';}).join('');
+    return '<div class="value-post"><span class="badge signal">低估信号</span>' +
+      '<div class="info"><a href="'+p.url+'" target="_blank">'+title+'</a>' +
+      '<div class="meta"><span class="src">'+p.source+'</span> · 👤 '+user+' · 🕐 '+time+'</div></div>' +
+      '<div class="signal-tags">'+tags+'</div></div>';
+  }).join('');
+}
+
+function renderAll(data) {
+  document.getElementById('xqPosts').innerHTML = renderPosts(data.hot_posts.xueqiu);
+  document.getElementById('emPosts').innerHTML = renderPosts(data.hot_posts.eastmoney);
+  document.getElementById('hotStocks').innerHTML = renderStocks(data.hot_stocks);
+  document.getElementById('xqCount').textContent = (data.hot_posts.xueqiu||[]).length + ' 条';
+  document.getElementById('emCount').textContent = (data.hot_posts.eastmoney||[]).length + ' 条';
+  document.getElementById('vpCount').textContent = (data.value_posts||[]).length + ' 条';
+  var kwBlock = document.getElementById('kwBlock');
+  kwBlock.innerHTML =
+    '<div style="margin-bottom:14px"><div style="font-size:12px;color:var(--muted);margin-bottom:8px">雪球</div>' +
+    '<div class="kw-wrap">'+renderKeywords(data.keywords.xueqiu)+'</div></div>' +
+    '<div><div style="font-size:12px;color:var(--muted);margin-bottom:8px">东方财富</div>' +
+    '<div class="kw-wrap">'+renderKeywords(data.keywords.eastmoney)+'</div></div>';
+  document.getElementById('valuePosts').innerHTML = renderValuePosts(data.value_posts);
+  document.getElementById('fetchedInfo').textContent = '实时抓取雪球热帖与东财股吧 · 数据更新时间：' + fmtTime(data.fetched_at || Date.now()/1000);
+  document.getElementById('footTime').textContent = '生成于 ' + (data.fetched_at || '');
+  document.getElementById('refreshBtn').disabled = false;
+  document.getElementById('mainContainer').style.visibility = 'visible';
+}
+
+function startTimer() {
+  timer = setInterval(function(){
+    var el = (Date.now() - startTs) / 1000;
+    document.getElementById('loadTime').textContent = el.toFixed(1);
+  }, 100);
+}
+function stopTimer() {
+  if (timer) { clearInterval(timer); timer = null; }
+}
+
+function pollStatus() {
+  fetch('/sentiment/api/status').then(function(r){return r.json();}).then(function(st){
+    if (st.stage_label) document.getElementById('loadStage').textContent = st.stage_label;
+    document.getElementById('progressBar').style.width = (st.progress||0) + '%';
+  }).catch(function(){});
+}
+
+function loadHome() {
+  startTimer();
+  var poll = setInterval(pollStatus, 800);
+  fetch('/sentiment/api/home').then(function(r){return r.json();}).then(function(data){
+    clearInterval(poll);
+    // 若返回 loading（另一请求正在抓），等待重试
+    if (data.loading) {
+      setTimeout(loadHome, 1500);
+      return;
+    }
+    stopTimer();
+    var total = ((Date.now() - startTs)/1000).toFixed(1);
+    document.getElementById('loadTime').textContent = total;
+    document.getElementById('loadStage').textContent = '数据加载完成，共耗时 ' + total + ' 秒';
+    document.getElementById('progressBar').style.width = '100%';
+    renderAll(data);
+    setTimeout(function(){
+      document.getElementById('loadingOverlay').classList.add('hidden');
+    }, 500);
+  }).catch(function(e){
+    clearInterval(poll);
+    document.getElementById('loadStage').textContent = '加载失败：' + e;
+  });
+}
+
+function refreshData() {
+  var btn = document.getElementById('refreshBtn');
+  btn.disabled = true;
+  document.getElementById('loadingOverlay').classList.remove('hidden');
+  startTs = Date.now();
+  loadHome();
+  // 强制服务端清缓存重抓
+  fetch('/sentiment/api/refresh').then(function(){});
+}
+
+function goStock() {
+  var code = document.getElementById('stockCode').value.trim();
+  if (!code) { alert('请输入股票代码'); return; }
+  window.location.href = '/sentiment/stock?code=' + encodeURIComponent(code);
+}
+
+// 页面加载即启动
+loadHome();
+</script>
+</body>
+</html>

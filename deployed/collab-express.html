@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>二次元联动速递 · 漫展情报局</title>
+<style>
+:root{
+  --bg:#fdf4ff; --ink:#3b3352; --mut:#8d86a8;
+  --pink:#ff7eb6; --pink2:#ff5c9e; --purple:#a78bfa; --blue:#7dd3fc;
+  --card:#ffffff; --line:#f0dcef;
+  --c-live:#ff5c9e; --c-soon:#f59e0b; --c-end:#a8a3bb;
+  --body:'PingFang SC','Hiragino Sans GB','Microsoft YaHei','Noto Sans SC',sans-serif;
+  --disp:'ZCOOL KuaiLe','Baloo 2','PingFang SC','Microsoft YaHei',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:var(--body);color:var(--ink);background:var(--bg);min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;z-index:-2;
+  background:
+    radial-gradient(900px 500px at 12% -5%, rgba(255,126,182,.20), transparent 60%),
+    radial-gradient(800px 520px at 92% 8%, rgba(167,139,250,.20), transparent 60%),
+    radial-gradient(900px 600px at 50% 110%, rgba(125,211,252,.16), transparent 62%),
+    var(--bg);}
+.deco{position:fixed;z-index:-1;pointer-events:none;font-size:110px;opacity:.09;filter:blur(1px)}
+.deco.d1{top:7%;left:4%;animation:floaty 9s ease-in-out infinite}
+.deco.d2{top:24%;right:5%;font-size:88px;animation:floaty 11s ease-in-out infinite 1.5s}
+.deco.d3{bottom:12%;left:8%;font-size:80px;animation:floaty 10s ease-in-out infinite .7s}
+.deco.d4{bottom:32%;right:9%;font-size:96px;animation:floaty 12s ease-in-out infinite 2.2s}
+@keyframes floaty{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-24px) rotate(2deg)}}
+.petal{position:fixed;top:-4vh;z-index:0;pointer-events:none;font-size:15px;opacity:.7;animation:fall linear infinite}
+@keyframes fall{
+  0%{transform:translateY(0) translateX(0) rotate(0deg);opacity:0}
+  8%{opacity:.75}
+  100%{transform:translateY(108vh) translateX(9vw) rotate(340deg);opacity:.12}
+}
+.wrap{max-width:1180px;margin:0 auto;padding:0 22px 70px;position:relative;z-index:1}
+
+/* ── 头部 ── */
+header{text-align:center;padding:40px 0 22px;position:relative}
+.h-nav{display:flex;justify-content:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.h-nav a{font-size:12px;color:var(--pink2);text-decoration:none;background:#fff;border:1.5px solid var(--line);
+  border-radius:99px;padding:6px 14px;transition:all .18s;font-weight:700}
+.h-nav a:hover{background:var(--pink2);color:#fff;border-color:var(--pink2)}
+.h-badge{display:inline-flex;align-items:center;gap:8px;font-size:11px;letter-spacing:4px;color:#fff;
+  background:linear-gradient(90deg,var(--pink),var(--purple));padding:6px 18px;border-radius:99px;margin-bottom:14px;
+  box-shadow:0 6px 18px -6px rgba(255,94,158,.55);font-weight:700}
+h1{font-family:var(--disp);font-size:clamp(28px,5vw,48px);font-weight:900;line-height:1.2;
+  background:linear-gradient(120deg,#ff5c9e 10%,#a855f7 55%,#38bdf8 100%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:2px}
+.h-sub{margin-top:10px;color:var(--mut);font-size:13.5px;letter-spacing:1px}
+.h-sub b{color:var(--pink2)}
+.h-deco{margin-top:6px;font-size:20px;letter-spacing:14px;opacity:.85}
+
+/* ── 统计条 ── */
+.stats{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:10px 0 24px}
+.stat{background:rgba(255,255,255,.85);border:1.5px solid var(--line);border-radius:16px;padding:12px 22px;text-align:center;
+  min-width:108px;box-shadow:0 8px 20px -10px rgba(180,120,200,.25);transition:transform .2s}
+.stat:hover{transform:translateY(-4px)}
+.stat .n{font-family:var(--disp);font-size:26px;font-weight:900;color:var(--pink2)}
+.stat .l{font-size:11.5px;color:var(--mut);letter-spacing:1px;margin-top:2px}
+.stat.hot .n{color:#f59e0b}
+.stat.purple .n{color:#8b5cf6}
+.stat.blue .n{color:#0ea5e9}
+
+/* ── 工具栏 ── */
+.toolbar{background:rgba(255,255,255,.9);border:1.5px solid var(--line);border-radius:18px;padding:14px 16px;
+  box-shadow:0 10px 30px -14px rgba(180,120,200,.3);margin-bottom:22px;
+  display:flex;gap:10px;flex-wrap:wrap;align-items:center;position:sticky;top:10px;z-index:20;backdrop-filter:blur(8px)}
+.tb-tabs{display:flex;background:#f7e8f2;border-radius:12px;padding:4px;gap:4px;flex-wrap:wrap}
+.tb-tab{border:none;background:transparent;padding:8px 15px;border-radius:9px;cursor:pointer;font-size:13px;font-weight:700;
+  color:var(--mut);font-family:var(--body);transition:all .18s;white-space:nowrap}
+.tb-tab.on{background:linear-gradient(120deg,var(--pink),#c084fc);color:#fff;box-shadow:0 4px 12px -3px rgba(255,94,158,.5)}
+.tb-search{flex:1;min-width:170px;position:relative}
+.tb-search input{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:9px 14px 9px 36px;font-size:13.5px;
+  background:#fff;color:var(--ink);font-family:var(--body);transition:border-color .15s,box-shadow .15s}
+.tb-search input:focus{outline:none;border-color:var(--pink);box-shadow:0 0 0 3px rgba(255,126,182,.18)}
+.tb-search::before{content:'🔍';position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:13px;opacity:.65}
+.sel{border:1.5px solid var(--line);border-radius:12px;padding:9px 12px;font-size:13px;background:#fff;color:var(--ink);
+  font-family:var(--body);cursor:pointer;max-width:150px;transition:border-color .15s}
+.sel:focus{outline:none;border-color:var(--purple)}
+.tb-chip{display:inline-flex;align-items:center;gap:5px;background:#ffe4f1;color:var(--pink2);border-radius:99px;
+  padding:5px 13px;font-size:12px;font-weight:700;cursor:pointer;border:none;transition:all .15s}
+.tb-chip:hover{background:var(--pink2);color:#fff}
+.result-info{width:100%;font-size:12px;color:var(--mut);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px}
+.legend{display:flex;gap:12px;flex-wrap:wrap}
+.lg{display:inline-flex;align-items:center;gap:5px}
+.dot{width:8px;height:8px;border-radius:50%}
+
+/* ── 分组标题 ── */
+.cat-sec{margin-bottom:30px}
+.cat-hd{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.cat-hd .blob{font-family:var(--disp);font-size:18px;font-weight:900;color:#fff;padding:7px 18px;border-radius:14px;
+  box-shadow:0 6px 16px -6px rgba(168,85,247,.5)}
+.cat-hd.tea .blob{background:linear-gradient(120deg,#ff7eb6,#ff5c9e)}
+.cat-hd.food .blob{background:linear-gradient(120deg,#fb923c,#f59e0b)}
+.cat-hd.fash .blob{background:linear-gradient(120deg,#a78bfa,#8b5cf6)}
+.cat-hd .cnt{font-size:12px;color:var(--mut)}
+.cat-hd::after{content:'';flex:1;height:2px;background:linear-gradient(90deg,var(--line),transparent);border-radius:2px}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+
+/* ── 联动卡片 ── */
+.card{background:var(--card);border:1.5px solid var(--line);border-radius:18px;overflow:hidden;position:relative;
+  transition:transform .2s,box-shadow .2s,border-color .2s;display:flex;flex-direction:column;
+  animation:cardIn .45s cubic-bezier(.2,.7,.3,1) both;padding:16px 16px 14px}
+@keyframes cardIn{from{opacity:0;transform:translateY(18px) scale(.98)}to{opacity:1;transform:none}}
+.card:hover{transform:translateY(-5px);border-color:var(--pink);box-shadow:0 18px 40px -14px rgba(255,94,158,.3)}
+.card.end{opacity:.72}
+.card.end:hover{opacity:.95}
+.c-top{display:flex;align-items:flex-start;gap:10px;margin-bottom:9px}
+.brand-em{width:46px;height:46px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;
+  background:linear-gradient(135deg,#ffe4f1,#ede9fe);box-shadow:0 4px 10px -4px rgba(180,120,200,.3)}
+.c-title{flex:1;min-width:0}
+.c-vs{font-family:var(--disp);font-size:16.5px;font-weight:900;line-height:1.35;color:var(--ink)}
+.c-vs .x{color:var(--pink2);margin:0 5px;font-size:13px}
+.c-tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
+.tag{font-size:10.5px;font-weight:700;padding:2.5px 9px;border-radius:99px;letter-spacing:.5px}
+.tag.brand{background:#ffe4f1;color:#e0489a}
+.tag.ip-game{background:#dbeafe;color:#2563eb}
+.tag.ip-anime{background:#fce7f3;color:#db2777}
+.tag.ip-char{background:#fef3c7;color:#d97706}
+.tag.ip-comic{background:#ede9fe;color:#7c3aed}
+.tag.region{background:#f1f5f9;color:#64748b}
+.badge{position:absolute;top:12px;right:12px;font-size:11px;font-weight:800;padding:4px 11px;border-radius:99px;color:#fff;letter-spacing:1px}
+.badge.live{background:linear-gradient(90deg,#ff5c9e,#ff8a5c);box-shadow:0 4px 12px -3px rgba(255,92,158,.55);animation:blink 1.6s ease-in-out infinite}
+@keyframes blink{50%{opacity:.72}}
+.badge.soon{background:linear-gradient(90deg,#f59e0b,#fbbf24)}
+.badge.end{background:#b6b0c6}
+.c-date{font-size:12px;color:var(--mut);margin-bottom:8px;display:flex;align-items:center;gap:5px}
+.c-desc{font-size:12.5px;line-height:1.75;color:#5c5478;flex:1}
+.c-desc b{color:var(--pink2)}
+.perks{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px}
+.perk{font-size:11px;background:#fdf2f8;border:1px solid #f3d9e8;color:#b8548f;padding:3px 9px;border-radius:8px}
+.c-ft{margin-top:11px;padding-top:10px;border-top:1px dashed var(--line);display:flex;justify-content:space-between;align-items:center;gap:8px}
+.hot-note{font-size:11px;color:#f59e0b;font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.src-link{font-size:11.5px;color:var(--purple);text-decoration:none;font-weight:700;white-space:nowrap}
+.src-link:hover{color:var(--pink2);text-decoration:underline}
+
+.empty{text-align:center;padding:70px 0;color:var(--mut)}
+.empty .big{font-size:54px;margin-bottom:14px}
+.empty p{font-size:13.5px;line-height:2}
+
+/* ── 实时情报流 ── */
+.feed-list{display:flex;flex-direction:column;gap:10px}
+.feed-item{display:flex;gap:12px;align-items:flex-start;background:rgba(255,255,255,.9);border:1.5px solid var(--line);
+  border-radius:14px;padding:13px 16px;text-decoration:none;transition:all .18s;animation:cardIn .4s cubic-bezier(.2,.7,.3,1) both}
+.feed-item:hover{transform:translateX(6px);border-color:var(--purple);box-shadow:0 10px 26px -12px rgba(167,139,250,.4)}
+.feed-date{flex-shrink:0;width:56px;text-align:center;background:linear-gradient(135deg,#f3e8ff,#fce7f3);border-radius:10px;
+  padding:6px 4px;font-size:11px;font-weight:800;color:#8b5cf6;line-height:1.4}
+.feed-date .fd-d{font-size:15px}
+.feed-bd{flex:1;min-width:0}
+.feed-title{font-size:13.5px;font-weight:700;color:var(--ink);line-height:1.5;margin-bottom:3px}
+.feed-item:hover .feed-title{color:var(--pink2)}
+.feed-snip{font-size:12px;color:var(--mut);line-height:1.6;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.feed-empty{text-align:center;color:var(--mut);font-size:13px;padding:26px 0;background:rgba(255,255,255,.7);
+  border:1.5px dashed var(--line);border-radius:14px}
+
+footer{text-align:center;margin-top:44px;color:var(--mut);font-size:12px;line-height:2.1}
+footer a{color:var(--purple);text-decoration:none}
+footer a:hover{text-decoration:underline}
+
+#toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(20px);background:rgba(59,51,82,.92);color:#fff;
+  padding:10px 22px;border-radius:99px;font-size:13px;opacity:0;pointer-events:none;transition:all .3s;z-index:99}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@media(max-width:640px){
+  .grid{grid-template-columns:1fr}
+  .toolbar{position:static}
+}
+</style>
+</head>
+<body>
+<div class="deco d1">🧋</div><div class="deco d2">🍔</div><div class="deco d3">👕</div><div class="deco d4">✨</div>
+
+<div class="wrap">
+<header>
+  <div class="h-nav">
+    <a href="manga-expo.html">🎪 返回 漫展情报局</a>
+  </div>
+  <div class="h-badge">✦ COLLAB EXPRESS ✦ 品牌×IP 跨界情报</div>
+  <h1>二次元联动速递</h1>
+  <div class="h-sub">奶茶 🧋 快餐 🍔 时尚 👕 × 动漫/游戏/角色 IP · 收录 <b id="h-total">--</b> 起联动 · 数据更新：<b id="h-updated" style="color:#7dd3fc">加载中…</b></div>
+  <div class="h-deco">🧋 🍔 👕 ⚡ 🎀</div>
+</header>
+
+<div class="stats">
+  <div class="stat"><div class="n" id="st-total">0</div><div class="l">收录联动</div></div>
+  <div class="stat hot"><div class="n" id="st-live">0</div><div class="l">🔥 进行中</div></div>
+  <div class="stat purple"><div class="n" id="st-soon">0</div><div class="l">📅 即将开始</div></div>
+  <div class="stat blue"><div class="n" id="st-brand">0</div><div class="l">🏷️ 涉及品牌</div></div>
+</div>
+
+<div class="toolbar" id="toolbar">
+  <div class="tb-tabs">
+    <button class="tb-tab on" data-cat="" onclick="setCat('')">🌈 全部</button>
+    <button class="tb-tab" data-cat="tea" onclick="setCat('tea')">🧋 奶茶饮品</button>
+    <button class="tb-tab" data-cat="food" onclick="setCat('food')">🍔 快餐餐饮</button>
+    <button class="tb-tab" data-cat="fash" onclick="setCat('fash')">👕 时尚服饰</button>
+  </div>
+  <div class="tb-search"><input id="q" placeholder="搜索品牌 / IP / 关键词…" oninput="onFilter()"></div>
+  <select class="sel" id="f-status" onchange="onFilter()">
+    <option value="">全部状态</option>
+    <option value="live">🔥 进行中</option>
+    <option value="soon">📅 即将开始</option>
+    <option value="end">已结束</option>
+  </select>
+  <select class="sel" id="f-iptype" onchange="onFilter()">
+    <option value="">全部IP类型</option>
+    <option value="game">🎮 游戏</option>
+    <option value="anime">📺 动画/国漫</option>
+    <option value="comic">📖 漫画</option>
+    <option value="char">🧸 角色形象/潮玩</option>
+  </select>
+  <button class="tb-chip" onclick="clearFilter()" id="chip-clear" style="display:none">✕ 清除筛选</button>
+  <button class="tb-chip" onclick="refreshFeed(true)" id="btn-refresh" style="background:linear-gradient(90deg,#a78bfa,#7dd3fc);color:#fff">
+    <span id="refresh-ico">🔄</span> <span id="refresh-txt">刷新情报</span>
+  </button>
+  <div class="result-info">
+    <span id="r-count"></span>
+    <span class="legend">
+      <span class="lg"><span class="dot" style="background:#ff5c9e"></span>进行中</span>
+      <span class="lg"><span class="dot" style="background:#f59e0b"></span>即将开始</span>
+      <span class="lg"><span class="dot" style="background:#a8a3bb"></span>已结束</span>
+    </span>
+  </div>
+</div>
+
+<div id="view-area"></div>
+
+<!-- 实时情报（刷新拉取） -->
+<div class="news-sec" id="feed-sec" style="margin-top:34px">
+  <div class="sec-hd" style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+    <span style="font-size:20px">📡</span>
+    <b style="font-family:var(--disp);font-size:18px;color:var(--ink)">实时联动情报流</b>
+    <span id="feed-meta" style="font-size:12px;color:var(--mut)">点上方「🔄 刷新情报」拉取最新网络情报</span>
+  </div>
+  <div id="feed-list" class="feed-list"></div>
+</div>
+
+<footer>
+  二次元联动速递 · 漫展情报局子模块 · 实时情报流：进入页面自动拉取（来源：SearXNG 聚合搜索）· 精选联动档案库采集于 2026-08-04（来源：界面新闻/雷报、wuhu动画人空间、餐饮情报站、各品牌官方公告及公开报道）<br>
+  联动时间/周边以品牌方官方公告为准 · 点击「情报来源」可查看原始报道 · <a href="manga-expo.html">返回漫展情报局 →</a>
+</footer>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* cat: tea=奶茶饮品 food=快餐餐饮 fash=时尚服饰
+   ipType: game/anime/comic/char
+   s=开始日期 e=结束日期(可空=长期/未定) */
+var COLLABS=[
+/* ────────── 进行中 / 近期重点 ────────── */
+{brand:"霸王茶姬",em:"🍵",cat:"tea",ip:"王者荣耀",ipType:"game",title:"霸王茶姬 × 王者荣耀",s:"2026-07-24",e:"2026-08-12",
+ desc:"携手国民手游推出<b>青沫观音系列</b>联动款鲜奶茶/纯茶，「开盲杯」玩法；游戏内同步上线<b>「种茶得茶」</b>活动（7.23-8.12），可赢联动款兑换券；限定周边分波次上架。",
+ perks:["青沫观音联动款","限定周边","游戏内兑换券","主题盲杯"],region:"全国",hot:"🔥 上线即热搜，花旗下调目标价仍挡不住联名热度",
+ url:"https://www.233leyuan.com/post-detail/2080226602811752448"},
+
+{brand:"肯德基",em:"🍗",cat:"food",ip:"绝区零",ipType:"game",title:"肯德基 × 绝区零（米哈游）",s:"2026-07-24",e:"2026-08-31",
+ desc:"偶像舞台主题联动！三款联动桶餐（<b>55元「天使降临桶」</b>等），购买即得妄想天使实体周边+游戏CDK；K-Land 线上抽签；<b>上海徐汇漕宝路限定快闪</b>（7.25-7.31）线上秒空、线下引爆。",
+ perks:["联动桶餐","徽章谷美套组","游戏CDK","上海快闪店","帆布袋"],region:"全国",hot:"🔥 联动套餐公布即抢购狂潮，网友自制「千夏小背心」再出圈",
+ url:"https://www.sohu.com/a/1052355040_122511859"},
+
+{brand:"麦当劳",em:"🍟",cat:"food",ip:"Chiikawa 吉伊卡哇",ipType:"char",title:"麦当劳 × Chiikawa 开心乐园餐",s:"2026-07-29",e:"2026-09-01",
+ desc:"开心乐园餐上新<b>吉伊卡哇系列玩具共8款</b>（吉伊/小八/乌萨奇/栗子馒头等），款式随机，部分餐厅适用。六一「星星人合唱团」联名之后麦当劳再度出击。",
+ perks:["8款随机玩具","开心乐园餐"],region:"全国（部分餐厅）",hot:"🔥 六一星星人联名话题播放量曾破1.5亿",
+ url:"https://www.mcdonalds.com.cn/news/20260729-HM/"},
+
+{brand:"柠季",em:"🍋",cat:"tea",ip:"纸嫁衣",ipType:"game",title:"柠季 × 纸嫁衣",s:"2026-07-16",e:"2026-08-31",
+ desc:"中式民俗悬疑解谜游戏《纸嫁衣》第九部《罗浮梦》上线之际，以<b>「九世约，只待柠」</b>为主题跨界联名：两款红心芭乐限定新品+多款联名周边，全国落地<b>15家联名主题店</b>。",
+ perks:["限定新品2款","联名周边","15家主题店"],region:"全国",hot:"红心芭乐清甜赴约，民俗悬疑风格茶饮少见",
+ url:"https://www.canyin88.com/zixun/2026-07-16/112567.html"},
+
+{brand:"优衣库UT",em:"👕",cat:"fash",ip:"ONE PIECE 海贼王",ipType:"comic",title:"优衣库UT × 海贼王「艾尔巴夫篇」",s:"2026-07-20",e:"",
+ desc:"配合动画艾尔巴夫篇热度，UT 推出巨人岛主题 artwork T恤系列，人气角色与名场面印花；日本 7 月下旬全面发售，国内同步上架。",
+ perks:["artwork T恤","艾尔巴夫篇限定"],region:"全球",hot:"海贼王 IP 常青树，UT 系列常年抢购",
+ url:"https://hypebeast.com/2026/7/uniqlo-ut-one-piece-elbaph-arc-artwork-t-shirt-collection-release-info"},
+
+{brand:"优衣库",em:"👕",cat:"fash",ip:"鬼灭之刃",ipType:"comic",title:"优衣库 × 鬼灭之刃 第二波",s:"2026-08-08",e:"",
+ desc:"延续夏季合作推出第二弹：除 T恤外首推<b>托特包、限量方巾</b>，网购加赠限量纸箱，收藏党狂喜。",
+ perks:["T恤","托特包","限量方巾","网购限定纸箱"],region:"全国",hot:"首推包袋周边，8月上市",
+ url:"https://www.maideyi.com/a59598"},
+
+{brand:"老赖茶栈",em:"🧋",cat:"tea",ip:"全职猎人",ipType:"comic",title:"老赖茶栈 × 全职猎人 HUNTER×HUNTER",s:"2026-08-03",e:"2026-08-31",
+ desc:"台系手摇茶联手《猎人》：白桃乌龙恋爱系新品（白桃乌龙/桃桃乌龙/奶盖桃桃/桃桃乌龙奶茶），<b>8月3日起</b>全台门市买冷饮送<b>猎人限定随机杯身</b>，送完为止。",
+ perks:["白桃乌龙系列","限定随机杯身"],region:"中国台湾",hot:"今夏最强手摇联名之一",
+ url:"https://tyenews.com/2026-08-1389504/"},
+
+{brand:"沪上阿姨",em:"🧋",cat:"tea",ip:"鹅鸭杀",ipType:"game",title:"沪上阿姨 × 鹅鸭杀",s:"2026-07-20",e:"",
+ desc:"港股上市后的沪上阿姨跨界联动派对游戏《鹅鸭杀》，合作营销同步官宣，门店超1.3万家的渠道力加持，联动话题迅速出圈。",
+ perks:["联名饮品","合作周边"],region:"全国",hot:"券商研报点名的近期跨界案例",
+ url:"https://finance.sina.com.cn/stock/hkstock/marketalerts/2026-07-24/doc-iniiwkuk9307047.shtml"},
+
+{brand:"古茗",em:"🧋",cat:"tea",ip:"魔道祖师",ipType:"anime",title:"古茗 × 魔道祖师（持续营业中）",s:"2026-07-01",e:"",
+ desc:"「流量真神」魔道祖师与古茗的深度绑定：联名套餐、徽章/贴纸/亚克力/保温袋周边齐全，还曾为<b>魏婴生辰</b>策划线下庆生（无人机取消还发道歉信）。魔道祖师 IP 已先后与古茗、益禾堂、茉莉奶白、沪上阿姨、华莱士等多品牌联动，场场排队。",
+ perks:["联名套餐","亚克力吧唧","保温袋","生辰主题活动"],region:"全国",hot:"🔥 魔道祖师=茶饮联名流量密码，多次联动均现象级",
+ url:"https://m.gafei.com/views-139505"},
+
+{brand:"华莱士",em:"🍔",cat:"food",ip:"魔道祖师",ipType:"anime",title:"华莱士 × 魔道祖师",s:"2026-04-22",e:"2026-06-30",
+ desc:"「全鸡汉堡」联手魔道祖师，第一弹攻略即刷屏，周边被粉丝喊话「别放着积灰」；国产快餐+国产动画的性价比之选。",
+ perks:["联名套餐","角色周边"],region:"全国",hot:"4.22 联名潮中的人气组合",
+ url:"https://www.bilibili.com/video/BV1vioWBNEep/"},
+
+{brand:"茶百道",em:"🐼",cat:"tea",ip:"崩坏：星穹铁道",ipType:"game",title:"茶百道 × 崩坏：星穹铁道",s:"2026-04-25",e:"2026-06-30",
+ desc:"人设绑定型深度跨圈层营销：联名饮品口味对应角色设定，上线 3 天登微博/抖音/B站三平台热搜 TOP10；限定<b>联名杯套+亚克力挂件</b>部分门店开门 1 小时售空，首日排队「彻底爆了」。",
+ perks:["角色主题饮品","联名杯套","亚克力挂件"],region:"全国",hot:"🔥 销量与排队双爆，亦有「茶饮联动二游难」的复盘讨论",
+ url:"https://www.rpcyzx.com/player-confession/cbdxxqtdldqzn2026xdzbzmqddbkqhz/"},
+
+{brand:"星巴克",em:"☕",cat:"tea",ip:"MOLLY（泡泡玛特）",ipType:"char",title:"星巴克 × 泡泡玛特 MOLLY 20周年",s:"2026-07-08",e:"2026-08-31",
+ desc:"<b>7月8日</b>首度联动泡泡玛特人气IP MOLLY：以「MOLLY爱的这杯」为主题，推出全新升级<b>软雪星冰乐</b>系列+限定潮玩周边。星巴克 2026 联名马拉松（周杰伦→SHAKE冰摇→MOLLY）的最新一站。",
+ perks:["软雪星冰乐","20周年限定","潮玩周边"],region:"全国",hot:"星巴克今年联名几乎没停过",
+ url:"https://m.adquan.com/detail/0-361771"},
+
+{brand:"瑞幸",em:"☕",cat:"tea",ip:"迪士尼反派",ipType:"char",title:"瑞幸 × 迪士尼反派",s:"2026-08-10",e:"2026-08-17",
+ desc:"<b>8.10-8.17</b>反派主题周边轮番上线：<b>毒皇后&玛琳菲森双IP</b>，杯子、纸袋、小配件一应俱全，暗黑风颜值在线。",
+ perks:["双IP周边","杯子纸袋","小配件"],region:"全国",hot:"即将开始，反派粉蹲好",
+ url:"https://www.douyin.com/note/7669802688608088262"},
+
+{brand:"瑞幸",em:"☕",cat:"tea",ip:"小黄人",ipType:"char",title:"瑞幸 × 小黄人 夏日狂欢",s:"2026-07-01",e:"2026-08-31",
+ desc:"接连推出两波<b>长线联名营销</b>：持续产出阶段性社交热点、激活夏日消费，强化品牌「年轻鲜活、轻松有趣」标签。",
+ perks:["两波长线联名","夏日主题"],region:"全国",hot:"长线联名打法样本",
+ url:"https://socialbeta.com/campaign/27847"},
+
+{brand:"瑞幸",em:"☕",cat:"tea",ip:"ButterBear 黄油小熊",ipType:"char",title:"瑞幸 × ButterBear 黄油小熊",s:"2026-07-25",e:"2026-08-20",
+ desc:"毛茸茸的棕黄色顶流小熊联名上线，周边光速传播中；注意：本次限定<b>必须官方渠道下单</b>才能得联名周边，规则曾引争议。",
+ perks:["联名周边","官方渠道限定"],region:"全国",hot:"🔥 黄油小熊=当下顶流",
+ url:"https://m.gafei.com/views-139447"},
+
+{brand:"库迪",em:"☕",cat:"tea",ip:"斩神",ipType:"anime",title:"库迪 × 斩神 第二弹",s:"2026-06-15",e:"2026-08-31",
+ desc:"《斩神》第二弹联名：<b>沈青竹林七夜手机气囊透卡</b>等情怀周边上线；此前库迪还联名过帕丁顿熊（《帕丁顿顿3》上映前抢先）、蜘蛛侠冷变杯等。",
+ perks:["透卡","周边"],region:"全国",hot:"库迪二次元联名常客",
+ url:"https://tvgame.taobao.com/topic/dongmanhuizhang_3/3cdefa29a56382ec80ceeb3b4c9c6529"},
+
+{brand:"星巴克(美国)",em:"☕",cat:"tea",ip:"Dandy World",ipType:"char",title:"星巴克(美国) × Dandy World",s:"2026-07-25",e:"2026-08-31",
+ desc:"海外线情报：Orange Cream 饮品系列+Dandy World 限定周边，主打夏日怀旧氛围。",
+ perks:["Orange Cream饮品","限定周边"],region:"美国",hot:"海外怀旧企划",
+ url:"https://about.starbucks.com/stories/2026/enjoy-peak-summer-nostalgia-with-orange-cream-drinks-and-ne"},
+
+/* ────────── 即将开始 ────────── */
+{brand:"肯德基(日本)",em:"🍗",cat:"food",ip:"赛马娘",ipType:"game",title:"肯德基(日本) × 赛马娘 Pretty Derby",s:"2026-08-12",e:"2026-09-30",
+ desc:"网络订餐限定两款<b>1500日元联名套餐</b>，新绘插画周边、SSR支援卡、首支主题曲，还有相模原「包装门店」彩蛋。",
+ perks:["联名套餐","新绘周边","SSR支援卡","主题包装店"],region:"日本",hot:"8月12日开跑，训练员集合",
+ url:"https://may-money.com/zh/food-kfc-campaign-20260729-zh/"},
+
+/* ────────── 近期已结束（参考案例）────────── */
+{brand:"必胜客",em:"🍕",cat:"food",ip:"光与夜之恋",ipType:"game",title:"必胜客 × 光与夜之恋",s:"2026-06-25",e:"2026-07-08",
+ desc:"6月25日10点预售开启，联名套餐+全套周边（6.25-7.08），乙女玩家保姆级攻略刷屏；深圳欢乐海岸还有 8.23-8.24 快闪（无料+人偶）。",
+ perks:["联名套餐","全套周边","快闪活动"],region:"全国",hot:"乙游玩家购买力再次验证",
+ url:"https://www.sohu.com/a/1041611457_121123870"},
+
+{brand:"喜茶",em:"🧋",cat:"tea",ip:"原神",ipType:"game",title:"喜茶 × 原神",s:"2026-02-01",e:"2026-06-30",
+ desc:"神里兄妹/甘雨申鹤款限定套餐（38元/76元），购买得<b>联名徽章、立牌</b>周边；随单附联动兑换码（100原石+经验+魔矿，码有效期至6.30）。多城市指定门店参与。",
+ perks:["角色套餐","徽章/立牌","游戏兑换码"],region:"全国（指定门店）",hot:"「喜茶×原神」系列已办多弹，周边收藏市场活跃",
+ url:"https://www.rpcyzx.com/player-confession/2026xcysldqjxldlxcjflhqglwjkwbck/"},
+
+{brand:"喜茶",em:"🧋",cat:"tea",ip:"Hello Kitty",ipType:"char",title:"喜茶 × Hello Kitty",s:"2026-01-15",e:"2026-03-31",
+ desc:"喜茶 2026 开年第一联！分两波上线：首款<b>联名毛绒挂件</b>+超限定<b>口金包</b>，小程序下单自取/外卖均附联名包材、灵感小卡与杯套。",
+ perks:["毛绒挂件","口金包","联名包材"],region:"全国",hot:"Kitty 大小姐承包开年少女心",
+ url:"https://www.douyin.com/search/%E5%96%9C%E8%8C%B62026%E5%B9%B4%E8%81%94%E5%90%8D%E6%AC%BE"},
+
+{brand:"摩斯汉堡(日本)",em:"🍔",cat:"food",ip:"拓麻歌子",ipType:"char",title:"摩斯汉堡 × 拓麻歌子 30周年 第二弹",s:"2026-07-15",e:"2026-09-30",
+ desc:"儿童套餐附赠原创插画赠品4款：闪亮贴纸、迷你透明盒、信件手提袋、圆珠笔，数量有限售至9月下旬。电子宠物怀旧回潮的代表案例。",
+ perks:["4款儿童餐赠品","原创插画"],region:"日本",hot:"拓麻歌子30周年联名潮",
+ url:"https://may-money.com/zh/food-mosburger-tamagotchi-collab-20260710-zh/"},
+
+{brand:"寿司郎(日本)",em:"🍣",cat:"food",ip:"Hello Kitty",ipType:"char",title:"寿司郎 × Hello Kitty 首次联名",s:"2026-07-29",e:"2026-08-31",
+ desc:"「KAWAUMA HELLO KITTY」全国开跑：装饰签寿司、贴纸甜点、玩偶饮料、拉链收纳包、5%优惠券，另有<b>5家特别主题店</b>。",
+ perks:["限定周边","5家主题店","优惠券"],region:"日本",hot:"首次联名即全攻略级别",
+ url:"https://may-money.com/zh/food-sushiro-hellokitty-collab-20260717-zh/"},
+
+{brand:"麦当劳(日本)",em:"🍟",cat:"food",ip:"宝可梦",ipType:"anime",title:"麦当劳(日本) × 宝可梦30周年「夏日祭」",s:"2026-07-22",e:"2026-08-31",
+ desc:"纪念日本麦当劳55周年 × 宝可梦诞生30周年：<b>8款限定汉堡</b>（3款主力）+限定包装+特别体验，全国门店开跑。",
+ perks:["8款限定汉堡","限定包装"],region:"日本",hot:"双周年庆企划，声量拉满",
+ url:"https://www.ali213.net/news/html/2026-7/1023545.html"},
+
+{brand:"Mikio Sakabe",em:"👟",cat:"fash",ip:"新世纪福音战士 EVA",ipType:"anime",title:"Mikio Sakabe × EVA 胶囊系列",s:"2026-07-10",e:"",
+ desc:"日本设计师 Mikio Sakabe 以《EVA》为灵感的胶囊系列：科幻热血场面化作<b>未来感包袋与鞋履</b>，Hypebae 报道发售信息。",
+ perks:["胶囊系列","包袋","鞋履"],region:"日本/线上",hot:"高级时装化动漫联名的新样本",
+ url:"https://hypebae.com/sc/2026/7/mikio-sakabe-anime-evangelion-collaboration-collection-where-to-buy"},
+
+{brand:"VIS",em:"👗",cat:"fash",ip:"Hello Kitty",ipType:"char",title:"VIS × Hello Kitty「夏日晒黑」限定",s:"2026-07-10",e:"",
+ desc:"趣味「夏日晒黑」设计主题：包袋、T恤及挂饰等单品，全国 VIS 门店及 J'aDoRe JUN ONLINE 发售。",
+ perks:["包袋","T恤","挂饰"],region:"日本",hot:"晒黑 Kitty 反差萌",
+ url:"https://www.haveagood-holiday.com/zh-CN/articles/hello-kitty-vis-tanned-summer-collection-2026"},
+
+{brand:"优衣库UT",em:"👕",cat:"fash",ip:"集英社百年漫画（咒术回战/全职猎人等）",ipType:"comic",title:"优衣库UT × 集英社百年漫画联名",s:"2026-03-16",e:"2028-03-31",
+ desc:"优衣库史上规模最大漫画 IP 项目：两年内推出约<b>100款</b>漫画主题设计，分三弹释放。第一弹集结《咒术回战》《全职猎人》《幽游白书》《圣斗士星矢》《足球小将》等国民动漫。",
+ perks:["100款设计","三弹发售","国民漫画集结"],region:"全球",hot:"长期企划，漫画迷可持续蹲守",
+ url:"https://ip365x.com/news/info/18107"},
+
+/* ────────── 经典战绩（2025 现象级回顾）────────── */
+{brand:"CoCo都可",em:"🧋",cat:"tea",ip:"鸣潮",ipType:"game",title:"CoCo都可 × 鸣潮",s:"2025-11-21",e:"2026-01-31",
+ desc:"现象级开放世界 RPG《鸣潮》跨界联名，IP 元素与茶饮场景深度融合，引爆现象级消费热潮，被业内视为「茶饮+游戏」生态新范本。",
+ perks:["联名饮品","主题门店"],region:"全国",hot:"现象级消费热潮",
+ url:"https://www.sohu.com/a/956996344_103830"},
+
+{brand:"霸王茶姬",em:"🍵",cat:"tea",ip:"哪吒之魔童闹海",ipType:"anime",title:"霸王茶姬 × 哪吒之魔童闹海",s:"2025-01-30",e:"2025-03-31",
+ desc:"春节档电影顶流联名，话题微博阅读量<b>1.4亿</b>，是2025上半年仅有的两个破亿茶饮联名之一。",
+ perks:["联名饮品","电影热度加持"],region:"全国",hot:"1.4亿阅读量",
+ url:"https://news.17173.com/content/08062025/233316443.shtml"},
+
+{brand:"益禾堂",em:"🧋",cat:"tea",ip:"魔道祖师动画",ipType:"anime",title:"益禾堂 × 魔道祖师动画",s:"2025-03-01",e:"2025-05-31",
+ desc:"话题微博阅读量<b>2.6亿</b>，2025上半年茶饮联名热度之王；粉丝二创改造周边在小红书收获可观自然流量。",
+ perks:["联名套餐","二创热潮"],region:"全国",hot:"2.6亿阅读量，流量真神",
+ url:"https://news.17173.com/content/08062025/233316443.shtml"},
+
+{brand:"茉莉奶白",em:"🧋",cat:"tea",ip:"魔道祖师动画",ipType:"anime",title:"茉莉奶白 × 魔道祖师动画",s:"2025-07-10",e:"2025-09-30",
+ desc:"7月10日上线后话题热度持续攀升，阅读量突破<b>9700万</b>，接近亿级；魔道祖师 IP「四连联名」全部盘活品牌流量。",
+ perks:["联名饮品","话题破圈"],region:"全国",hot:"9700万+阅读量",
+ url:"https://news.17173.com/content/08062025/233316443.shtml"},
+
+{brand:"喜茶",em:"🧋",cat:"tea",ip:"Chiikawa 吉伊卡哇",ipType:"char",title:"喜茶 × Chiikawa「三小只」",s:"2025-08-06",e:"2025-09-30",
+ desc:"喜茶首次联名 Chiikawa：全国超<b>2000家</b>门店换主题桌贴门贴，门店爆单「前方758杯待制作」，沉浸式主题店打卡刷屏。",
+ perks:["2000+主题门店","联名周边"],region:"全国",hot:"门店爆单名场面",
+ url:"https://news.qq.com/rain/a/20250806A05GU100"},
+
+{brand:"瑞幸",em:"☕",cat:"tea",ip:"王者荣耀",ipType:"game",title:"瑞幸 × 王者荣耀十周年",s:"2025-10-13",e:"2025-11-30",
+ desc:"十周年之际联动，「痛苦面具·酸角美式」仅抖音单平台销量<b>破百万杯</b>刷新纪录；NFC王者启动卡双杯套餐售出3万+，「瑶」保温杯售罄。",
+ perks:["百万杯新品","NFC启动卡","保温杯"],region:"全国",hot:"销量刷新瑞幸新品纪录",
+ url:"https://www.jiemian.com/article/13522357.html"},
+
+{brand:"古茗",em:"🧋",cat:"tea",ip:"恋与深空",ipType:"game",title:"古茗 × 恋与深空",s:"2025-02-01",e:"2025-04-30",
+ desc:"乙游顶流联名引发<b>现象级排队与消费盛况</b>：Q版钥匙扣、制服大立牌、双闪徽章等周边细腻还原沈星回/黎深/祁煜气质。",
+ perks:["Q版钥匙扣","立牌","双闪徽章"],region:"全国",hot:"现象级排队",
+ url:"https://tvgame.taobao.com/topic/dongmanguajian_34/0fdd983021ea86f07e6d24f302d209b9.html"},
+
+{brand:"海底捞",em:"🍲",cat:"food",ip:"明日方舟",ipType:"game",title:"海底捞 × 明日方舟",s:"2025-09-01",e:"2025-11-30",
+ desc:"两款联动套餐附<b>游戏内道具兑换卡</b>——真的能吃到、拿周边、还能拿游戏道具，性价比直接拉满。",
+ perks:["联动套餐","游戏道具卡"],region:"全国",hot:"「吃到+玩到」双满足",
+ url:"https://www.jiemian.com/article/13522357.html"},
+
+{brand:"肯德基",em:"🍗",cat:"food",ip:"间谍过家家/无限暖暖/哪吒等",ipType:"anime",title:"肯德基 ACGN 联名矩阵（近4个月）",s:"2025-07-01",e:"2025-11-30",
+ desc:"1.2万家门店的渠道王者：近4个月联名《间谍过家家》《无限暖暖》《哪吒之魔童闹海》《铠甲勇士》《哆啦A梦》《光与夜之恋》《蛋仔派对》《如鸢》等，动画/游戏/明星/虚拟偶像全都要。",
+ perks:["高频联名","主题店","套餐周边"],region:"全国",hot:"连锁快餐联名频次担当",
+ url:"https://www.jiemian.com/article/13522357.html"},
+
+{brand:"优酸乳",em:"🥛",cat:"tea",ip:"Chiikawa 吉伊卡哇",ipType:"char",title:"优酸乳 × Chiikawa 限定活动",s:"2025-10-20",e:"2025-10-26",
+ desc:"上海东方明珠城市广场限定活动：周边展出+主题互动区，粉丝之外还收割大量路人流量。",
+ perks:["地标快闪","周边展出"],region:"上海",hot:"地标级线下事件",
+ url:"https://www.jiemian.com/article/13522357.html"},
+
+{brand:"洽洽",em:"🌻",cat:"food",ip:"如鸢",ipType:"game",title:"洽洽 × 如鸢「洽与君相逢」",s:"2025-08-15",e:"2025-09-30",
+ desc:"乙游《如鸢》六款角色主题礼盒（刘辩/傅融/袁基/左慈/孙策等），每款<b>限量1万份</b>七大线上渠道首发，限量引发黄牛倒卖；洽洽借此打破品牌固化认知。",
+ perks:["6款角色礼盒","限量1万份"],region:"全国",hot:"限量到出黄牛",
+ url:"https://www.jiemian.com/article/13522357.html"}
+];
+
+function $(id){return document.getElementById(id)}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
+function toast(m){var t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(function(){t.classList.remove('show')},2600)}
+
+var _d0=new Date();
+function _p(n){return n<10?'0'+n:''+n}
+var TODAY=_d0.getFullYear()+'-'+_p(_d0.getMonth()+1)+'-'+_p(_d0.getDate());
+var FCAT='',FQ='',FSTATUS='',FIPTYPE='';
+var LIVE_ITEMS=[],LIVE_TIME='',TODAY_COLLABS=[];
+var CUR_COLLABS=null;   // 主区当前显示的联动（进入页加载 /api/collab/structured 后替换为今日数据）
+
+var CAT_META={tea:{name:'🧋 奶茶饮品',cls:'tea'},food:{name:'🍔 快餐餐饮',cls:'food'},fash:{name:'👕 时尚服饰',cls:'fash'},game:{name:'🎮 游戏/动漫IP',cls:'food'},anime:{name:'📺 动画IP',cls:'tea'},char:{name:'🧸 角色IP',cls:'fash'},comic:{name:'📖 漫画IP',cls:'food'}};
+var IPTYPE_META={game:{name:'🎮 游戏',cls:'ip-game'},anime:{name:'📺 动画',cls:'ip-anime'},comic:{name:'📖 漫画',cls:'ip-comic'},char:{name:'🧸 角色/潮玩',cls:'ip-char'}};
+
+function status(c){
+  if(c.s>TODAY)return 'soon';
+  if(c.e&&c.e<TODAY)return 'end';
+  return 'live';
+}
+function fmtDate(s){return s?s.replace(/-/g,'.'):''}
+function dateTxt(c){
+  var st=status(c);
+  if(!c.e)return fmtDate(c.s)+' 起 · 长期';
+  if(st==='end')return fmtDate(c.s)+' ~ '+fmtDate(c.e);
+  return fmtDate(c.s)+' ~ '+fmtDate(c.e);
+}
+function dayDiff(s){
+  var d=new Date(s+'T00:00:00'),t=new Date(TODAY+'T00:00:00');
+  return Math.round((d-t)/86400000);
+}
+function countdown(c){
+  var n=dayDiff(c.s);
+  if(n===0)return '今天开始！';
+  if(n===1)return '明天开始';
+  if(n>0&&n<=14)return n+'天后开始';
+  return '';
+}
+
+function filtered(){
+  var q=FQ.trim().toLowerCase();
+  return COLLABS.filter(function(c){
+    if(FCAT&&c.cat!==FCAT)return false;
+    if(FIPTYPE&&c.ipType!==FIPTYPE)return false;
+    var st=status(c);
+    if(FSTATUS){if(st!==FSTATUS)return false;}
+    else{if(st==='end')return false;}   // 默认不显示已结束
+    if(q){
+      var hay=(c.brand+' '+c.ip+' '+c.title+' '+c.desc).toLowerCase();
+      if(hay.indexOf(q)<0)return false;
+    }
+    return true;
+  }).sort(function(a,b){
+    var sa=status(a)==='live'?0:status(a)==='soon'?1:2;
+    var sb=status(b)==='live'?0:status(b)==='soon'?1:2;
+    if(sa!==sb)return sa-sb;
+    return a.s<b.s?1:a.s>b.s?-1:0;   // 同状态内：新开始的在前
+  });
+}
+
+function cardHtml(c,i){
+  var st=status(c),cd=countdown(c);
+  var badge=st==='live'?'进行中':st==='soon'?(cd||'即将开始'):'已结束';
+  var ipm=IPTYPE_META[c.ipType]||{name:c.ipType,cls:'ip-char'};
+  return '<div class="card'+(st==='end'?' end':'')+'" style="animation-delay:'+Math.min(i*0.03,0.6)+'s">'
+    +'<span class="badge '+st+'">'+badge+'</span>'
+    +'<div class="c-top">'
+    +'<div class="brand-em">'+c.em+'</div>'
+    +'<div class="c-title">'
+    +'<div class="c-vs">'+esc(c.brand)+'<span class="x">×</span>'+esc(c.ip)+'</div>'
+    +'<div class="c-tags">'
+    +'<span class="tag brand">'+esc((CAT_META[c.cat]||{name:c.cat||'联动'}).name.replace(/^\S+\s/,''))+'</span>'
+    +'<span class="tag '+ipm.cls+'">'+ipm.name+'</span>'
+    +'<span class="tag region">📍 '+esc(c.region)+'</span>'
+    +'</div></div></div>'
+    +'<div class="c-date">🗓️ '+dateTxt(c)+(st==='soon'&&cd?' · <b style="color:#f59e0b">'+cd+'</b>':'')+'</div>'
+    +'<div class="c-desc">'+c.desc+'</div>'
+    +(c.perks&&c.perks.length?'<div class="perks">'+c.perks.map(function(p){return '<span class="perk">'+esc(p)+'</span>'}).join('')+'</div>':'')
+    +'<div class="c-ft">'
+    +(c.hot?'<span class="hot-note" title="'+esc(c.hot)+'">'+esc(c.hot)+'</span>':'<span></span>')
+    +(c.url?'<a class="src-link" href="'+esc(c.url)+'" target="_blank" onclick="event.stopPropagation()">情报来源 ↗</a>':'')
+    +'</div></div>';
+}
+
+function liveCardHtml(it,i){
+  var dt=(it.time||'').slice(5).replace('-','.');
+  return '<div class="card" style="animation-delay:'+Math.min(i*0.03,0.6)+'s">'
+    +'<span class="badge live">实时</span>'
+    +'<div class="c-top"><div class="brand-em">📡</div><div class="c-title">'
+    +'<div class="c-vs">'+esc(it.title)+'</div>'
+    +'<div class="c-tags"><span class="tag brand">今日抓取</span>'+(dt?'<span class="tag region">🗓️ '+esc(dt)+'</span>':'')+'</div>'
+    +'</div></div>'
+    +(it.snippet?'<div class="c-desc">'+esc(it.snippet)+'</div>':'')
+    +'<div class="c-ft"><span class="hot-note">实时聚合搜索新命中</span>'+(it.url?'<a class="src-link" href="'+esc(it.url)+'" target="_blank" onclick="event.stopPropagation()">查看原文 ↗</a>':'')+'</div></div>';
+}
+
+function catOfTitle(t){
+  // 从标题/快照归类到 tea/food/fash/game
+  var b=t||'';
+  if(/茶|奶|饮|咖啡|奶白|奶茶|COFFEE|TEA/.test(b))return 'tea';
+  if(/肯德基|麦当劳|汉堡|德克士|必胜客|海底捞|快餐|餐|KFC|M记/.test(b))return 'food';
+  if(/优衣库|服装|T恤|服饰|UNIQLO|时尚|潮流/.test(b))return 'fash';
+  return 'game';
+}
+
+/* 把实时联动新闻转成与 COLLABS 同构的卡片（直接进主联动区） */
+function liveToCollabs(items){
+  return items.map(function(it){
+    var cat=catOfTitle((it.title||'')+' '+(it.snippet||''));
+    var em={tea:'🧋',food:'🍔',fash:'👕',game:'🎮'}[cat]||'📡';
+    return {
+      brand: (it.title||'').split(/[×xX联动]/)[0]||'实时',
+      em: em, cat: cat, ip: '今日联动', ipType: cat==='game'?'game':'char',
+      title: it.title||'', s: it.time||'2026-01-01', e: '',
+      desc: it.snippet||'来自 Google News 实时聚合的最新联动情报',
+      perks: [], region: '网络', hot: it.time?('更新于 '+it.time):'实时',
+      url: it.url||'', _live: true
+    };
+  });
+}
+
+function render(){
+  // 主联动区：今日数据(CUR_COLLABS)置顶在前 + 档案库(COLLABS)补足丰富度，去重合并
+  var today=(CUR_COLLABS&&CUR_COLLABS.length)?CUR_COLLABS:[];
+  var src=today.concat(COLLABS.filter(function(c){
+    return !today.some(function(t){return t.title===c.title});
+  }));
+  var list = src.filter(function(c){
+    if(FCAT&&c.cat!==FCAT)return false;
+    if(FIPTYPE&&c.ipType!==FIPTYPE)return false;
+    var st=status(c);
+    if(FSTATUS){if(st!==FSTATUS)return false} else {if(st==='end')return false}
+    if(FQ){
+      var hay=(c.brand+' '+c.ip+' '+c.title+' '+c.desc).toLowerCase();
+      if(hay.indexOf(FQ.trim().toLowerCase())<0)return false;
+    }
+    return true;
+  });
+  $('r-count').textContent='共找到 '+list.length+' 起精选联动';
+
+  if(!list.length){
+    $('view-area').innerHTML='<div class="empty"><div class="big">🔍🧋</div><p>没有找到匹配的联动情报…<br>换个关键词或清除筛选试试吧</p></div>';
+    return;
+  }
+
+  var html='',idx=0;
+  var order=FCAT?[FCAT]:['tea','food','fash'];
+  order.forEach(function(cat){
+    var arr=list.filter(function(c){return c.cat===cat});
+    if(!arr.length)return;
+    var meta=CAT_META[cat];
+    html+='<div class="cat-sec"><div class="cat-hd '+meta.cls+'"><span class="blob">'+meta.name+'</span><span class="cnt">'+arr.length+' 起联动</span></div><div class="grid">';
+    arr.forEach(function(c){html+=cardHtml(c,idx++)});
+    html+='</div></div>';
+  });
+  $('view-area').innerHTML=html;
+}
+
+function setCat(cat){
+  FCAT=cat;
+  document.querySelectorAll('.tb-tab').forEach(function(b){b.classList.toggle('on',b.dataset.cat===cat)});
+  render();
+}
+function onFilter(){
+  FQ=$('q').value;FSTATUS=$('f-status').value;FIPTYPE=$('f-iptype').value;
+  var has=FQ||FSTATUS||FIPTYPE||FCAT;
+  $('chip-clear').style.display=has?'inline-flex':'none';
+  render();
+}
+function clearFilter(){
+  FQ=FSTATUS=FIPTYPE='';FCAT='';
+  $('q').value='';$('f-status').value='';$('f-iptype').value='';
+  document.querySelectorAll('.tb-tab').forEach(function(b){b.classList.toggle('on',b.dataset.cat==='')});
+  $('chip-clear').style.display='none';
+  render();
+}
+
+/* 顶部统计数字：包含当前联动(今日数据) */
+function renderStats(){
+  var pool=(CUR_COLLABS&&CUR_COLLABS.length)?CUR_COLLABS:COLLABS;
+  var live=0,soon=0,brands={};
+  pool.forEach(function(c){
+    var st=status(c);
+    if(c._live){live++}else if(st==='live'){live++}else if(st==='soon'){soon++}
+    brands[c.brand]=1;
+  });
+  $('st-total').textContent=pool.length;
+  $('st-live').textContent=live;
+  $('st-soon').textContent=soon;
+  $('st-brand').textContent=Object.keys(brands).length;
+  $('h-total').textContent=pool.length;
+}
+
+function init(){
+  renderStats();
+  // 樱花
+  for(var i=0;i<12;i++){
+    var p=document.createElement('div');
+    p.className='petal';p.textContent=['🌸','❀','✿'][i%3];
+    p.style.left=(Math.random()*100)+'vw';
+    p.style.animationDuration=(9+Math.random()*10)+'s';
+    p.style.animationDelay=(-Math.random()*14)+'s';
+    p.style.fontSize=(11+Math.random()*10)+'px';
+    document.body.appendChild(p);
+  }
+  render();
+  // 进入页面即把"数据更新"置为今天（实时拉取成功后会再更新为具体拉取时刻）
+  $('h-updated').textContent=TODAY.replace(/-/g,'.')+'（自动刷新中…）';
+  loadStructured();   // 主区按今天刷新：拉取今日结构化联动替换精选卡
+}
+
+/* 主区精选联动按今天刷新：请求 /api/collab/structured，用返回的今日结构化联动替换主区卡片 */
+function loadStructured(){
+  var ctrl=new AbortController();
+  var timo=setTimeout(function(){try{ctrl.abort()}catch(e){}},30000);
+  fetch('/api/collab/structured',{method:'POST',body:'{}',signal:ctrl.signal}).then(function(r){return r.json()}).then(function(d){
+    clearTimeout(timo);
+    if(d.ok&&d.data&&d.data.items&&d.data.items.length){
+      CUR_COLLABS=d.data.items;
+      render();
+      renderStats();
+      if(d.data.fetched_at){
+        $('h-updated').textContent=d.data.fetched_at.slice(0,10)+' '+d.data.fetched_at.slice(11,16)+'（今日联动）';
+      }
+    }
+    // 失败则不替换，保留档案库兜底
+  }).catch(function(e){
+    clearTimeout(timo);
+  });
+}
+/* ── 实时情报流：刷新按钮 ── */
+var REFRESHING=false;
+function refreshFeed(manual){
+  if(REFRESHING)return;
+  doFetch(manual,0);
+}
+/* 拉取一次，请求超时(45s) + 失败自动重试1次，避免偶发网络抖动误报"网络异常" */
+function doFetch(manual,attempt){
+  REFRESHING=true;
+  $('refresh-ico').textContent='⏳';
+  $('refresh-txt').textContent = attempt?'重试中…':'抓取中…';
+  var ctrl=new AbortController();
+  var timo=setTimeout(function(){try{ctrl.abort()}catch(e){}},45000);
+  fetch('/api/collab/fetch',{method:'POST',body:'{}',signal:ctrl.signal}).then(function(r){return r.json()}).then(function(d){
+    clearTimeout(timo);
+    REFRESHING=false;
+    $('refresh-ico').textContent='🔄';
+    $('refresh-txt').textContent='刷新情报';
+    if(!d.ok||!d.items||!d.items.length){
+      $('feed-meta').textContent=(d.error||'抓取失败，请稍后再试');
+      toast('⚠️ '+(d.error||'抓取失败'));
+      return;
+    }
+    var meta='📡 '+d.fetched_at+' 更新 · 命中 '+d.total_found+' 条新情报 · 共展示 '+d.items.length+' 条'+(d.from_fallback?'（备用源）':'');
+    if(d.note)meta+=' · '+d.note;
+    $('feed-meta').textContent=meta;
+    // 实时情报同步合并进全部内容区（主联动卡片顶层展示），实现"进入即全部内容刷新"
+    LIVE_ITEMS=d.items;LIVE_TIME=(d.fetched_at||'').slice(11,16)||'刚刚';
+    TODAY_COLLABS=liveToCollabs(d.items).filter(function(c){return c.title});   // 今日新联动进主区
+    render();
+    renderStats();
+    // 顶部"数据更新"时间戳同步刷新为本次拉取时间（进入即刷新，日期始终为今天）
+    if(d.fetched_at){$('h-updated').textContent=d.fetched_at.slice(0,10)+' '+d.fetched_at.slice(11,16)+'（实时）';}
+    $('feed-list').innerHTML=d.items.map(function(it,i){
+      var dt=it.time?it.time.slice(5):'';
+      var dtHtml=dt?'<div class="fd-d">'+esc(dt.slice(3))+'</div><div>'+esc(dt.slice(0,2))+'月</div>':'<div class="fd-d">🆕</div><div>最新</div>';
+      return '<a class="feed-item" href="'+esc(it.url)+'" target="_blank" style="animation-delay:'+Math.min(i*0.04,0.8)+'s">'
+        +'<div class="feed-date">'+dtHtml+'</div>'
+        +'<div class="feed-bd"><div class="feed-title">'+esc(it.title)+'</div>'
+        +(it.snippet?'<div class="feed-snip">'+esc(it.snippet)+'</div>':'')
+        +'</div></a>';
+    }).join('');
+    toast('✅ 情报已更新：'+d.fetched_at);
+    if(manual)document.getElementById('feed-sec').scrollIntoView({behavior:'smooth',block:'start'});
+  }).catch(function(e){
+    clearTimeout(timo);
+    // 偶发失败自动重试1次
+    if(attempt===0){
+      doFetch(manual,1);
+      return;
+    }
+    REFRESHING=false;
+    $('refresh-ico').textContent='🔄';
+    $('refresh-txt').textContent='刷新情报';
+    $('feed-meta').textContent='网络异常，刷新失败，请重试';
+    $('h-updated').textContent=TODAY.replace(/-/g,'.')+'（实时拉取失败，展示档案库数据）';
+    toast('⚠️ 网络异常：'+e);
+  });
+}
+
+init();
+refreshFeed();
+</script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+VIBE CODE 门户完整备份
+deployed-html/  = nginx 实际对外服务的页面+报告
+workspace-src/   = workspace 里的源文件(后端脚本/页面源/数据库)
+nginx-conf/      = nginx 配置(便于异地还原)

@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A股限售解禁预警雷达</title>
+<style>
+:root {
+  --bg:#0b0e14; --bg2:#10141d; --panel:#141a26; --panel2:#182031;
+  --line:#232c3d; --txt:#e6edf3; --sub:#8b98ab; --dim:#5c6883;
+  --red:#ff4d4f; --orange:#ff8c42; --amber:#ffc171; --cyan:#35e0ff; --cyan2:#22b8cf;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: radial-gradient(1200px 600px at 20% -10%, #131a29 0%, var(--bg) 55%) fixed, var(--bg);
+  color: var(--txt); font-family: "Microsoft YaHei","PingFang SC",system-ui,-apple-system,sans-serif;
+  line-height:1.5; padding: 0 0 40px 0;
+}
+.wrap { max-width:1180px; margin:0 auto; padding:0 20px; }
+header.top {
+  display:flex; align-items:flex-end; justify-content:space-between; flex-wrap:wrap; gap:12px;
+  padding:26px 0 18px; border-bottom:1px solid var(--line);
+}
+h1 { font-size:22px; font-weight:800; letter-spacing:.5px; }
+h1 .radar {
+  display:inline-block; width:10px; height:10px; border-radius:50%; background:var(--red);
+  box-shadow:0 0 0 4px rgba(255,77,79,.15), 0 0 14px rgba(255,77,79,.6);
+  margin-right:10px; vertical-align:2px; animation: pulse 1.8s infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+.sub-tag { color:var(--cyan); font-size:12px; font-weight:600; letter-spacing:1px; margin-top:4px; }
+.badges { display:flex; gap:8px; flex-wrap:wrap; }
+.badge {
+  font-size:11px; padding:4px 10px; border-radius:999px; border:1px solid var(--line);
+  color:var(--sub); background:var(--panel);
+}
+.badge b { color:var(--cyan); font-weight:700; }
+.badge.warn b { color:var(--red); }
+
+/* ── 日期刷新控制条 ── */
+.ctrl {
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  margin:14px 0 4px; padding:12px 14px;
+  background:linear-gradient(160deg, var(--panel) 0%, var(--bg2) 100%);
+  border:1px solid var(--line); border-radius:12px;
+}
+.ctrl label { font-size:12px; color:var(--sub); }
+.ctrl input[type=date], .ctrl select {
+  background:#0e1320; border:1px solid var(--line); color:var(--txt);
+  border-radius:8px; padding:7px 10px; font-size:13px; font-family:inherit;
+  color-scheme:dark; outline:none; transition:border-color .15s;
+}
+.ctrl input[type=date]:focus, .ctrl select:focus { border-color:var(--cyan2); }
+.ctrl .presets { display:flex; gap:6px; }
+.pbtn { font-size:11.5px; padding:6px 12px; border-radius:8px; border:1px solid var(--line);
+  background:var(--panel2); color:var(--sub); cursor:pointer; transition:all .15s; }
+.pbtn:hover { color:var(--cyan); border-color:var(--cyan2); }
+.pbtn.on { color:#06131a; background:var(--cyan2); border-color:var(--cyan2); font-weight:700; }
+.btn-refresh {
+  margin-left:auto; font-size:13px; font-weight:700; padding:8px 20px; border-radius:8px;
+  border:none; background:linear-gradient(135deg,var(--cyan2),#0e9eb5); color:#04141a;
+  cursor:pointer; transition:transform .12s, box-shadow .12s; letter-spacing:1px;
+}
+.btn-refresh:hover { transform:translateY(-1px); box-shadow:0 6px 18px -4px rgba(34,184,207,.5); }
+.btn-refresh:disabled { opacity:.5; cursor:wait; transform:none; box-shadow:none; }
+.gen-info { font-size:10.5px; color:var(--dim); }
+
+/* loading 遮罩 */
+#loading { position:fixed; inset:0; z-index:99; background:rgba(11,14,20,.82);
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; }
+#loading .spin { width:44px; height:44px; border-radius:50%; border:3px solid var(--line);
+  border-top-color:var(--cyan2); animation:rot 0.9s linear infinite; }
+@keyframes rot { to{transform:rotate(360deg)} }
+#loading .msg { font-size:13px; color:var(--sub); letter-spacing:1px; }
+#loading .hint { font-size:11px; color:var(--dim); }
+
+.ov-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin:18px 0 6px; }
+.ov-card {
+  background:linear-gradient(160deg, var(--panel) 0%, var(--bg2) 100%);
+  border:1px solid var(--line); border-radius:12px; padding:14px 14px 12px;
+  position:relative; overflow:hidden;
+}
+.ov-card::before { content:""; position:absolute; top:0; left:0; right:0; height:2px;
+  background:linear-gradient(90deg, var(--cyan2), transparent); opacity:.5; }
+.ov-card.ov-hot::before { background:linear-gradient(90deg, var(--orange), transparent); opacity:.8; }
+.ov-card.ov-alert::before { background:linear-gradient(90deg, var(--red), transparent); opacity:.8; }
+.ov-v { font-size:30px; font-weight:800; color:#fff; line-height:1.1; }
+.ov-v-sm { font-size:22px; }
+.ov-l { font-size:12px; color:var(--sub); margin-top:4px; }
+.ov-s { font-size:10.5px; color:var(--dim); margin-top:2px; }
+.ov-hot .ov-v { color:var(--orange); }
+.ov-alert .ov-v { color:var(--red); }
+
+.section { margin-top:26px; }
+.sec-head { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+.sec-head .icon { width:4px; height:18px; border-radius:2px; background:linear-gradient(180deg,var(--orange),var(--red)); }
+.sec-head h2 { font-size:16px; font-weight:700; }
+.sec-head .hint { font-size:11px; color:var(--dim); margin-left:auto; }
+
+.panel {
+  background:linear-gradient(165deg, var(--panel) 0%, var(--bg2) 100%);
+  border:1px solid var(--line); border-radius:14px; padding:18px 18px 14px;
+}
+.chart-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.chart-card { background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:14px; }
+.chart-title { font-size:13px; font-weight:700; margin-bottom:4px; display:flex; align-items:center; gap:8px; }
+.chart-title .dot { width:8px; height:8px; border-radius:2px; }
+.chart-sub { font-size:10.5px; color:var(--dim); margin-bottom:10px; }
+
+table { width:100%; border-collapse:collapse; font-size:12px; }
+thead th {
+  text-align:left; padding:8px 8px; color:var(--cyan); font-size:11px; font-weight:700;
+  border-bottom:1px solid var(--line); white-space:nowrap; letter-spacing:.3px;
+}
+tbody td { padding:7px 8px; border-bottom:1px solid rgba(35,44,61,.55); vertical-align:middle; }
+tbody tr:hover { background:rgba(53,224,255,.04); }
+tbody tr.lvl-red { background:linear-gradient(90deg, rgba(255,77,79,.10), rgba(255,77,79,.02)); }
+tbody tr.lvl-red:hover { background:rgba(255,77,79,.14); }
+tbody tr.lvl-orange { background:rgba(255,140,66,.06); }
+.c-rank { color:var(--dim); font-weight:700; width:30px; }
+.c-date { white-space:nowrap; }
+.d-main { font-weight:700; color:#fff; }
+.d-sub { font-size:10px; color:var(--dim); }
+.c-name .n-main { font-weight:700; display:flex; align-items:center; gap:6px; }
+.c-name .n-sub { font-size:10px; color:var(--dim); }
+.tag { font-size:9.5px; padding:1px 6px; border-radius:4px; font-weight:700; }
+.tag-red { background:rgba(255,77,79,.18); color:#ff8a8a; border:1px solid rgba(255,77,79,.4); }
+.tag-orange { background:rgba(255,140,66,.15); color:var(--amber); border:1px solid rgba(255,140,66,.35); }
+.c-type { color:var(--sub); font-size:11px; }
+.c-num { white-space:nowrap; color:var(--txt); }
+.c-ratio { font-weight:700; }
+.c-mcap .mc { font-weight:800; color:#fff; }
+.mc-red { color:var(--red) !important; }
+.c-vf .vf { font-weight:700; color:var(--cyan); }
+.vf-red { color:var(--red) !important; }
+.c-price { white-space:nowrap; }
+.p-sub { font-size:10px; color:var(--dim); margin-left:4px; }
+.p-up { color:#ff6b5e; } .p-down { color:#2fd18c; }
+
+.note-strip {
+  margin-top:12px; font-size:11px; color:var(--dim);
+  background:rgba(53,224,255,.05); border:1px dashed rgba(53,224,255,.25);
+  border-radius:8px; padding:8px 12px;
+}
+
+.rep-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+.rep-card { background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:14px; display:flex; flex-direction:column; gap:10px; }
+.rep-head { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; flex-wrap:wrap; }
+.rep-name { font-size:15px; font-weight:800; }
+.rep-code { font-size:11px; color:var(--dim); font-weight:400; }
+.rep-kpis { display:flex; gap:10px; }
+.kpi { text-align:right; }
+.kpi-v { display:block; font-size:15px; font-weight:800; }
+.kpi-red { color:var(--red); }
+.kpi-cyan { color:var(--cyan); }
+.kpi-l { font-size:9.5px; color:var(--dim); }
+.rep-note { font-size:11px; color:var(--sub); border-left:3px solid var(--orange); padding-left:8px; }
+.rep-cols { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.col-title { font-size:11px; color:var(--cyan); font-weight:700; margin-bottom:8px; }
+.tl-item { display:flex; gap:8px; margin-bottom:7px; }
+.tl-dot { width:8px; height:8px; border-radius:50%; background:var(--cyan2); margin-top:5px; flex:none; }
+.tl-dot-f { background:var(--red); box-shadow:0 0 8px rgba(255,77,79,.7); }
+.tl-body { display:flex; flex-direction:column; font-size:10.5px; }
+.tl-date { color:#fff; font-weight:700; }
+.tl-type { color:var(--sub); font-size:9.5px; }
+.tl-num { color:var(--sub); font-size:9.5px; }
+.tl-type-f, .tl-num-f { color:#ff9f9f; }
+.tl-empty { font-size:11px; color:var(--dim); }
+.div-item { display:flex; flex-direction:column; margin-bottom:8px; font-size:10.5px; }
+.div-date { color:#fff; font-weight:700; }
+.div-bonus { color:var(--amber); }
+.div-plan { color:var(--dim); font-size:9.5px; }
+
+footer { margin-top:30px; padding-top:14px; border-top:1px solid var(--line); font-size:11px; color:var(--dim); }
+footer .src { color:var(--cyan); }
+footer .warn { color:var(--amber); margin-top:4px; }
+@media (max-width: 960px) {
+  .ov-grid { grid-template-columns:repeat(2,1fr); }
+  .chart-grid, .rep-grid, .rep-cols { grid-template-columns:1fr; }
+}
+@media (max-width: 640px) { .ov-grid { grid-template-columns:1fr 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <div>
+    <h1><span class="radar"></span>A股限售解禁预警雷达</h1>
+    <div class="sub-tag">LOCK-UP EXPIRY EARLY-WARNING RADAR · 全市场监控 · 支持任意基准日刷新</div>
+  </div>
+  <div class="badges" id="badges"></div>
+</header>
+
+<!-- 日期刷新控制条 -->
+<div class="ctrl">
+  <label>基准日期</label>
+  <input type="date" id="baseDate">
+  <label>窗口</label>
+  <select id="winDays">
+    <option value="30">30天</option>
+    <option value="60">60天</option>
+    <option value="90" selected>90天</option>
+    <option value="180">180天</option>
+    <option value="365">365天</option>
+  </select>
+  <div class="presets">
+    <button class="pbtn" onclick="setDate(0)">今天</button>
+    <button class="pbtn" onclick="setDate(1)">明天</button>
+    <button class="pbtn" onclick="setDate(7)">7天后</button>
+    <button class="pbtn" onclick="setDate(30)">30天后</button>
+  </div>
+  <button class="btn-refresh" id="btnRefresh" onclick="loadRadar()">⟳ 按日期刷新</button>
+  <span class="gen-info" id="genInfo"></span>
+</div>
+
+<div id="loading" style="display:none">
+  <div class="spin"></div>
+  <div class="msg">正在扫描全市场解禁数据…</div>
+  <div class="hint">拉取东财解禁日历 + 腾讯实时行情，约需 15~40 秒</div>
+</div>
+
+<div id="content" style="opacity:.35;filter:grayscale(.4)">
+
+<div class="ov-grid" id="ovGrid"></div>
+
+<div class="section">
+  <div class="sec-head"><span class="icon"></span><h2>解禁节奏雷达</h2><span class="hint">柱高=当周解禁市值 · 柱顶数字=当周解禁批次</span></div>
+  <div class="panel" id="rhythmChart"></div>
+</div>
+
+<div class="section">
+  <div class="sec-head"><span class="icon"></span><h2>解禁压力分布</h2><span class="hint">解禁市值 TOP15 · 解禁类型占比</span></div>
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title"><span class="dot" style="background:linear-gradient(180deg,#ff8c42,#ff3b30)"></span>解禁市值 TOP15</div>
+      <div class="chart-sub">条形长度=解禁市值 · 右侧百分比=占总股本比例</div>
+      <div id="topChart"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title"><span class="dot" style="background:#ffc107"></span>解禁类型占比</div>
+      <div class="chart-sub" id="typeSub"></div>
+      <div id="typeChart"></div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="sec-head"><span class="icon"></span><h2>重点预警名单 TOP30</h2><span class="hint">按解禁市值降序 · 红=高占比/大市值/临近 · 橙=中高风险</span></div>
+  <div class="panel" style="overflow-x:auto;">
+    <table>
+      <thead><tr>
+        <th>#</th><th>解禁日期</th><th>股票</th><th>解禁类型</th><th>解禁股数</th>
+        <th>占总股本</th><th>解禁市值</th><th>占流通盘</th><th>现价</th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+  <div class="note-strip">红色行 = 解禁市值≥200亿 或 占总股本≥50% 或 14天内临近解禁；「占总股本」为解禁股数/总股本，「占流通盘」= 解禁股数/流通股本（东财接口估算口径）。</div>
+</div>
+
+<div class="section">
+  <div class="sec-head"><span class="icon"></span><h2>代表股深度雷达</h2><span class="hint">历史解禁时间线 + 最近分红（东财 RPT_LIFT_STAGE / RPT_SHAREBONUS_DET）</span></div>
+  <div class="rep-grid" id="repGrid"></div>
+</div>
+
+<footer>
+  <div>数据来源：<span class="src">东方财富数据中心</span>（RPT_LIFT_STAGE 限售解禁日历 · RPT_SHAREBONUS_DET 分红送转） · 实时行情：腾讯财经（qt.gtimg.cn）· 参考价/解禁市值为接口估算口径</div>
+  <div id="footInfo"></div>
+  <div class="warn">⚠ 本页仅为数据展示与风险提示工具，<b>非投资建议</b>。限售解禁不必然导致股价下跌——实际影响取决于减持意愿、股东结构与市场承接力，请结合基本面独立判断。</div>
+</footer>
+
+</div><!-- /content -->
+
+</div>
+<script>
+var DATA=null;
+function $(id){return document.getElementById(id)}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function fmtYi(wan){ // 万元 -> 亿
+  var v=wan/10000;
+  return v>=1? v.toFixed(1)+'亿' : (wan/10).toFixed(0)+'万';
+}
+function fmtShares(wan){ // 万股
+  if(wan>=10000) return (wan/10000).toFixed(2)+'亿股';
+  return wan.toFixed(0)+'万股';
+}
+function dstr(d){var t=new Date(d+'T00:00:00');return t.getFullYear()+'/'+(t.getMonth()+1)+'/'+t.getDate()}
+function shortDate(d){return d.slice(5).replace('-','/')}
+
+function setDate(offset){
+  var t=new Date(); t.setDate(t.getDate()+offset);
+  var s=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');
+  $('baseDate').value=s;
+  document.querySelectorAll('.pbtn').forEach(function(b){b.classList.remove('on')});
+  event.target.classList.add('on');
+}
+
+function loadRadar(){
+  var base=$('baseDate').value, days=$('winDays').value;
+  if(!base){alert('请选择基准日期');return}
+  $('btnRefresh').disabled=true;
+  $('loading').style.display='flex';
+  var x=new XMLHttpRequest();
+  x.open('POST','/api/lockup/data',true);
+  x.setRequestHeader('Content-Type','application/json');
+  x.timeout=180000;
+  x.onload=function(){
+    $('btnRefresh').disabled=false; $('loading').style.display='none';
+    try{var r=JSON.parse(x.responseText)}catch(e){alert('解析失败：'+e);return}
+    if(!r.ok){alert('数据拉取失败：'+(r.error||'未知错误'));return}
+    DATA=r.data; renderAll();
+    $('content').style.opacity='1'; $('content').style.filter='none';
+  };
+  x.onerror=function(){$('btnRefresh').disabled=false;$('loading').style.display='none';alert('网络错误，请重试')};
+  x.ontimeout=function(){$('btnRefresh').disabled=false;$('loading').style.display='none';alert('请求超时（>3分钟），请重试')};
+  x.send(JSON.stringify({base:base,days:parseInt(days)}));
+}
+
+/* ── 总览卡片 + 徽标 ── */
+function renderOverview(){
+  var items=DATA.items;
+  var codes={},total=0;
+  items.forEach(function(x){codes[x.code]=1;total+=x.mcap});
+  var batches=items.length, stocks=Object.keys(codes).length;
+  // 按周聚合
+  var weeks=weekBuckets();
+  var peakMcap=weeks.slice().sort(function(a,b){return b.mcap-a.mcap})[0];
+  var peakCnt=weeks.slice().sort(function(a,b){return b.count-a.count})[0];
+  // 预警统计
+  var near14=0, highRatio=0;
+  var baseT=new Date(DATA.base+'T00:00:00');
+  var uniq={};
+  items.forEach(function(x){
+    var d=(new Date(x.date+'T00:00:00')-baseT)/86400000;
+    if(d<=14 && !uniq['n'+x.code]){uniq['n'+x.code]=1;near14++}
+    if(x.totalRatio>=50 && !uniq['h'+x.code]){uniq['h'+x.code]=1;highRatio++}
+  });
+  $('badges').innerHTML=
+    '<span class="badge">基准日 <b>'+DATA.base+'</b></span>'+
+    '<span class="badge">窗口 <b>'+DATA.end+'</b></span>'+
+    '<span class="badge warn">临近14天预警 <b>'+near14+'</b> 只</span>'+
+    '<span class="badge">占比≥50% <b>'+highRatio+'</b> 只</span>';
+  $('ovGrid').innerHTML=
+    '<div class="ov-card"><div class="ov-v">'+batches+'</div><div class="ov-l">待解禁批次</div><div class="ov-s">未来'+DATA.days+'天 · '+DATA.base+'~'+DATA.end+'</div></div>'+
+    '<div class="ov-card"><div class="ov-v">'+stocks+'</div><div class="ov-l">涉及个股</div><div class="ov-s">单只可能多批次</div></div>'+
+    '<div class="ov-card ov-hot"><div class="ov-v">'+Math.round(total/10000)+'亿</div><div class="ov-l">合计解禁市值</div><div class="ov-s">按参考价估算</div></div>'+
+    '<div class="ov-card ov-alert"><div class="ov-v ov-v-sm">'+shortDate(peakMcap.start)+' 周</div><div class="ov-l">市值高峰周</div><div class="ov-s">'+Math.round(peakMcap.mcap/10000)+'亿 / '+peakMcap.count+'批</div></div>'+
+    '<div class="ov-card ov-alert"><div class="ov-v ov-v-sm">'+shortDate(peakCnt.start)+' 周</div><div class="ov-l">批次高峰周</div><div class="ov-s">'+peakCnt.count+'批 / '+Math.round(peakCnt.mcap/10000)+'亿</div></div>';
+}
+
+/* ── 按周分桶 ── */
+function weekBuckets(){
+  var base=new Date(DATA.base+'T00:00:00');
+  var dow=(base.getDay()+6)%7; // 周一=0
+  var start=new Date(base); start.setDate(start.getDate()-dow);
+  var end=new Date(DATA.end+'T00:00:00');
+  var buckets=[];
+  for(var d=new Date(start); d<=end; d.setDate(d.getDate()+7)){
+    var s=new Date(d), e=new Date(d); e.setDate(e.getDate()+6);
+    buckets.push({start:s.toISOString().slice(0,10),end:e.toISOString().slice(0,10),mcap:0,count:0});
+  }
+  DATA.items.forEach(function(x){
+    var t=new Date(x.date+'T00:00:00');
+    buckets.forEach(function(b){
+      if(x.date>=b.start && x.date<=b.end){b.mcap+=x.mcap;b.count++}
+    });
+  });
+  return buckets;
+}
+
+/* ── 节奏雷达 SVG ── */
+function renderRhythm(){
+  var weeks=weekBuckets().filter(function(w){return w.count>0 || true});
+  var maxMcap=Math.max.apply(null,weeks.map(function(w){return w.mcap}).concat([1]));
+  var W=680,H=300,pl=44,pr=8,pb=52,pt=36;
+  var cw=(W-pl-pr)/weeks.length, bw=Math.min(30,cw*0.62);
+  var peakIdx=0; weeks.forEach(function(w,i){if(w.mcap>weeks[peakIdx].mcap)peakIdx=i});
+  var s='<svg viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg">'+
+    '<defs><linearGradient id="gRed" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff8c42"/><stop offset="1" stop-color="#ff3b30"/></linearGradient>'+
+    '<linearGradient id="gOrange" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffb26b"/><stop offset="1" stop-color="#ff8c42"/></linearGradient>'+
+    '<linearGradient id="gAmber" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd166"/><stop offset="1" stop-color="#ffa94d"/></linearGradient>'+
+    '<linearGradient id="gCyan" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7de8ff"/><stop offset="1" stop-color="#22b8cf"/></linearGradient></defs>';
+  // 网格线
+  for(var g=0;g<=4;g++){
+    var gv=maxMcap/10000*g/4, gy=H-pb-(H-pb-pt)*g/4;
+    s+='<line x1="'+pl+'" y1="'+gy+'" x2="'+(W-pr)+'" y2="'+gy+'" stroke="#263048" stroke-width="1"/>'+
+       '<text x="'+(pl-8)+'" y="'+(gy+4)+'" text-anchor="end" font-size="11" fill="#7d8aa5">'+Math.round(gv)+'</text>';
+  }
+  weeks.forEach(function(w,i){
+    var x=pl+cw*i+(cw-bw)/2;
+    var h=(H-pb-pt)*(w.mcap/maxMcap);
+    var y=H-pb-h;
+    var frac=w.mcap/maxMcap;
+    var fill=frac>0.85?'url(#gRed)':frac>0.5?'url(#gOrange)':frac>0.2?'url(#gAmber)':'url(#gCyan)';
+    s+='<rect x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+bw+'" height="'+Math.max(h,2).toFixed(1)+'" rx="3" fill="'+fill+'"/>';
+    s+='<text x="'+(x+bw/2).toFixed(1)+'" y="'+(y-5)+'" text-anchor="middle" font-size="10.5" fill="#aeb9d1">'+w.count+'</text>';
+    if(i===peakIdx && w.mcap>0){
+      s+='<text x="'+(x+bw/2).toFixed(1)+'" y="'+(y-18)+'" text-anchor="middle" font-size="11" font-weight="700" fill="#ff6b5e">▲ '+Math.round(w.mcap/10000)+'亿 高峰</text>';
+    }
+    s+='<text x="'+(x+bw/2).toFixed(1)+'" y="'+(H-pb+16)+'" text-anchor="middle" font-size="10" fill="#8b98ab">'+shortDate(w.start)+'</text>';
+    s+='<text x="'+(x+bw/2).toFixed(1)+'" y="'+(H-pb+29)+'" text-anchor="middle" font-size="8.5" fill="#5c6883">'+shortDate(w.start)+'~'+shortDate(w.end)+'</text>';
+  });
+  s+='</svg>';
+  $('rhythmChart').innerHTML=s;
+}
+
+/* ── TOP15 横条 ── */
+function renderTop(){
+  var uniq={},top=[];
+  DATA.items.forEach(function(x){
+    if(!uniq[x.code]){uniq[x.code]=1;top.push(x)}
+  });
+  top=top.slice(0,15);
+  var max=top[0]?top[0].mcap:1;
+  var W=680,rowH=27,x0=158,bwMax=390;
+  var H=top.length*rowH+30;
+  var s='<svg viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg">'+
+    '<line x1="'+x0+'" y1="6" x2="'+x0+'" y2="'+(top.length*rowH+8)+'" stroke="#263048" stroke-width="1"/>';
+  top.forEach(function(x,i){
+    var y=16+i*rowH;
+    var bw=bwMax*(x.mcap/max);
+    var col=x.mcap>=200e4?'#ff4d4f':x.mcap>=120e4?'#ff8c42':'#ffc171';
+    var rcol=x.totalRatio>=50?'#ff9f9f':x.totalRatio>=30?'#ffc171':'#7de8ff';
+    s+='<text x="'+(x0-8)+'" y="'+(y+3)+'" text-anchor="end" font-size="12" fill="#e6edf3" font-weight="600">'+esc(x.name)+'</text>';
+    s+='<text x="'+(x0-8)+'" y="'+(y+15)+'" text-anchor="end" font-size="9" fill="#7d8aa5">'+x.code+' · '+shortDate(x.date)+'</text>';
+    s+='<rect x="'+x0+'" y="'+(y-6)+'" width="'+bw.toFixed(1)+'" height="14" rx="3" fill="'+col+'" opacity="0.92"/>';
+    var label=fmtYi(x.mcap);
+    var lx=bw>70? x0+bw-6 : x0+bw+6;
+    var anchor=bw>70?'end':'start';
+    var lfill=bw>70?'#fff':'#e6edf3';
+    s+='<text x="'+lx+'" y="'+(y+4)+'" text-anchor="'+anchor+'" font-size="12" fill="'+lfill+'" font-weight="700">'+label+'</text>';
+    s+='<text x="'+(x0+bwMax+14)+'" y="'+(y+4)+'" font-size="10.5" fill="'+rcol+'">'+x.totalRatio.toFixed(1)+'%</text>';
+  });
+  s+='<text x="'+(W-8)+'" y="'+(H-8)+'" text-anchor="end" font-size="10" fill="#7d8aa5">横条=解禁市值 · 右侧百分比=解禁股数占总股本比例</text></svg>';
+  $('topChart').innerHTML=s;
+}
+
+/* ── 类型占比环形图 ── */
+function renderType(){
+  var cats={};
+  DATA.items.forEach(function(x){
+    var t=x.type||'其他';
+    var key=t;
+    if(/追加承诺/.test(t))key='追加承诺';
+    else if(/首发原股东/.test(t)&&/战略配售/.test(t))key='首发原股东+战略配售';
+    else if(/定增/.test(t))key='定增机构配售';
+    else if(/首发原股东/.test(t))key='首发原股东';
+    else if(/首发机构配售|首发战略配售/.test(t))key='首发机构/战略配售';
+    else key='其他';
+    if(!cats[key])cats[key]={mcap:0,count:0};
+    cats[key].mcap+=x.mcap;cats[key].count++;
+  });
+  var arr=Object.keys(cats).map(function(k){return{k:k,v:cats[k]}}).sort(function(a,b){return b.v.mcap-a.v.mcap});
+  var total=arr.reduce(function(s,x){return s+x.v.mcap},0);
+  $('typeSub').textContent='按解禁市值统计 · 合计 '+Math.round(total/10000)+' 亿';
+  var colors=['#ff5c33','#ff8c42','#ffc107','#22b8cf','#35b6ff','#6c7a94'];
+  var cx=190,cy=140,R=96,r=62,ang=-90;
+  var s='<svg viewBox="0 0 680 280" xmlns="http://www.w3.org/2000/svg">';
+  arr.forEach(function(a,i){
+    var frac=a.v.mcap/total;
+    var a2=ang+frac*360;
+    var large=(a2-ang)>180?1:0;
+    var rad=ang*Math.PI/180,rad2=a2*Math.PI/180;
+    var x1=cx+R*Math.cos(rad),y1=cy+R*Math.sin(rad);
+    var x2=cx+R*Math.cos(rad2),y2=cy+R*Math.sin(rad2);
+    var x3=cx+r*Math.cos(rad2),y3=cy+r*Math.sin(rad2);
+    var x4=cx+r*Math.cos(rad),y4=cy+r*Math.sin(rad);
+    s+='<path d="M '+x1.toFixed(1)+' '+y1.toFixed(1)+' A '+R+' '+R+' 0 '+large+' 1 '+x2.toFixed(1)+' '+y2.toFixed(1)+
+       ' L '+x3.toFixed(1)+' '+y3.toFixed(1)+' A '+r+' '+r+' 0 '+large+' 0 '+x4.toFixed(1)+' '+y4.toFixed(1)+' Z" fill="'+colors[Math.min(i,5)]+'" stroke="#0d1117" stroke-width="1.5"/>';
+    s+='<rect x="320" y="'+(40+i*34)+'" width="12" height="12" rx="2" fill="'+colors[Math.min(i,5)]+'"/>';
+    s+='<text x="338" y="'+(51+i*34)+'" font-size="11.5" fill="#e6edf3">'+esc(a.k)+'</text>';
+    s+='<text x="338" y="'+(64+i*34)+'" font-size="9.5" fill="#7d8aa5">'+a.v.count+'批 · '+(frac*100).toFixed(1)+'% · '+Math.round(a.v.mcap/10000)+'亿</text>';
+    ang=a2;
+  });
+  s+='<text x="'+cx+'" y="'+(cy-4)+'" text-anchor="middle" font-size="22" font-weight="800" fill="#fff">'+Math.round(total/10000)+'亿</text>';
+  s+='<text x="'+cx+'" y="'+(cy+18)+'" text-anchor="middle" font-size="10.5" fill="#8b98ab">合计解禁市值</text></svg>';
+  $('typeChart').innerHTML=s;
+}
+
+/* ── 预警名单 ── */
+function renderTable(){
+  var baseT=new Date(DATA.base+'T00:00:00');
+  var rows=DATA.items.slice(0,30).map(function(x,i){
+    var days=Math.round((new Date(x.date+'T00:00:00')-baseT)/86400000);
+    var big=x.mcap>=200e4, hi=x.totalRatio>=50, near=days<=14;
+    var lvl='',tags=[];
+    if(big||hi||near){
+      lvl='lvl-red';
+      if(big)tags.push('巨额解禁');
+      if(hi)tags.push('高占比');
+      if(near)tags.push('临近');
+      if(big&&hi)tags=['巨额+高占比'];
+    }else if(x.mcap>=100e4||x.totalRatio>=30){
+      lvl='lvl-orange';
+    }
+    var rcol=x.totalRatio>=50?'#ff6b5e':x.totalRatio>=30?'#ffc171':'#7de8ff';
+    var price=x.price!=null? x.price.toFixed(2):'—';
+    var pct='';
+    if(x.pct!=null){
+      var cls=x.pct>0?'p-up':x.pct<0?'p-down':'';
+      pct='<span class="p-sub '+cls+'">'+(x.pct>0?'+':'')+x.pct.toFixed(2)+'%</span>';
+    }
+    return '<tr class="'+lvl+'">'+
+      '<td class="c-rank">'+(i+1)+'</td>'+
+      '<td class="c-date"><div class="d-main">'+x.date+'</div><div class="d-sub">'+days+'天后</div></td>'+
+      '<td class="c-name"><div class="n-main">'+esc(x.name)+(tags.length?'<span class="tag tag-red">'+tags.join('+')+'</span>':'')+'</div><div class="n-sub">'+x.code+'</div></td>'+
+      '<td class="c-type">'+esc(x.type)+'</td>'+
+      '<td class="c-num">'+fmtShares(x.shares)+'</td>'+
+      '<td class="c-ratio" style="color:'+rcol+'">'+x.totalRatio.toFixed(2)+'%</td>'+
+      '<td class="c-mcap"><span class="mc'+(x.mcap>=100e4?' mc-red':'')+'">'+fmtYi(x.mcap)+'</span></td>'+
+      '<td class="c-vf"><span class="vf'+(x.freeRatio>=50?' vf-red':'')+'">'+x.freeRatio.toFixed(1)+'%</span></td>'+
+      '<td class="c-price">'+price+pct+'</td></tr>';
+  }).join('');
+  $('tbody').innerHTML=rows;
+}
+
+/* ── 代表股深度雷达 ── */
+function renderReps(){
+  var html=DATA.reps.map(function(r){
+    var x=r.item;
+    var tl='';
+    r.history.forEach(function(h){
+      tl+='<div class="tl-item"><div class="tl-dot"></div><div class="tl-body"><span class="tl-date">'+h.date+'</span><span class="tl-type">'+esc(h.type)+'</span><span class="tl-num">'+fmtShares(h.shares)+' / '+fmtYi(h.mcap)+' / 占总股本'+h.totalRatio.toFixed(1)+'%</span></div></div>';
+    });
+    tl+='<div class="tl-item"><div class="tl-dot tl-dot-f"></div><div class="tl-body"><span class="tl-date">'+x.date+'</span><span class="tl-type tl-type-f">本次解禁 ▶</span><span class="tl-num tl-num-f">'+fmtShares(x.shares)+' / '+fmtYi(x.mcap)+' / 占总股本'+x.totalRatio.toFixed(1)+'%</span></div></div>';
+    r.future.forEach(function(h){
+      tl+='<div class="tl-item"><div class="tl-dot tl-dot-f"></div><div class="tl-body"><span class="tl-date">'+h.date+'</span><span class="tl-type">'+esc(h.type)+'</span><span class="tl-num">'+fmtShares(h.shares)+' / '+fmtYi(h.mcap)+' / 占总股本'+h.totalRatio.toFixed(1)+'%</span></div></div>';
+    });
+    var dv=r.dividends.length? r.dividends.map(function(d){
+      return '<div class="div-item"><span class="div-date">'+d.date+'</span><span class="div-bonus">每股派息 '+(d.bonus!=null?d.bonus.toFixed(2):'—')+' 元</span><span class="div-plan">'+esc(d.profile)+'</span></div>';
+    }).join('') : '<div class="tl-empty">近两年无已实施分红（次新股常见）</div>';
+    var note=x.date.slice(5).replace('-','/')+' 解禁 '+esc(x.type)+'，解禁市值 '+fmtYi(x.mcap)+'（占总股本 '+x.totalRatio.toFixed(1)+'%）'+
+      (r.dividends.length?'；公司近年有现金分红记录。':'；暂无分红记录。')+
+      (r.future.length?' 未来2年仍有 '+r.future.length+' 批解禁排期，筹码压力周期较长。':'');
+    return '<div class="rep-card">'+
+      '<div class="rep-head"><div class="rep-name">'+esc(x.name)+' <span class="rep-code">'+x.code+'</span></div>'+
+      '<div class="rep-kpis"><div class="kpi"><span class="kpi-v kpi-red">'+fmtYi(x.mcap)+'</span><span class="kpi-l">本次解禁市值</span></div>'+
+      '<div class="kpi"><span class="kpi-v kpi-red">'+x.totalRatio.toFixed(1)+'%</span><span class="kpi-l">占总股本</span></div>'+
+      '<div class="kpi"><span class="kpi-v kpi-cyan">'+x.freeRatio.toFixed(1)+'%</span><span class="kpi-l">占流通盘</span></div></div></div>'+
+      '<div class="rep-note">'+esc(note)+'</div>'+
+      '<div class="rep-cols"><div class="rep-col"><div class="col-title">解禁时间线（历史 → 未来）</div>'+tl+'</div>'+
+      '<div class="rep-col"><div class="col-title">最近分红（每股派息/送转）</div>'+dv+'</div></div></div>';
+  }).join('');
+  $('repGrid').innerHTML=html;
+}
+
+function renderAll(){
+  renderOverview(); renderRhythm(); renderTop(); renderType(); renderTable(); renderReps();
+  $('genInfo').textContent='生成于 '+DATA.generatedAt;
+  $('footInfo').innerHTML='基准日：<span class="src">'+DATA.base+'</span> · 覆盖窗口：'+DATA.base+' ~ '+DATA.end+'（'+DATA.days+'天）· 全市场解禁批次 '+DATA.items.length+' 批 / 涉及个股 '+
+    Object.keys(DATA.items.reduce(function(a,x){a[x.code]=1;return a},{})).length+' 只 / 合计 '+
+    Math.round(DATA.items.reduce(function(s,x){return s+x.mcap},0)/10000)+' 亿';
+  document.title='A股未来'+DATA.days+'天限售解禁预警雷达 · '+DATA.base;
+}
+
+/* ── 初始化：默认今天 ── */
+(function(){
+  var t=new Date();
+  $('baseDate').value=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');
+  loadRadar();
+})();
+</script>
+</body>
+</html>

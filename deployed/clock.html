@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>多风格时钟 · Multi-Style Clock</title>
+<style>
+ :root { --bg: #0a0e17; --surface: #111827;
+ --text: #e2e8f0; --accent: #38bdf8; --accent2: #f472b6; --radius: 14px; }
+ * { margin: 0; padding: 0; box-sizing: border-box; }
+ body { font-family: "PingFang SC","Microsoft YaHei","Segoe UI",system-ui,sans-serif;
+ background: var(--bg); color: var(--text); min-height: 100vh;
+ display: flex; flex-direction: column; align-items: center;
+ overflow-x: hidden; }
+
+ /* ---------- 顶部标题 ---------- */
+ header { padding: 28px 20px 10px; text-align: center; }
+ header h1 { font-size: 22px; font-weight: 600; letter-spacing: 6px; color: #f1f5f9; }
+ header p { font-size: 11px; letter-spacing: 4px; color: #64748b; margin-top: 4px; }
+
+ /* ---------- 风格切换器 ---------- */
+ #switcher { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center;
+ padding: 12px 16px; }
+ #switcher button { padding: 8px 16px; border-radius: 24px; border: 1px solid rgba(148,163,184,.2);
+ background: rgba(30,41,59,.6); color: #94a3b8; font-size: 13px; cursor: pointer;
+ letter-spacing: 1.5px; transition: all .25s; white-space: nowrap; }
+ #switcher button:hover { border-color: rgba(56,189,248,.5); color: #cbd5e1;
+ background: rgba(56,189,248,.08); }
+ #switcher button.active { background: rgba(56,189,248,.15); border-color: var(--accent);
+ color: #e2e8f0; box-shadow: 0 0 16px rgba(56,189,248,.18); }
+
+ /* ---------- 时钟容器 ---------- */
+ #stage { flex: 1; display: flex; align-items: center; justify-content: center;
+ width: 100%; padding: 10px 20px 40px; position: relative; }
+ #clockWrap { position: relative; width: 100%; max-width: 640px;
+ display: flex; align-items: center; justify-content: center; }
+ .clock-view { display: none; width: 100%; }
+ .clock-view.show { display: flex; align-items: center; justify-content: center;
+ flex-direction: column; }
+
+ canvas { max-width: 100%; display: block; }
+
+ /* ===== 风格1：数字时钟 ===== */
+ #digital .time-block { display: flex; align-items: center; gap: 12px; }
+ #digital .digits { font-family: "SF Mono","Cascadia Code","Fira Code","Consolas",monospace;
+ font-size: clamp(60px, 10vw, 120px); font-weight: 200; color: #e8f4ff;
+ letter-spacing: 6px; text-shadow: 0 0 40px rgba(56,189,248,.35); line-height: 1; }
+ #digital .sep { font-size: clamp(40px, 7vw, 80px); color: var(--accent);
+ opacity: .6; animation: sepPulse 1s step-end infinite; }
+ @keyframes sepPulse { 0%,100%{opacity:.6} 50%{opacity:.15} }
+ #digital .sec-block { font-size: clamp(18px, 3vw, 32px); color: #7cc4e8;
+ margin-left: 8px; align-self: flex-end; padding-bottom: 8px;
+ font-variant-numeric: tabular-nums; min-width: 2em; }
+ #digital .date-line { margin-top: 18px; font-size: 15px; color: #64748b;
+ letter-spacing: 3px; }
+ #digital .date-line span { color: #94a3b8; }
+
+ /* ===== 风格2：霓虹时钟 ===== */
+ #neon { position: relative; }
+ #neon .neon-bg { position: absolute; inset: 0; background: radial-gradient(circle at 50% 55%,
+ rgba(236,72,153,.08) 0%, transparent 70%); pointer-events: none; }
+ #neon .neon-time { font-family: "SF Mono","Consolas",monospace;
+ font-size: clamp(48px, 9vw, 100px); font-weight: 700; letter-spacing: 8px;
+ color: #fdf4ff; position: relative; }
+ #neon .neon-time .nh { text-shadow: 0 0 10px #38bdf8, 0 0 30px #38bdf8, 0 0 60px #38bdf8,
+ 0 0 80px #0284c7; color: #7cc4e8; }
+ #neon .neon-time .nm { text-shadow: 0 0 10px #f472b6, 0 0 30px #f472b6, 0 0 60px #f472b6,
+ 0 0 80px #be185d; color: #f9a8d4; }
+ #neon .neon-time .ns { text-shadow: 0 0 8px #a78bfa, 0 0 20px #a78bfa;
+ color: #c4b5fd; font-size: .4em; margin-left: 6px; }
+ #neon .neon-colon { position: relative; animation: neonBlink 1s step-end infinite; }
+ @keyframes neonBlink { 0%,100%{opacity:1} 50%{opacity:.2} }
+ #neon .neon-date { margin-top: 18px; font-size: 13px; letter-spacing: 4px;
+ color: rgba(192,132,252,.6); text-shadow: 0 0 8px rgba(139,92,246,.4); }
+
+ /* ===== 风格3：翻页时钟 ===== */
+ #flip { perspective: 600px; }
+ #flip .flip-row { display: flex; align-items: center; gap: 14px; }
+ .flip-card { position: relative; width: clamp(64px, 12vw, 110px);
+ height: clamp(90px, 17vw, 150px); }
+ .flip-card .top,
+ .flip-card .bottom,
+ .flip-card .flap { position: absolute; left: 0; right: 0; overflow: hidden;
+ background: #1a1f2e; border-radius: 6px; }
+ .flip-card .top { top: 0; height: 50%; border-bottom: 1px solid rgba(0,0,0,.4);
+ border-radius: 6px 6px 0 0; }
+ .flip-card .bottom { bottom: 0; height: 50%; border-top: 1px solid rgba(255,255,255,.04);
+ border-radius: 0 0 6px 6px; display: flex; align-items: flex-end; }
+ .flip-card .flap { top: 0; height: 50%; transform-origin: bottom center;
+ border-radius: 6px 6px 0 0; background: #1e2435; z-index: 2;
+ display: flex; align-items: flex-end; }
+ .flip-card .flap.fall { animation: flapFall .5s ease-in forwards; }
+ @keyframes flapFall { 0% { transform: rotateX(0); } 100% { transform: rotateX(-90deg); } }
+ .flip-card .val { font-family: "SF Mono","Consolas",monospace;
+ font-size: clamp(40px, 8vw, 90px); font-weight: 700; color: #f8fafc;
+ text-align: center; width: 100%; line-height: 1; }
+ .flip-card .top .val { padding-top: 8px; }
+ .flip-card .bottom .val { padding-bottom: 8px; }
+ .flip-card .flap .val { padding-bottom: 8px; }
+ .flip-colon { font-size: clamp(30px, 6vw, 60px); color: #475569; font-weight: 700; }
+ #flip .flip-date { margin-top: 14px; font-size: 13px; color: #64748b;
+ letter-spacing: 3px; }
+
+ /* ===== 风格4：极简时钟 ===== */
+ #minimal .m-time { font-size: clamp(52px, 9vw, 100px); font-weight: 100; letter-spacing: 2px;
+ color: #f1f5f9; font-family: "SF Mono","Consolas",monospace; }
+ #minimal .m-sec { font-size: .38em; color: #475569; margin-left: 4px; font-weight: 200; }
+ #minimal .m-date { margin-top: 14px; font-size: 14px; font-weight: 200; letter-spacing: 5px;
+ color: #475569; }
+ #minimal .m-line { width: 60px; height: 1px; background: rgba(148,163,184,.2);
+ margin: 14px auto 0; }
+
+ /* ===== 风格5：环形进度时钟 ===== */
+ #ring { position: relative; }
+ #ring .ring-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+ text-align: center; pointer-events: none; }
+ #ring .ring-time { font-size: clamp(24px, 4vw, 38px); font-family: "SF Mono","Consolas",monospace;
+ color: #e2e8f0; }
+ #ring .ring-date { font-size: 12px; color: #64748b; margin-top: 4px; letter-spacing: 2px; }
+
+ /* ===== 风格6：投影特效 ===== */
+ #shadow { perspective: 100px; }
+ #shadow .s-block { font-family: "SF Mono","Consolas",monospace;
+ font-size: clamp(56px, 10vw, 110px); font-weight: 800; letter-spacing: 6px;
+ line-height: 1; position: relative; }
+ #shadow .s-front { color: #f8fafc;
+ text-shadow: 2px 4px 12px rgba(0,0,0,.5), 0 0 40px rgba(56,189,248,.2); }
+ #shadow .s-back { position: absolute; bottom: -14px; left: 0; right: 0; text-align: center;
+ font-size: .75em; color: #334155; transform: scaleY(-1); opacity: .25;
+ mask-image: linear-gradient(to bottom, rgba(0,0,0,.5), transparent); }
+ #shadow .s-date { margin-top: 24px; font-size: 13px; letter-spacing: 3px;
+ color: #64748b; }
+
+ /* ---------- 响应式 ---------- */
+ @media (max-width: 480px) {
+ #switcher { gap: 4px; }
+ #switcher button { padding: 6px 11px; font-size: 11px; letter-spacing: .5px; }
+ .flip-card { width: 50px; height: 70px; }
+ .flip-card .val { font-size: 30px; }
+ .flip-colon { font-size: 22px; }
+ }
+</style>
+</head>
+<body>
+
+<header>
+ <h1>多 风 格 时 钟</h1>
+ <p>MULTI&nbsp;&nbsp;STYLE&nbsp;&nbsp;CLOCK</p>
+</header>
+
+<div id="switcher">
+ <button data-style="digital" class="active">数字时钟</button>
+ <button data-style="analog" >机械指针</button>
+ <button data-style="neon" >霓虹特效</button>
+ <button data-style="flip" >翻页时钟</button>
+ <button data-style="minimal" >极简风格</button>
+ <button data-style="ring" >环形进度</button>
+ <button data-style="shadow" >投影特效</button>
+</div>
+
+<div id="stage">
+<div id="clockWrap">
+
+ <!-- 1 数字时钟 -->
+ <div id="digital" class="clock-view show">
+ <div class="time-block">
+ <span class="digits" id="dH">00</span>
+ <span class="sep">:</span>
+ <span class="digits" id="dM">00</span>
+ <span class="sep">:</span>
+ <span class="sec-block" id="dS">00</span>
+ </div>
+ <div class="date-line" id="dDate"><span></span> · <span></span></div>
+ </div>
+
+ <!-- 2 机械指针 -->
+ <div id="analog" class="clock-view">
+ <canvas id="analogCvs" width="420" height="420"></canvas>
+ </div>
+
+ <!-- 3 霓虹 -->
+ <div id="neon" class="clock-view">
+ <div class="neon-bg"></div>
+ <div class="neon-time">
+ <span class="nh" id="nH">00</span><span class="neon-colon">:</span>
+ <span class="nm" id="nM">00</span><span class="neon-colon">:</span>
+ <span class="ns" id="nS">00</span>
+ </div>
+ <div class="neon-date" id="nDate"></div>
+ </div>
+
+ <!-- 4 翻页 -->
+ <div id="flip" class="clock-view">
+ <div class="flip-row">
+ <div class="flip-card" id="fcH"></div>
+ <span class="flip-colon">:</span>
+ <div class="flip-card" id="fcM"></div>
+ <span class="flip-colon">:</span>
+ <div class="flip-card" id="fcS"></div>
+ </div>
+ <div class="flip-date" id="fDate"></div>
+ </div>
+
+ <!-- 5 极简 -->
+ <div id="minimal" class="clock-view">
+ <div class="m-time"><span id="mHM">00:00</span><span class="m-sec" id="mS">00</span></div>
+ <div class="m-line"></div>
+ <div class="m-date" id="mDate"></div>
+ </div>
+
+ <!-- 6 环形进度 -->
+ <div id="ring" class="clock-view">
+ <canvas id="ringCvs" width="420" height="420"></canvas>
+ <div class="ring-center">
+ <div class="ring-time" id="rHM">00:00</div>
+ <div class="ring-date" id="rDate"></div>
+ </div>
+ </div>
+
+ <!-- 7 投影 -->
+ <div id="shadow" class="clock-view">
+ <div>
+ <div class="s-block">
+ <div class="s-front" id="sFront">00:00:00</div>
+ <div class="s-back" id="sBack">00:00:00</div>
+ </div>
+ <div class="s-date" id="sDate"></div>
+ </div>
+ </div>
+
+</div>
+</div>
+
+<script>
+/* ==================== 状态 ==================== */
+let style = "digital";
+let now = new Date();
+const h24 = () => ({ h: now.getHours(), m: now.getMinutes(), s: now.getSeconds(),
+ ms: now.getMilliseconds(), y: now.getFullYear(),
+ mo: now.getMonth() + 1, d: now.getDate() });
+
+/* ==================== 风格切换 ==================== */
+document.querySelectorAll("#switcher button").forEach(btn => {
+ btn.addEventListener("click", () => {
+ document.querySelector("#switcher .active").classList.remove("active");
+ btn.classList.add("active");
+ style = btn.dataset.style;
+ document.querySelectorAll(".clock-view").forEach(v => v.classList.remove("show"));
+ document.getElementById(style).classList.add("show");
+ if (style === "analog") drawAnalog(true);
+ if (style === "ring") drawRing(true);
+ });
+});
+
+/* ==================== 数字时钟 ==================== */
+const dH = document.getElementById("dH"), dM = document.getElementById("dM"),
+ dS = document.getElementById("dS"), dDate = document.getElementById("dDate");
+function updDigital(t) {
+ const pad = n => String(n).padStart(2, "0");
+ dH.textContent = pad(t.h); dM.textContent = pad(t.m); dS.textContent = pad(t.s);
+ const days = ["周日","周一","周二","周三","周四","周五","周六"];
+ const dspan = dDate.querySelectorAll("span");
+ dspan[0].textContent = `${t.y}.${pad(t.mo)}.${pad(t.d)}`;
+ dspan[1].textContent = days[now.getDay()];
+}
+
+/* ==================== 霓虹 ==================== */
+const nH = document.getElementById("nH"), nM = document.getElementById("nM"),
+ nS = document.getElementById("nS"), nDate = document.getElementById("nDate");
+function updNeon(t) {
+ const pad = n => String(n).padStart(2, "0");
+ nH.textContent = pad(t.h); nM.textContent = pad(t.m); nS.textContent = pad(t.s);
+ nDate.textContent = `${t.y}.${pad(t.mo)}.${pad(t.d)}`;
+}
+
+/* ==================== 翻页时钟 ==================== */
+const fcH = document.getElementById("fcH"), fcM = document.getElementById("fcM"),
+ fcS = document.getElementById("fcS"), fDate = document.getElementById("fDate");
+let flipState = { H: "99", M: "99", S: "99" };
+function buildFlipCard(el) {
+ el.innerHTML = "";
+ const top = document.createElement("div"); top.className = "top";
+ const valTop = document.createElement("div"); valTop.className = "val"; top.appendChild(valTop);
+ const bottom = document.createElement("div"); bottom.className = "bottom";
+ const valBot = document.createElement("div"); valBot.className = "val"; bottom.appendChild(valBot);
+ el.appendChild(top); el.appendChild(bottom);
+ el._valT = valTop; el._valB = valBot; el._flapping = false;
+}
+function flipNum(el, newVal) {
+ const pad = n => String(n).padStart(2, "0");
+ const s = pad(newVal);
+ if (el._valB.textContent === s && !el._flapping) return;
+ if (el._flapping) { el._valB.textContent = s; return; }
+ el._flapping = true;
+ // 创建 flap 元素
+ const flap = document.createElement("div"); flap.className = "flap";
+ const valF = document.createElement("div"); valF.className = "val";
+ valF.textContent = el._valT.textContent; flap.appendChild(valF);
+ el.appendChild(flap);
+ // 更新顶部为新值
+ el._valT.textContent = s;
+ // 动画
+ requestAnimationFrame(() => { flap.classList.add("fall"); });
+ flap.addEventListener("animationend", () => {
+ el._valB.textContent = s; el.removeChild(flap); el._flapping = false;
+ });
+ // 兜底
+ setTimeout(() => {
+ if (el.contains(flap)) { el._valB.textContent = s; el.removeChild(flap); el._flapping = false; }
+ }, 600);
+}
+function updFlip(t) {
+ const pad = n => String(n).padStart(2, "0");
+ flipNum(fcH, t.h); flipNum(fcM, t.m); flipNum(fcS, t.s);
+ fDate.textContent = `${t.y}.${pad(t.mo)}.${pad(t.d)}`;
+}
+buildFlipCard(fcH); buildFlipCard(fcM); buildFlipCard(fcS);
+
+/* ==================== 极简 ==================== */
+const mHM = document.getElementById("mHM"), mS = document.getElementById("mS"),
+ mDate = document.getElementById("mDate");
+function updMinimal(t) {
+ const pad = n => String(n).padStart(2, "0");
+ mHM.textContent = `${pad(t.h)}:${pad(t.m)}`;
+ mS.textContent = pad(t.s);
+ const days = ["日","一","二","三","四","五","六"];
+ mDate.textContent = `${t.y} / ${pad(t.mo)} / ${pad(t.d)} · 星期${days[now.getDay()]}`;
+}
+
+/* ==================== 投影 ==================== */
+const sFront = document.getElementById("sFront"), sBack = document.getElementById("sBack"),
+ sDate = document.getElementById("sDate");
+function updShadow(t) {
+ const pad = n => String(n).padStart(2, "0");
+ const str = `${pad(t.h)}:${pad(t.m)}:${pad(t.s)}`;
+ sFront.textContent = str; sBack.textContent = str;
+ sDate.textContent = `${t.y}.${pad(t.mo)}.${pad(t.d)}`;
+}
+
+/* ==================== 模拟时钟 + 环形 ==================== */
+const analogCvs = document.getElementById("analogCvs");
+const actx = analogCvs.getContext("2d");
+const ringCvs = document.getElementById("ringCvs");
+const rctx = ringCvs.getContext("2d");
+const rHM = document.getElementById("rHM"), rDate = document.getElementById("rDate");
+
+function drawAnalog(force) {
+ if (style !== "analog" && !force) return;
+ const dpr = window.devicePixelRatio || 1;
+ const W = analogCvs.width = analogCvs.clientWidth * dpr || 420;
+ const H = analogCvs.height = analogCvs.clientHeight * dpr || 420;
+ const cx = W / 2, cy = H / 2;
+ const r = Math.min(cx, cy) * 0.78;
+ actx.setTransform(dpr, 0, 0, dpr, 0, 0);
+ actx.clearRect(0, 0, W, H);
+
+ // 表盘
+ const bg = actx.createRadialGradient(cx, cy, r * 0.1, cx, cy, r * 1.05);
+ bg.addColorStop(0, "#1e293b"); bg.addColorStop(.9, "#0f172a"); bg.addColorStop(1, "#020617");
+ actx.fillStyle = bg; actx.beginPath(); actx.arc(cx, cy, r, 0, Math.PI * 2); actx.fill();
+ actx.strokeStyle = "rgba(56,189,248,.35)"; actx.lineWidth = 2;
+ actx.stroke();
+
+ // 刻度
+ for (let i = 0; i < 60; i++) {
+ const ang = (i * 6 - 90) * Math.PI / 180;
+ const s = Math.sin(ang), c = Math.cos(ang);
+ const inner = i % 5 === 0 ? r * 0.82 : r * 0.88;
+ actx.beginPath(); actx.moveTo(cx + c * inner, cy + s * inner);
+ actx.lineTo(cx + c * r * 0.94, cy + s * r * 0.94);
+ actx.strokeStyle = i % 5 === 0 ? "rgba(56,189,248,.7)" : "rgba(148,163,184,.25)";
+ actx.lineWidth = i % 5 === 0 ? 2 : 1; actx.stroke();
+ }
+
+ // 数字
+ actx.font = `${r*0.11}px "PingFang SC","Microsoft YaHei",sans-serif`;
+ actx.textAlign = "center"; actx.textBaseline = "middle"; actx.fillStyle = "#94a3b8";
+ for (let i = 1; i <= 12; i++) {
+ const ang = (i * 30 - 90) * Math.PI / 180;
+ actx.fillText(String(i), cx + Math.cos(ang) * r * 0.7, cy + Math.sin(ang) * r * 0.7);
+ }
+
+ // 中心点
+ actx.fillStyle = "#38bdf8"; actx.beginPath();
+ actx.arc(cx, cy, r * 0.04, 0, Math.PI * 2); actx.fill();
+
+ // 指针
+ const t = h24();
+ const sAng = (t.s + t.ms / 1000) * 6 - 90;
+ const mAng = (t.m + t.s / 60) * 6 - 90;
+ const hAng = ((t.h % 12) + t.m / 60) * 30 - 90;
+ drawHand(actx, cx, cy, hAng, r * 0.42, r * 0.04, "#f8fafc");
+ drawHand(actx, cx, cy, mAng, r * 0.62, r * 0.028, "#94a3b8");
+ drawHand(actx, cx, cy, sAng, r * 0.72, r * 0.012, "#f472b6");
+ // 秒针中心盖
+ actx.fillStyle = "#f472b6"; actx.beginPath();
+ actx.arc(cx, cy, r * 0.022, 0, Math.PI * 2); actx.fill();
+}
+function drawHand(ctx, cx, cy, angDeg, len, w, color) {
+ const a = angDeg * Math.PI / 180;
+ ctx.save(); ctx.translate(cx, cy); ctx.rotate(a);
+ ctx.fillStyle = color; ctx.beginPath();
+ ctx.moveTo(0, -w); ctx.lineTo(len, -w * .3); ctx.lineTo(len, w * .3);
+ ctx.lineTo(0, w); ctx.closePath(); ctx.fill();
+ ctx.restore();
+}
+
+function drawRing(force) {
+ if (style !== "ring" && !force) return;
+ const dpr = window.devicePixelRatio || 1;
+ const W = ringCvs.width = ringCvs.clientWidth * dpr || 420;
+ const H = ringCvs.height = ringCvs.clientHeight * dpr || 420;
+ const cx = W / 2, cy = H / 2;
+ const t = h24();
+ rctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+ rctx.clearRect(0, 0, W, H);
+
+ // 背景圆环（3个）
+ const arcs = [
+ { r: W * 0.44, progress: (t.h % 12) / 12, color: "#38bdf8", label: "时" },
+ { r: W * 0.34, progress: t.m / 60, color: "#f472b6", label: "分" },
+ { r: W * 0.24, progress: t.s / 60, color: "#a78bfa", label: "秒" },
+ ];
+ arcs.forEach(a => {
+ // 底层
+ rctx.beginPath(); rctx.arc(cx, cy, a.r, -Math.PI / 2, Math.PI * 1.5);
+ rctx.strokeStyle = "rgba(30,41,59,.8)"; rctx.lineWidth = W * 0.03; rctx.stroke();
+ // 进度
+ const end = -Math.PI / 2 + a.progress * Math.PI * 2;
+ rctx.beginPath(); rctx.arc(cx, cy, a.r, -Math.PI / 2, end);
+ rctx.strokeStyle = a.color; rctx.lineWidth = W * 0.03;
+ rctx.lineCap = "round"; rctx.shadowColor = a.color;
+ rctx.shadowBlur = 10; rctx.stroke(); rctx.shadowBlur = 0;
+ // 端点
+ rctx.fillStyle = a.color; rctx.beginPath();
+ rctx.arc(cx + Math.cos(end) * a.r, cy + Math.sin(end) * a.r,
+ W * 0.018, 0, Math.PI * 2); rctx.fill();
+ });
+ // 更新中心文字
+ const pad = n => String(n).padStart(2, "0");
+ rHM.textContent = `${pad(t.h)}:${pad(t.m)}`;
+ rDate.textContent = `${t.y}.${pad(t.mo)}.${pad(t.d)}`;
+}
+
+/* ==================== 统一更新 ==================== */
+function update() {
+ now = new Date();
+ const t = h24();
+ updDigital(t);
+ updNeon(t);
+ updFlip(t);
+ updMinimal(t);
+ updShadow(t);
+ drawAnalog();
+ drawRing();
+}
+
+/* ==================== 动画循环 ==================== */
+(function loop() {
+ update();
+ requestAnimationFrame(loop);
+})();
+
+/* ==================== 响应式处理 ==================== */
+window.addEventListener("resize", () => {
+ if (style === "analog") drawAnalog(true);
+ if (style === "ring") drawRing(true);
+});
+</script>
+</body>
+</html>

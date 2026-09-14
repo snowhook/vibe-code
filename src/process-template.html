@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>工艺路线模板</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;background:#f0f2f5;min-height:100vh}
+.hdr{background:linear-gradient(135deg,#1a73e8,#1557b0);color:#fff;padding:14px 20px;display:flex;justify-content:space-between;align-items:center}
+.hdr h1{font-size:19px}
+.btn{padding:8px 18px;border:none;border-radius:7px;cursor:pointer;font-size:13px;font-weight:600}
+.btn-p{background:#1a73e8;color:#fff}.btn-p:hover{background:#1557b0}
+.btn-s{background:#e8eaed;color:#333}.btn-s:hover{background:#dadce0}
+.btn-g{background:#34a853;color:#fff}.btn-g:hover{background:#2d9249}
+.btn-d{background:#ea4335;color:#fff;font-size:11px;padding:5px 10px}.btn-d:hover{background:#c62828}
+.btn-o{background:#f97316;color:#fff;font-size:11px;padding:5px 10px}.btn-o:hover{background:#ea580c}
+.btn-w{background:#fff;color:#1a73e8;font-size:12px;padding:6px 14px}.btn-w:hover{background:#e8f0fe}
+.btn-x{padding:5px 12px;font-size:11px}
+.ctr{max-width:980px;margin:0 auto;padding:16px}
+.card{background:#fff;border-radius:10px;padding:22px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.card h2{font-size:16px;color:#1a73e8;margin-bottom:6px}
+.card .sub{color:#666;font-size:12px;margin-bottom:14px}
+.fld{margin-bottom:10px}
+.fld label{display:block;font-weight:600;font-size:12px;color:#333;margin-bottom:3px}
+.fld input[type=text],.fld input[type=number]{padding:8px 10px;border:2px solid #e0e0e0;border-radius:7px;font-size:13px;width:100%}
+.fld input:focus{outline:none;border-color:#1a73e8}
+.acts{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.hidden{display:none}
+.tabs{display:flex;gap:3px;margin-bottom:12px;flex-wrap:wrap}
+
+/* Step list */
+.slist{max-height:360px;overflow-y:auto}
+.srow{display:flex;align-items:center;gap:6px;padding:4px 0}
+.srow .num{width:22px;text-align:center;font-weight:700;color:#1a73e8;flex-shrink:0;font-size:12px}
+.srow select{padding:6px 8px;border:2px solid #e0e0e0;border-radius:6px;font-size:12px;background:#fff;min-width:140px}
+.srow select:focus{outline:none;border-color:#1a73e8}
+.srow .wc-wrap{display:flex;align-items:center;gap:4px;flex-wrap:wrap;flex:1}
+.srow .wc-tag{display:inline-flex;align-items:center;gap:3px;background:#f0fdf4;border:1px solid #bbf7d0;color:#065f46;padding:2px 8px;border-radius:12px;font-size:11px}
+.srow .wc-sel{border:1px dashed #86efac;background:#fff;color:#999;cursor:pointer;padding:2px 8px;border-radius:12px;font-size:11px}
+.srow .wc-sel:hover{background:#f0fdf4;color:#065f46}
+.srow .dx{background:none;border:none;color:#ea4335;cursor:pointer;font-size:14px;padding:2px 4px}
+.srow .dx-sm{background:none;border:none;color:#999;cursor:pointer;font-size:11px;padding:0 3px}
+.adn{text-align:center;color:#aaa;font-size:13px}
+
+.ctrl{margin-top:12px;display:flex;gap:6px;flex-wrap:wrap}
+
+/* Work center manager */
+.wc-mgr{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;margin-bottom:12px}
+.wc-mgr h3{color:#334155;font-size:13px;margin-bottom:8px}
+.wc-mgr table{width:100%;border-collapse:collapse;font-size:12px}
+.wc-mgr th{text-align:left;padding:6px 8px;background:#f1f5f9;color:#475569;font-weight:600;border-radius:4px}
+.wc-mgr td{padding:6px 8px;border-bottom:1px solid #f1f5f9}
+.wc-mgr .f-row{display:flex;gap:6px;align-items:center;margin-top:8px}
+.wc-mgr .f-row input{padding:6px 8px;border:2px solid #e0e0e0;border-radius:6px;font-size:12px;flex:1}
+.wc-mgr .f-row input:focus{outline:none;border-color:#1a73e8}
+.wc-mgr .f-row label{font-size:11px;color:#666;white-space:nowrap}
+
+/* Inline edit for process name */
+.proc-edit{display:flex;align-items:center;gap:4px}
+.proc-edit input{width:100px;padding:2px 4px;border:2px solid #1a73e8;border-radius:4px;font-size:12px}
+.proc-edit button{font-size:11px;padding:1px 6px;border-radius:4px;cursor:pointer}
+
+/* Process manager */
+.pm-btn{font-size:11px;background:#e8f0fe;color:#1a73e8;border:1px solid #a8c7fa;padding:4px 10px;border-radius:6px;cursor:pointer}
+.pm-btn:hover{background:#d2e3fc}
+
+/* WC picker dropdown */
+.wc-drop{position:absolute;background:#fff;border:1px solid #d1d5db;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.12);z-index:100;min-width:140px;max-height:200px;overflow-y:auto;font-size:12px}
+.wc-drop .item{padding:6px 12px;cursor:pointer;display:flex;justify-content:space-between;align-items:center}
+.wc-drop .item:hover{background:#f0f7ff}
+.wc-drop .item .used{color:#34a853;font-size:10px}
+
+/* Chart */
+.res{background:#fff;border-radius:10px;padding:18px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.res h2{font-size:16px;color:#1a73e8;margin-bottom:10px}
+.chart{display:flex;flex-direction:column;align-items:center;padding:30px 0}
+.cnode{width:170px;padding:10px 0;border-radius:8px;text-align:center;font-weight:600;font-size:13px;border:2px solid;margin:3px 0;position:relative}
+.cnode.start{background:#dbeafe;border-color:#1d4ed8;color:#1e40af}
+.cnode.proc{background:#e5e7eb;border-color:#6b7280;color:#1f2937}
+.cnode.end{background:#fecaca;border-color:#dc2626;color:#991b1b}
+.cnode .cn{font-size:11px;font-weight:400;color:#333;margin-bottom:2px}
+.cnode .cp{font-size:14px;font-weight:700}
+.cnode .cw{font-size:10px;color:#059669;margin-top:2px;font-weight:400}
+.av{color:#64748b;font-size:18px;line-height:1;text-align:center;position:relative}
+.av span{position:absolute;right:-24px;top:-6px;font-size:10px;color:#059669;white-space:nowrap}
+
+/* Saved list */
+.svlist{margin-top:10px}
+.svitem{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border:1px solid #e0e0e0;border-radius:7px;margin-bottom:6px;cursor:pointer;transition:.12s}
+.svitem:hover{background:#f0f7ff;border-color:#1a73e8}
+.svitem .inf{flex:1}
+.svitem .nm{font-weight:700;color:#333;font-size:13px}
+.svitem .ds{font-size:11px;color:#999;margin-top:2px}
+.svitem .iac{display:flex;gap:6px}
+.empty{text-align:center;padding:36px;color:#999;font-size:36px}
+.tag{display:inline-block;background:#e8f0fe;color:#1a73e8;padding:1px 6px;border-radius:4px;font-size:10px;margin-right:3px}
+
+/* Pro table layout */
+.ptable{width:100%;border-collapse:separate;border-spacing:0 6px}
+.ptable th{text-align:left;padding:8px 12px;color:#64748b;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.ptable td{padding:0}
+.pcard{border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;transition:.15s}
+.pcard:hover{border-color:#a8c7fa;box-shadow:0 2px 8px rgba(26,115,232,.08)}
+.pcard .phd{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#f8fafc;border-bottom:1px solid #f1f5f9}
+.pcard .phd .pn{font-weight:700;color:#1e293b;font-size:13px;display:flex;align-items:center;gap:6px}
+.pcard .phd .pn .dot{width:8px;height:8px;border-radius:50%;background:#1a73e8}
+.pcard .phd .pacts{display:flex;gap:4px}
+.pcard .phd .pbtn{font-size:10px;padding:3px 8px;border-radius:5px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;color:#64748b}
+.pcard .phd .pbtn:hover{background:#f1f5f9;color:#334155}
+.pcard .phd .pbtn.del{color:#ef4444;border-color:#fecaca}
+.pcard .phd .pbtn.del:hover{background:#fef2f2}
+.pcard .pbd{padding:10px 14px}
+.pcard .pbd .wcs{display:flex;flex-wrap:wrap;gap:5px;min-height:20px;align-items:center}
+.pcard .pbd .wcs .wx{display:inline-flex;align-items:center;gap:4px;background:#f0fdf4;border:1px solid #bbf7d0;color:#065f46;padding:3px 10px;border-radius:14px;font-size:11px;font-weight:500}
+.pcard .pbd .wcs .wx .rm{color:#86efac;cursor:pointer;font-size:12px;margin-left:2px}
+.pcard .pbd .wcs .wx .rm:hover{color:#ef4444}
+.pcard .pbd .wcs .add{color:#94a3b8;font-size:11px;cursor:pointer;padding:3px 10px;border:1px dashed #cbd5e1;border-radius:14px;background:#fff}
+.pcard .pbd .wcs .add:hover{border-color:#1a73e8;color:#1a73e8;background:#f0f7ff}
+.pcard .pbd .wcs .mt{color:#cbd5e1;font-size:11px}
+.pcard .pbd .new-wc{display:flex;gap:6px;margin-top:8px;align-items:center}
+.pcard .pbd .new-wc input{padding:5px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:11px;flex:1;max-width:160px}
+.pcard .pbd .new-wc input:focus{outline:none;border-color:#1a73e8}
+.pcard .pbd .new-wc button{font-size:10px;padding:4px 10px;border-radius:5px;border:none;background:#1a73e8;color:#fff;cursor:pointer}
+.pcard .pbd .new-wc button:hover{background:#1557b0}
+
+/* Add proc card */
+.apc{border:2px dashed #cbd5e1;border-radius:10px;padding:16px;text-align:center;transition:.15s;cursor:pointer}
+.apc:hover{border-color:#1a73e8;background:#f8faff}
+.apc input{border:2px solid #e0e0e0;border-radius:7px;padding:8px 12px;font-size:13px;width:200px;text-align:center;margin-top:8px}
+.apc input:focus{outline:none;border-color:#1a73e8}
+.apc button{margin-top:8px;padding:7px 20px;border:none;border-radius:7px;background:#1a73e8;color:#fff;font-size:12px;font-weight:600;cursor:pointer}
+.apc button:hover{background:#1557b0}
+
+.inline-edit{display:flex;gap:4px}
+.inline-edit input{padding:3px 6px;border:2px solid #1a73e8;border-radius:5px;font-size:12px;width:120px}
+.inline-edit button{font-size:10px;padding:3px 8px;border-radius:5px;border:1px solid #e2e8f0;background:#fff;cursor:pointer}
+.inline-edit .ok{color:#059669;border-color:#bbf7d0}.inline-edit .ok:hover{background:#f0fdf4}
+.inline-edit .cancel{color:#64748b}.inline-edit .cancel:hover{background:#f1f5f9}
+
+/* Form cards */
+.fcard{background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:20px;margin-bottom:16px}
+.fr{margin-bottom:16px}
+.fr:last-child{margin-bottom:0}
+.fr label{display:block;font-weight:600;font-size:13px;color:#334155;margin-bottom:6px}
+.fr input[type=text]{width:100%;padding:12px 14px;border:2px solid #e2e8f0;border-radius:8px;font-size:14px;transition:.15s}
+.fr input:focus{outline:none;border-color:#1a73e8;box-shadow:0 0 0 3px rgba(26,115,232,.1)}
+.fr textarea{width:100%;padding:12px 14px;border:2px solid #e2e8f0;border-radius:8px;font-size:14px;resize:vertical;font-family:inherit;transition:.15s}
+.fr textarea:focus{outline:none;border-color:#1a73e8;box-shadow:0 0 0 3px rgba(26,115,232,.1)}
+.btn-lg{padding:10px 24px;font-size:14px}
+</style>
+</head>
+<body>
+<div class="hdr">
+  <h1>🏭 工艺路线模板</h1>
+  <div>
+    <button class="btn btn-w" onclick="showWcMgr()">⚙️ 工序管理</button>
+    <button class="btn btn-w" onclick="showNew()">+ 新建模板</button>
+    <button class="btn btn-w" onclick="showSaved()">📋 已保存</button>
+  </div>
+</div>
+<div class="ctr">
+<!-- Work Center Manager -->
+<div id="wcs" class="card hidden">
+  <h2>⚙️ 管理工序 &amp; 工作中心</h2>
+  <div class="sub" style="display:flex;justify-content:space-between;align-items:center"><span>每个工序卡片下方可管理对应的工作中心</span><button class="btn btn-s btn-x" onclick="resetProcs()" style="color:#ea4335">🔄 重置默认</button></div>
+  <table class="ptable" id="ptable"><thead><tr><th style="width:40%">工序</th><th>工作中心</th></tr></thead><tbody id="ptbody"></tbody></table>
+  <div class="apc" style="margin-top:12px">
+    <div style="font-size:13px;color:#94a3b8;font-weight:600">+ 新增工序</div>
+    <div style="display:flex;gap:8px;justify-content:center;align-items:center;margin-top:8px">
+      <input id="npn" placeholder="输入工序名称">
+      <button onclick="addProc()">添加</button>
+    </div>
+  </div>
+  <div class="acts">
+    <button class="btn btn-s" onclick="H('wcs')">关闭</button>
+  </div>
+</div>
+
+<!-- New Template -->
+<div id="ns" class="hidden">
+<div class="card" id="s1">
+  <h2>第一步：模板信息</h2>
+  <div class="sub">填写模板基本信息</div>
+  <div class="fcard">
+    <div class="fr"><label>模板名称 <span style="color:#ea4335">*</span></label><input id="tn" placeholder="例如：标准丝印工艺"></div>
+    <div class="fr"><label>模板说明</label><textarea id="td" rows="2" placeholder="选填，描述该模板的用途、注意事项等..."></textarea></div>
+  </div>
+  <button class="btn btn-p btn-lg" onclick="go2()">下一步 →</button>
+</div>
+<div class="card hidden" id="s2">
+  <h2>第二步：选择工序</h2>
+  <div class="sub">逐行选择工序，可指定工作中心（可选）</div>
+  <div id="sls"></div>
+  <div class="acts">
+    <button class="btn btn-s" onclick="go1()">← 返回</button>
+    <button class="btn btn-g" onclick="gen()">生成路线图</button>
+    <button class="btn btn-p hidden" id="bsv" onclick="save()">💾 保存模板</button>
+  </div>
+</div>
+<div class="hidden" id="s3">
+  <div class="res"><h2 id="rt">工艺路线图</h2><div class="chart" id="cw"></div>
+    <div class="acts"><button class="btn btn-s" onclick="back()">← 返回修改</button><button class="btn btn-g" onclick="save()">💾 保存模板</button><button class="btn btn-p" onclick="showNew()">重新开始</button></div>
+  </div>
+</div>
+</div>
+
+<!-- Saved list -->
+<div id="ss" class="card hidden"><h2>📋 已保存的模板</h2><div class="svlist" id="ssl"></div></div>
+</div>
+
+<!-- WC Picker -->
+<div id="wcp" class="wc-drop hidden" style="position:fixed"></div>
+
+<script>
+// Data: proc name -> {name, wcs: string[]}
+const D_PROCS={"开料":[],"丝印":[],"喷墨":[],"镭射":[],"电压":[],"啤料":[],"品检":[],"精益":[],"包装":[]}
+let procMap = JSON.parse(localStorage.getItem('pt_procs')||JSON.stringify(D_PROCS))
+// Merge defaults in case stored data is missing entries
+let merged=false
+Object.keys(D_PROCS).forEach(k=>{if(procMap[k]===undefined){procMap[k]=[];merged=true}})
+if(merged)saveProcs()
+let TName='', TDesc='', steps=[], eid=null, wcPickIdx=-1
+
+function $(id){return document.getElementById(id)}
+function S(id){$(id).classList.remove('hidden')}
+function H(id){$(id).classList.add('hidden')}
+
+function saveProcs(){localStorage.setItem('pt_procs',JSON.stringify(procMap))}
+
+// ===== Work Center & Process Manager =====
+function showWcMgr(){H('ns');H('ss');S('wcs');rProcTab()}
+
+function escapeHtml(s){return s.replace(/'/g,"\\'").replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+function resetProcs(){
+  if(!confirm('确定重置为默认工序？这会清空你的自定义修改。'))return
+  procMap=JSON.parse(JSON.stringify(D_PROCS));saveProcs();rProcTab()
+}
+
+function rProcTab(){
+  const tb=$('ptbody'),pns=Object.keys(procMap)
+  if(pns.length===0){tb.innerHTML='<tr><td colspan=2 style="text-align:center;color:#999;padding:30px">暂无工序，请在下方添加</td></tr>';return}
+  let h=''
+  pns.forEach((pn,i)=>{
+    const wcs=procMap[pn]||[]
+    h+=`<tr><td><div class="pcard">
+      <div class="phd">
+        <span class="pn"><span class="dot"></span><span id="pnd-${i}">${pn}</span></span>
+        <span class="pacts">
+          <button class="pbtn" onclick="renProc(${i})">✏️</button>
+          <button class="pbtn del" onclick="delProc('${escapeHtml(pn)}')">🗑</button>
+        </span>
+      </div>
+      <div class="pbd">
+        <div class="wcs" id="wcs-${i}">`+
+        (wcs.length===0?'<span class="mt">暂无工作中心</span>':wcs.map(w=>`<span class="wx">${w}<span class="rm" onclick="delWc('${escapeHtml(pn)}','${escapeHtml(w)}')">×</span></span>`).join(''))+
+        `<span class="add" onclick="showAddWc(${i})">+ 添加</span>
+        </div>
+        <div class="new-wc hidden" id="nwc-${i}">
+          <input id="nwci-${i}" placeholder="工作中心名称">
+          <button onclick="addWcIdx(${i})">确认</button>
+          <button style="background:#e2e8f0;color:#64748b" onclick="Hv('nwc-'+${i})">取消</button>
+        </div>
+      </div>
+    </div></td></tr>`
+  })
+  tb.innerHTML=h
+}
+function Hv(id){const el=$(id);if(el)el.classList.add('hidden')}
+function showAddWc(i){$('nwc-'+i).classList.remove('hidden');setTimeout(()=>{const inp=$('nwci-'+i);if(inp)inp.focus()},50)}
+function renProc(i){
+  const pns=Object.keys(procMap),old=pns[i]
+  const el=$('pnd-'+i);el.innerHTML=`<span class="inline-edit"><input id="rei-${i}" value="${old}"><button class="ok" onclick="saveRen(${i})">✓</button><button class="cancel" onclick="rProcTab()">✕</button></span>`
+  setTimeout(()=>{const inp=$('rei-'+i);if(inp)inp.focus();inp.select()},30)
+}
+function saveRen(i){
+  const pns=Object.keys(procMap),old=pns[i]
+  const nn=$('rei-'+i).value.trim();if(!nn||nn===old){rProcTab();return}
+  if(procMap[nn]!==undefined){alert('工序已存在');return}
+  procMap[nn]=procMap[old];delete procMap[old];saveProcs();rProcTab()
+}
+function addProc(){
+  const n=$('npn').value.trim();if(!n){alert('请输入名称');return}
+  if(procMap[n]!==undefined){alert('工序已存在');return}
+  procMap[n]=[];$('npn').value='';saveProcs();rProcTab()
+}
+function delProc(pn){
+  if(!confirm(`确定删除工序 "${pn}" 及其所有工作中心？`))return
+  delete procMap[pn];saveProcs();rProcTab()
+}
+function addWcIdx(i){
+  const pns=Object.keys(procMap),pn=pns[i]
+  const inp=$('nwci-'+i);const n=inp?inp.value.trim():'';if(!n)return
+  if(procMap[pn].includes(n)){alert('工作中心已存在');return}
+  procMap[pn].push(n);saveProcs();rProcTab()
+}
+function delWc(pn,w){
+  if(!confirm(`删除 "${w}"？`))return
+  procMap[pn]=procMap[pn].filter(x=>x!==w);saveProcs();rProcTab()
+}
+
+// ===== Navigation =====
+function showNew(){H('ss');H('wcs');S('ns');S('s1');H('s2');H('s3');TName='';TDesc='';steps=[];eid=null;$('tn').value='';$('td').value=''}
+function showSaved(){H('s1');H('s2');H('s3');H('wcs');S('ns');S('ss');rSaved()}
+function go1(){S('s1');H('s2');H('s3');closeWcPick()}
+function back(){H('s3');S('s2')}
+
+function go2(){
+  TName=$('tn').value.trim();if(!TName){alert('请输入模板名称');return}
+  TDesc=$('td').value.trim()
+  if(steps.length===0)steps=[]
+  H('s1');H('s3');S('s2');rSteps()
+}
+
+// ===== Step Editor =====
+function rSteps(){
+  while(steps.length>0&&!steps[steps.length-1].proc)steps.pop()
+  if(steps.length===0||steps[steps.length-1].proc)steps.push({proc:'',wcs:[]})
+  const pns=Object.keys(procMap)
+  let h='<div class="slist">'
+  steps.forEach((s,i)=>{
+    const last=i===steps.length-1
+    h+=`<div class="srow"><span class="num">${i+1}</span>
+      <select onchange="onSel(${i},this.value)"><option value="">-- 选择工序 --</option>`+
+      pns.map(p=>`<option value="${p}" ${s.proc===p?'selected':''}>${p}</option>`).join('')+
+      `</select>
+      <div class="wc-wrap" id="wctags-${i}">${rWcTags(i,s.wcs)}</div>
+      <button class="dx" onclick="delStep(${i})">✕</button>
+    </div>`
+    if(!last)h+='<div class="adn">↓</div>'
+  })
+  h+='</div><div class="ctrl"><button class="btn btn-p btn-x" onclick="addStep()">+ 添加工序</button></div>'
+  $('sls').innerHTML=h
+}
+function rWcTags(i,wcs){
+  const pn=steps[i]?.proc
+  if(!pn)return ''
+  const avail=procMap[pn]||[]
+  return wcs.map(w=>`<span class="wc-tag">${w}<span class="dx-sm" onclick="rmWc(${i},'${escapeHtml(w)}')">✕</span></span>`).join('')+
+    `<span class="wc-sel" onclick="showWcPick(${i},event)">+ 工作中心</span>`
+}
+function onSel(i,v){
+  if(v){steps[i].proc=v;steps[i].wcs=[];while(steps.length>0&&!steps[steps.length-1].proc)steps.pop();steps.push({proc:'',wcs:[]})}
+  rSteps()
+}
+function addStep(){while(steps.length>0&&!steps[steps.length-1].proc)steps.pop();steps.push({proc:'',wcs:[]});rSteps()}
+function delStep(i){steps.splice(i,1);rSteps()}
+
+// ===== Work Center Picker =====
+function showWcPick(i,ev){
+  ev.stopPropagation();closeWcPick()
+  wcPickIdx=i
+  const pn=steps[i]?.proc;if(!pn)return
+  const avail=procMap[pn]||[]
+  const sel=steps[i].wcs||[]
+  const d=$('wcp');d.innerHTML=avail.map(w=>`<div class="item" onclick="togWc('${escapeHtml(w)}')"><span>${w}</span>${sel.includes(w)?'<span class="used">✓</span>':''}</div>`).join('')||'<div class="item" style="color:#999">无可用工作中心</div>'
+  d.style.left=(ev.clientX-100)+'px';d.style.top=(ev.clientY+10)+'px';S('wcp')
+}
+function togWc(w){
+  const s=steps[wcPickIdx];if(!s)return
+  const idx=s.wcs.indexOf(w)
+  if(idx>=0)s.wcs.splice(idx,1);else s.wcs.push(w)
+  rSteps();closeWcPick()
+}
+function rmWc(i,w){steps[i].wcs=steps[i].wcs.filter(x=>x!==w);rSteps()}
+function closeWcPick(){H('wcp');wcPickIdx=-1}
+document.addEventListener('click',e=>{if(!$('wcp').contains(e.target)&&!e.target.classList.contains('wc-sel'))closeWcPick()})
+
+// ===== Generate =====
+function gen(){
+  steps=steps.filter(s=>s.proc)
+  if(steps.length===0){alert('请至少选择一个工序');return}
+  H('s1');H('s2');S('s3');$('rt').textContent='工艺路线图 — '+TName+(TDesc?' — '+TDesc:'');chart();$('bsv').classList.remove('hidden')
+}
+function chart(){
+  const w=$('cw');w.innerHTML=TDesc?'<div style="text-align:center;color:#666;font-size:12px;margin-bottom:16px;padding:8px 16px;background:#f8fafc;border-radius:8px">📝 '+TDesc+'</div>':''
+  steps.forEach((s,i)=>{
+    let cls=i===0?'start':(i===steps.length-1?'end':'proc')
+    let h=`<div class="cnode ${cls}">
+      <div class="cn">工序${i+1}</div>
+      <div class="cp">${s.proc}</div>`
+    if(s.wcs&&s.wcs.length>0)h+=`<div class="cw">🏭 ${s.wcs.join(' / ')}</div>`
+    h+=`</div>`
+    w.innerHTML+=h
+    if(i<steps.length-1)w.innerHTML+='<div class="av">⬇</div>'
+  })
+}
+
+// ===== Save / Load =====
+function save(){
+  steps=steps.filter(s=>s.proc)
+  if(!TName||steps.length===0){alert('请先生成路线图');return}
+  const all=JSON.parse(localStorage.getItem('pt_tpls')||'[]')
+  if(eid){
+    // Editing existing - update in place
+    const idx=all.findIndex(r=>r.eid===eid)
+    if(idx>=0){
+      all[idx]={name:TName,desc:TDesc,steps:steps.map(s=>({proc:s.proc,wcs:[...s.wcs]})),eid,ts:new Date().toISOString()}
+      localStorage.setItem('pt_tpls',JSON.stringify(all))
+      alert('已更新: '+TName)
+    } else {eid=null;save();return}
+  } else {
+    // New template
+    const data={name:TName,desc:TDesc,steps:steps.map(s=>({proc:s.proc,wcs:[...s.wcs]})),eid:Date.now().toString(),ts:new Date().toISOString()}
+    all.push(data);localStorage.setItem('pt_tpls',JSON.stringify(all));eid=data.eid
+    alert('已保存: '+TName)
+  }
+  rSaved()
+}
+function rSaved(){
+  const all=JSON.parse(localStorage.getItem('pt_tpls')||'[]')
+  const d=$('ssl')
+  if(all.length===0){d.innerHTML='<div class="empty">📭<p style="font-size:14px;margin-top:8px;color:#999;">还没有保存的模板</p></div>';return}
+  let h=''
+  all.forEach((r,i)=>{
+    const dt=new Date(r.ts)
+    const ds=dt.toLocaleDateString('zh-CN')+' '+dt.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'})
+    const stepsPreview=r.steps.map(s=>s.proc).join(' → ')
+    h+=`<div class="svitem">
+      <div class="inf" onclick="viewTpl('${r.eid}')">
+        <div class="nm">${r.name} <span style="color:#999;font-weight:400;font-size:11px;">
+          — ${r.steps.length}道工序</span></div>
+        <div class="ds">${r.desc?r.desc+' · ':''}${ds} · ${stepsPreview}</div>
+      </div>
+      <div class="iac">
+        <button class="btn btn-s btn-x" onclick="editTpl('${r.eid}')">✏️ 编辑</button>
+        <button class="btn btn-d btn-x" onclick="delTpl('${r.eid}')">🗑 删除</button>
+      </div>
+    </div>`
+  })
+  d.innerHTML=h
+}
+function viewTpl(id){
+  const all=JSON.parse(localStorage.getItem('pt_tpls')||'[]')
+  const r=all.find(rr=>rr.eid===id);if(!r)return
+  TName=r.name;TDesc=r.desc||'';steps=r.steps.map(s=>({proc:s.proc,wcs:[...s.wcs]}));eid=r.eid
+  H('ss');S('ns');gen()
+}
+function editTpl(id){
+  const all=JSON.parse(localStorage.getItem('pt_tpls')||'[]')
+  const r=all.find(rr=>rr.eid===id);if(!r)return
+  TName=r.name;TDesc=r.desc||'';steps=r.steps.map(s=>({proc:s.proc,wcs:[...s.wcs]}));eid=r.eid
+  H('ss');S('ns');H('s1');S('s2');H('s3');rSteps()
+}
+function delTpl(id){
+  if(!confirm('确定删除？'))return
+  const all=JSON.parse(localStorage.getItem('pt_tpls')||'[]')
+  localStorage.setItem('pt_tpls',JSON.stringify(all.filter(r=>r.eid!==id)));rSaved()
+}
+
+// Init
+rSaved()
+</script>
+</body>
+</html>

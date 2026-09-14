@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>世界时钟 · World Clock</title>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+body{font-family:"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;min-height:100vh;background:#0b0e17;display:flex;flex-direction:column;align-items:center}
+.header{display:flex;justify-content:space-between;align-items:center;width:100%;max-width:1400px;padding:20px 24px 10px}
+.header-left h1{font-size:24px;font-weight:300;color:#fff;letter-spacing:4px}
+.header-left h1 span{color:rgba(100,180,255,0.6);font-weight:600}
+.header-left p{font-size:12px;color:rgba(255,255,255,0.3);margin-top:2px;letter-spacing:1.5px}
+.btn-toggle-panel{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.10);color:#ccc;padding:8px 18px;border-radius:10px;cursor:pointer;font-size:13px;font-family:inherit;transition:all .2s}
+.btn-toggle-panel:hover{background:rgba(255,255,255,0.12);color:#fff}
+.map-wrapper{position:relative;width:100%;max-width:1400px;margin:0 auto;padding:10px 20px 40px}
+.map-container{position:relative;width:100%;border-radius:20px;overflow:hidden;box-shadow:0 0 60px rgba(64,164,255,0.06),0 20px 80px rgba(0,0,0,0.6);background:#0d1421}
+.map-container::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(11,14,23,0.30),transparent 12%,transparent 88%,rgba(11,14,23,0.45));pointer-events:none;z-index:0}
+.map-image{display:block;width:100%;height:auto;min-height:400px;aspect-ratio:3200/1600;object-fit:cover;background:#0d1421 url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 50%22%3E%3Crect fill=%22%230d1421%22 width=%22100%22 height=%2250%22/%3E%3Ctext x=%2250%22 y=%2225%22 text-anchor=%22middle%22 fill=%22rgba(255,255,255,0.15)%22 font-size=%224%22%3EWorld Time Zone Map Loading...%3C/text%3E%3C/svg%3E') center/cover}
+.map-labels{position:absolute;inset:0;z-index:1;pointer-events:none;overflow:hidden}
+.ml{position:absolute;font-size:13px;font-weight:600;color:rgba(255,255,255,0.50);text-shadow:0 0 12px rgba(0,0,0,0.8),0 0 4px rgba(0,0,0,0.6);white-space:nowrap;transform:translate(-50%,-50%)}
+.ml.sm{font-size:11px;color:rgba(255,255,255,0.35)}
+.ml.lg{font-size:16px;color:rgba(255,255,255,0.60);font-weight:700}
+.ml.zone{font-size:10px;color:rgba(200,220,255,0.25)}
+.city-layer{position:absolute;inset:0;z-index:2;pointer-events:none}
+.city-card{position:absolute;pointer-events:auto;cursor:default;transition:opacity .4s ease;opacity:0}
+.city-card.visible{opacity:1}
+.city-card:hover{transform:translate(-50%,-50%) scale(1.05)}
+.city-card-inner{background:rgba(11,14,23,0.72);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:8px 14px;min-width:130px;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,0.5)}
+.city-card-inner.day{border-color:rgba(255,200,50,0.25)}
+.city-card-inner.night{border-color:rgba(100,140,255,0.15)}
+.city-dot{width:5px;height:5px;border-radius:50%;margin:0 auto 5px}
+.city-dot.day{background:#ffb82e;box-shadow:0 0 8px rgba(255,184,46,0.6)}
+.city-dot.night{background:#6a8cff;box-shadow:0 0 8px rgba(106,140,255,0.4)}
+.city-name{font-size:11px;font-weight:600;color:rgba(255,255,255,0.88)}
+.city-time{font-size:17px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums;letter-spacing:1px}
+.city-time .sec{font-size:12px;color:rgba(255,255,255,0.35)}
+.card-beijing{background:rgba(220,38,38,0.75)!important;border-color:rgba(255,100,100,0.5)!important;box-shadow:0 0 20px rgba(220,38,38,0.3),0 4px 20px rgba(0,0,0,0.5)!important}
+.city-date{font-size:10px;color:rgba(255,255,255,0.4)}
+.city-weather{font-size:11px;color:rgba(255,255,255,0.5);margin-top:2px}
+.city-offset{font-size:9px;color:rgba(255,255,255,0.25)}
+.panel-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);backdrop-filter:blur(4px);z-index:100;opacity:0;pointer-events:none;transition:opacity .3s}
+.panel-overlay.open{opacity:1;pointer-events:auto}
+.city-panel{position:fixed;top:0;right:0;width:400px;max-width:95vw;height:100vh;background:rgba(15,19,30,0.96);backdrop-filter:blur(20px);border-left:1px solid rgba(255,255,255,0.06);z-index:101;transform:translateX(100%);transition:transform .35s;display:flex;flex-direction:column;box-shadow:-10px 0 50px rgba(0,0,0,0.6)}
+.city-panel.open{transform:translateX(0)}
+.panel-header{display:flex;justify-content:space-between;padding:20px 24px 14px;border-bottom:1px solid rgba(255,255,255,0.06)}
+.panel-header h2{font-size:18px;font-weight:500;color:#fff}
+.btn-sm{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);color:#aaa;padding:4px 12px;border-radius:8px;cursor:pointer;font-size:12px}
+.btn-sm:hover{background:rgba(255,255,255,0.12);color:#fff}
+.btn-sm.primary{background:rgba(64,164,255,0.15);border-color:rgba(64,164,255,0.25);color:rgba(100,180,255,0.9)}
+.btn-close{background:none;border:none;color:rgba(255,255,255,0.4);font-size:22px;cursor:pointer;padding:0 4px;line-height:1}
+.btn-close:hover{color:#fff}
+.panel-search{padding:12px 24px}
+.panel-search input{width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:10px 14px;font-size:14px;color:#fff;font-family:inherit;outline:none}
+.panel-search input::placeholder{color:rgba(255,255,255,0.25)}
+.panel-region-tabs{display:flex;gap:4px;padding:4px 24px 8px;overflow-x:auto}
+.region-tab{background:rgba(255,255,255,0.04);border:1px solid transparent;color:rgba(255,255,255,0.4);padding:4px 12px;border-radius:8px;cursor:pointer;font-size:11px;white-space:nowrap;flex-shrink:0}
+.region-tab.active{color:#fff;background:rgba(64,164,255,0.15);border-color:rgba(64,164,255,0.2)}
+.panel-list{flex:1;overflow-y:auto;padding:4px 24px 20px}
+.panel-list::-webkit-scrollbar{width:4px}
+.panel-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:4px}
+.city-item{display:flex;align-items:center;gap:12px;padding:8px 10px;border-radius:10px;cursor:pointer;transition:background .15s;user-select:none}
+.city-item:hover{background:rgba(255,255,255,0.04)}
+.city-item-check{width:18px;height:18px;border-radius:5px;border:1.5px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;color:transparent}
+.city-item.checked .city-item-check{background:rgba(64,164,255,0.4);border-color:rgba(64,164,255,0.5);color:#fff}
+.city-item-name{font-size:14px;color:rgba(255,255,255,0.85)}
+.city-item-tz{font-size:11px;color:rgba(255,255,255,0.25)}
+.city-item-time{text-align:right}
+.city-item-time .t{font-size:14px;font-weight:600;color:rgba(255,255,255,0.7);font-variant-numeric:tabular-nums}
+.city-item-time .d{font-size:10px;color:rgba(255,255,255,0.25)}
+.panel-empty{text-align:center;padding:40px 20px;color:rgba(255,255,255,0.2)}
+@media(max-width:768px){.city-panel{width:100vw;max-width:100vw}.city-card-inner{padding:5px 10px;min-width:90px}}
+</style>
+</head>
+<body>
+<div class="header">
+ <div class="header-left">
+ <h1>🌍 世界时钟 <span>· World Clock</span></h1>
+ <p>点击「编辑城市」选择要在地图上显示的城市</p>
+ </div>
+ <div class="header-right">
+ <span class="selected-count" id="selectedCount">显示 0 个城市</span>
+ <button class="btn-toggle-panel" id="btnTogglePanel">✎ 编辑城市</button>
+ </div>
+</div>
+<div class="map-wrapper">
+ <div class="map-container">
+ <img class="map-image" src="world-time-zone-map.png" alt="World Time Zone Map" loading="lazy" />
+ <div class="map-labels">
+ <div class="ml lg" style="left:19%;top:16%;">北美洲</div>
+ <div class="ml lg" style="left:31%;top:60%;">南美洲</div>
+ <div class="ml lg" style="left:47%;top:17%;">欧洲</div>
+ <div class="ml lg" style="left:49%;top:48%;">非洲</div>
+ <div class="ml lg" style="left:70%;top:25%;">亚洲</div>
+ <div class="ml lg" style="left:79%;top:65%;">大洋洲</div>
+ <div class="ml sm" style="left:8%;top:53%;">太平洋</div>
+ <div class="ml sm" style="left:40%;top:58%;">大西洋</div>
+ <div class="ml sm" style="left:61%;top:58%;">印度洋</div>
+ <div class="ml sm" style="left:88%;top:53%;">太平洋</div>
+ <div class="ml zone" style="left:4%;top:54%;">UTC−10</div>
+ <div class="ml zone" style="left:9%;top:54%;">UTC−9</div>
+ <div class="ml zone" style="left:13%;top:54%;">UTC−8</div>
+ <div class="ml zone" style="left:17%;top:54%;">UTC−7</div>
+ <div class="ml zone" style="left:21%;top:54%;">UTC−6</div>
+ <div class="ml zone" style="left:25%;top:54%;">UTC−5</div>
+ <div class="ml zone" style="left:29%;top:54%;">UTC−4</div>
+ <div class="ml zone" style="left:33%;top:54%;">UTC−3</div>
+ <div class="ml zone" style="left:39%;top:54%;">UTC±0</div>
+ <div class="ml zone" style="left:43%;top:54%;">UTC+1</div>
+ <div class="ml zone" style="left:47%;top:54%;">UTC+2</div>
+ <div class="ml zone" style="left:51%;top:54%;">UTC+3</div>
+ <div class="ml zone" style="left:55%;top:54%;">UTC+4</div>
+ <div class="ml zone" style="left:59%;top:54%;">UTC+5</div>
+ <div class="ml zone" style="left:63%;top:54%;">UTC+6</div>
+ <div class="ml zone" style="left:67%;top:54%;">UTC+7</div>
+ <div class="ml zone" style="left:71%;top:54%;">UTC+8</div>
+ <div class="ml zone" style="left:75%;top:54%;">UTC+9</div>
+ <div class="ml zone" style="left:79%;top:54%;">UTC+10</div>
+ <div class="ml zone" style="left:83%;top:54%;">UTC+11</div>
+ <div class="ml zone" style="left:87%;top:54%;">UTC+12</div>
+ </div>
+ <div class="city-layer" id="cityLayer"></div>
+ </div>
+</div>
+<div class="panel-overlay" id="panelOverlay"></div>
+<div class="city-panel" id="cityPanel">
+ <div class="panel-header">
+ <h2>选择城市</h2>
+ <div class="panel-actions">
+ <button class="btn-sm" id="btnSelectAll">全选</button>
+ <button class="btn-sm" id="btnDeselectAll">清空</button>
+ <button class="btn-sm primary" id="btnResetDefaults">重置</button>
+ <button class="btn-close" id="btnClosePanel">✕</button>
+ </div>
+ </div>
+ <div class="panel-search">
+ <input type="text" id="searchInput" placeholder="搜索城市名称…" autocomplete="off">
+ </div>
+ <div class="panel-region-tabs" id="regionTabs"></div>
+ <div class="panel-list" id="panelList"></div>
+</div>
+<script>
+var CITIES=[{name:"温哥华",en:"Vancouver",tz:"America/Vancouver",x:14.5,y:30.5,lat:49.28,lon:-123.12,region:"北美"},
+{name:"旧金山",en:"San Francisco",tz:"America/Los_Angeles",x:16.5,y:34.5,lat:37.77,lon:-122.42,region:"北美"},
+{name:"洛杉矶",en:"Los Angeles",tz:"America/Los_Angeles",x:17.5,y:36.5,lat:34.05,lon:-118.24,region:"北美"},
+{name:"丹佛",en:"Denver",tz:"America/Denver",x:20,y:36,lat:39.74,lon:-104.99,region:"北美"},
+{name:"芝加哥",en:"Chicago",tz:"America/Chicago",x:24,y:38.5,lat:41.88,lon:-87.63,region:"北美"},
+{name:"多伦多",en:"Toronto",tz:"America/Toronto",x:27,y:34,lat:43.65,lon:-79.38,region:"北美"},
+{name:"纽约",en:"New York",tz:"America/New_York",x:28.5,y:36.5,lat:40.71,lon:-74.01,region:"北美"},
+{name:"墨西哥城",en:"Mexico City",tz:"America/Mexico_City",x:22,y:47,lat:19.43,lon:-99.13,region:"北美"},
+{name:"波哥大",en:"Bogota",tz:"America/Bogota",x:28,y:52,lat:4.71,lon:-74.07,region:"南美"},
+{name:"利马",en:"Lima",tz:"America/Lima",x:28,y:57.5,lat:-12.05,lon:-77.04,region:"南美"},
+{name:"圣保罗",en:"Sao Paulo",tz:"America/Sao_Paulo",x:34,y:63,lat:-23.55,lon:-46.63,region:"南美"},
+{name:"布宜诺斯艾利斯",en:"Buenos Aires",tz:"America/Argentina/Buenos_Aires",x:35.5,y:69.5,lat:-34.60,lon:-58.38,region:"南美"},
+{name:"圣地亚哥",en:"Santiago",tz:"America/Santiago",x:32,y:68,lat:-33.45,lon:-70.67,region:"南美"},
+{name:"伦敦",en:"London",tz:"Europe/London",x:45.5,y:27.5,lat:51.51,lon:-0.13,region:"欧洲"},
+{name:"巴黎",en:"Paris",tz:"Europe/Paris",x:46.5,y:30,lat:48.86,lon:2.35,region:"欧洲"},
+{name:"柏林",en:"Berlin",tz:"Europe/Berlin",x:48,y:28.5,lat:52.52,lon:13.41,region:"欧洲"},
+{name:"罗马",en:"Rome",tz:"Europe/Rome",x:48.5,y:33.5,lat:41.90,lon:12.50,region:"欧洲"},
+{name:"马德里",en:"Madrid",tz:"Europe/Madrid",x:44.5,y:35,lat:40.42,lon:-3.70,region:"欧洲"},
+{name:"阿姆斯特丹",en:"Amsterdam",tz:"Europe/Amsterdam",x:47,y:28,lat:52.37,lon:4.90,region:"欧洲"},
+{name:"斯德哥尔摩",en:"Stockholm",tz:"Europe/Stockholm",x:50,y:24.5,lat:59.33,lon:18.07,region:"欧洲"},
+{name:"莫斯科",en:"Moscow",tz:"Europe/Moscow",x:53.5,y:24.5,lat:55.76,lon:37.62,region:"欧洲"},
+{name:"雅典",en:"Athens",tz:"Europe/Athens",x:51,y:34.5,lat:37.98,lon:23.73,region:"欧洲"},
+{name:"卡萨布兰卡",en:"Casablanca",tz:"Africa/Casablanca",x:43.5,y:38,lat:33.57,lon:-7.59,region:"非洲"},
+{name:"开罗",en:"Cairo",tz:"Africa/Cairo",x:53,y:41.5,lat:30.04,lon:31.24,region:"非洲"},
+{name:"拉各斯",en:"Lagos",tz:"Africa/Lagos",x:47,y:51,lat:6.52,lon:3.38,region:"非洲"},
+{name:"内罗毕",en:"Nairobi",tz:"Africa/Nairobi",x:55,y:55,lat:-1.29,lon:36.82,region:"非洲"},
+{name:"约翰内斯堡",en:"Johannesburg",tz:"Africa/Johannesburg",x:52,y:68,lat:-26.20,lon:28.04,region:"非洲"},
+{name:"迪拜",en:"Dubai",tz:"Asia/Dubai",x:60.5,y:38.5,lat:25.20,lon:55.27,region:"亚洲"},
+{name:"卡拉奇",en:"Karachi",tz:"Asia/Karachi",x:63.5,y:41,lat:24.86,lon:67.01,region:"亚洲"},
+{name:"孟买",en:"Mumbai",tz:"Asia/Kolkata",x:66.5,y:46.5,lat:19.08,lon:72.88,region:"亚洲"},
+{name:"达卡",en:"Dhaka",tz:"Asia/Dhaka",x:69,y:41.5,lat:23.81,lon:90.41,region:"亚洲"},
+{name:"曼谷",en:"Bangkok",tz:"Asia/Bangkok",x:73.5,y:50,lat:13.76,lon:100.50,region:"亚洲"},
+{name:"新加坡",en:"Singapore",tz:"Asia/Singapore",x:75.5,y:55,lat:1.35,lon:103.82,region:"亚洲"},
+{name:"胡志明市",en:"Ho Chi Minh",tz:"Asia/Ho_Chi_Minh",x:72.5,y:48,lat:10.82,lon:106.63,region:"亚洲"},
+{name:"北京",en:"Beijing",tz:"Asia/Shanghai",x:50,y:5,lat:39.91,lon:116.40,region:"亚洲"},
+{name:"东京",en:"Tokyo",tz:"Asia/Tokyo",x:79,y:33.5,lat:35.68,lon:139.69,region:"亚洲"},
+{name:"首尔",en:"Seoul",tz:"Asia/Seoul",x:77.5,y:33,lat:37.57,lon:126.98,region:"亚洲"},
+{name:"香港",en:"Hong Kong",tz:"Asia/Hong_Kong",x:74.5,y:40,lat:22.32,lon:114.17,region:"亚洲"},
+{name:"台北",en:"Taipei",tz:"Asia/Taipei",x:75.5,y:38.5,lat:25.03,lon:121.56,region:"亚洲"},
+{name:"马尼拉",en:"Manila",tz:"Asia/Manila",x:76.5,y:49,lat:14.60,lon:120.98,region:"亚洲"},
+{name:"雅加达",en:"Jakarta",tz:"Asia/Jakarta",x:73,y:58,lat:-6.21,lon:106.85,region:"亚洲"},
+{name:"乌鲁木齐",en:"Urumqi",tz:"Asia/Urumqi",x:69,y:30.5,lat:43.83,lon:87.62,region:"亚洲"},
+{name:"德黑兰",en:"Tehran",tz:"Asia/Tehran",x:57.5,y:33,lat:35.69,lon:51.39,region:"亚洲"},
+{name:"珀斯",en:"Perth",tz:"Australia/Perth",x:73,y:67.5,lat:-31.95,lon:115.86,region:"大洋洲"},
+{name:"悉尼",en:"Sydney",tz:"Australia/Sydney",x:80.5,y:68,lat:-33.87,lon:151.21,region:"大洋洲"},
+{name:"墨尔本",en:"Melbourne",tz:"Australia/Melbourne",x:79.5,y:71.5,lat:-37.81,lon:144.96,region:"大洋洲"},
+{name:"奥克兰",en:"Auckland",tz:"Pacific/Auckland",x:86,y:67,lat:-36.85,lon:174.76,region:"大洋洲"},
+{name:"火奴鲁鲁",en:"Honolulu",tz:"Pacific/Honolulu",x:9,y:42,lat:21.31,lon:-157.86,region:"太平洋"}];
+var REGIONS=[...new Set(CITIES.map(function(c){return c.region}))];
+var DEFAULT_SELECTED=new Set(["纽约","伦敦","巴黎","东京","北京","迪拜","新加坡","悉尼","旧金山","莫斯科"]);
+var selectedCities=new Set(),currentFilter="",currentRegion="全部",panelOpen=false;
+var cityLayer=document.getElementById("cityLayer"),panelOverlay=document.getElementById("panelOverlay"),cityPanel=document.getElementById("cityPanel"),panelList=document.getElementById("panelList"),regionTabs=document.getElementById("regionTabs"),searchInput=document.getElementById("searchInput"),btnToggle=document.getElementById("btnTogglePanel"),btnClose=document.getElementById("btnClosePanel"),btnSelectAll=document.getElementById("btnSelectAll"),btnDeselectAll=document.getElementById("btnDeselectAll"),btnReset=document.getElementById("btnResetDefaults"),countEl=document.getElementById("selectedCount");
+var mapCards={};
+CITIES.forEach(function(city){
+var card=document.createElement("div");card.className="city-card";card.style.left=city.x+"%";card.style.top=city.y+"%";card.style.transform="translate(-50%,-50%)";
+card.innerHTML='<div class="city-card-inner" data-tz="'+city.tz+'" data-name="'+city.name+'"><div class="city-dot"></div><div class="city-name">'+city.name+'</div><div class="city-time"><span class="hms">--:--</span><span class="sec"></span></div><div class="city-weather"></div><div class="city-date"></div><div class="city-offset"></div></div>';
+cityLayer.appendChild(card);mapCards[city.name]={card:card,inner:card.querySelector(".city-card-inner")};
+if(city.name==='北京'){card.querySelector('.city-card-inner').classList.add('card-beijing');}
+});
+function renderPanelList(){
+var filtered=CITIES.filter(function(c){var mr=currentRegion==="全部"||c.region===currentRegion;var q=currentFilter.toLowerCase();return mr&&(!q||c.name.toLowerCase().indexOf(q)>=0||c.en.toLowerCase().indexOf(q)>=0||c.tz.toLowerCase().indexOf(q)>=0);});
+if(filtered.length===0){panelList.innerHTML='<div class="panel-empty">没有匹配的城市</div>';return;}
+var now=new Date();
+panelList.innerHTML=filtered.map(function(c){var checked=selectedCities.has(c.name);try{var t=now.toLocaleTimeString("zh-CN",{timeZone:c.tz,hour:"2-digit",minute:"2-digit",hour12:false});var d=now.toLocaleDateString("zh-CN",{timeZone:c.tz,month:"short",day:"numeric"});return'<div class="city-item '+(checked?"checked":"")+'" data-name="'+c.name+'"><div class="city-item-check">'+(checked?"\u2713":"")+'</div><div class="city-item-info"><div class="city-item-name">'+c.name+'</div><div class="city-item-tz">'+c.tz+'</div></div><div class="city-item-time"><div class="t">'+t+'</div><div class="d">'+d+'</div></div></div>';}catch(e){return'<div class="city-item '+(checked?"checked":"")+'" data-name="'+c.name+'"><div class="city-item-check">'+(checked?"\u2713":"")+'</div><div class="city-item-info"><div class="city-item-name">'+c.name+'</div><div class="city-item-tz">'+c.tz+'</div></div><div class="city-item-time"><div class="t">--:--</div></div></div>';}}).join("");
+panelList.querySelectorAll('.city-item').forEach(function(el){el.addEventListener('click',function(){toggleCity(el.dataset.name);});});
+}
+function toggleCity(name){if(selectedCities.has(name))selectedCities.delete(name);else selectedCities.add(name);syncMapVisibility();renderPanelList();updateCount();saveToLocalStorage();}
+function syncMapVisibility(){CITIES.forEach(function(c){var e=mapCards[c.name];if(e)e.card.classList.toggle("visible",selectedCities.has(c.name));});setTimeout(fetchWeather,500);}
+function getWeatherIcon(code){
+if(code===0)return "☀️";
+if(code>=1&&code<=3)return "⛅";
+if(code>=45&&code<=48)return "🌫️";
+if(code>=51&&code<=55)return "🌦️";
+if(code>=56&&code<=57)return "❄️🌧️";
+if(code>=61&&code<=65)return "🌧️";
+if(code>=66&&code<=67)return "🌧️❄️";
+if(code>=71&&code<=75)return "❄️";
+if(code===77)return "❄️";
+if(code>=80&&code<=82)return "☔";
+if(code>=85&&code<=86)return "🌨️";
+if(code===95)return "⛈️";
+if(code>=96&&code<=99)return "⛈️🌨️";
+return "🌤️";
+}
+var weatherCache={};
+function fetchWeather(){
+CITIES.forEach(function(c){
+if(!selectedCities.has(c.name))return;
+var key=c.name;
+if(weatherCache[key]&&Date.now()-weatherCache[key].time<600000)return;
+var url="https://api.open-meteo.com/v1/forecast?latitude="+c.lat+"&longitude="+c.lon+"&current_weather=true";
+fetch(url).then(function(r){return r.json();}).then(function(d){
+if(d.current_weather){
+var t=d.current_weather.temperature;
+var wc=d.current_weather.weathercode;
+var icon=getWeatherIcon(wc);
+weatherCache[key]={temp:t,icon:icon,time:Date.now()};
+var e=mapCards[c.name];
+if(e)e.inner.querySelector(".city-weather").textContent=icon+" "+t.toFixed(1)+"°C";
+}
+}).catch(function(){});
+});
+}
+function updateClocks(){var now=new Date();CITIES.forEach(function(c){var e=mapCards[c.name];if(!e||!selectedCities.has(c.name))return;try{var ts=now.toLocaleTimeString("zh-CN",{timeZone:c.tz,hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false});var el=e.inner;var h=parseInt(ts.slice(0,2));el.className="city-card-inner"+(h>=6&&h<18?" day":" night")+(c.name==="北京"?" card-beijing":"");el.querySelector(".city-dot").className="city-dot "+el.className.slice(-4);el.querySelector(".hms").textContent=ts.slice(0,5);el.querySelector(".sec").textContent=":"+ts.slice(6);el.querySelector(".city-date").textContent=now.toLocaleDateString("zh-CN",{timeZone:c.tz,month:"short",day:"numeric",weekday:"short"});var off=getOffset(c.tz,now)/60;el.querySelector(".city-offset").textContent="UTC"+(off>=0?"+":"")+off.toFixed(1);}catch(e){}});requestAnimationFrame(function(){setTimeout(updateClocks,1000-Date.now()%1000+50);});}
+function getOffset(tz,date){var p=date.toLocaleDateString("en-CA",{timeZone:tz,year:"numeric",month:"2-digit",day:"2-digit"}).split("-");var tp=date.toLocaleTimeString("en-GB",{timeZone:tz,hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false}).split(":");return(new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]),parseInt(tp[0]),parseInt(tp[1]),parseInt(tp[2]))-date)/60000;}
+function updateCount(){countEl.textContent="显示 "+selectedCities.size+" 个城市";}
+function renderRegionTabs(){regionTabs.innerHTML=["全部"].concat(REGIONS).map(function(r){return'<div class="region-tab '+(r===currentRegion?"active":"")+'" data-region="'+r+'">'+r+"</div>";}).join("");regionTabs.querySelectorAll(".region-tab").forEach(function(el){el.addEventListener("click",function(){currentRegion=el.dataset.region;renderRegionTabs();renderPanelList();});});}
+function openPanel(){panelOpen=true;panelOverlay.classList.add("open");cityPanel.classList.add("open");document.body.style.overflow="hidden";renderPanelList();}
+function closePanel(){panelOpen=false;panelOverlay.classList.remove("open");cityPanel.classList.remove("open");document.body.style.overflow="";}
+btnToggle.addEventListener("click",openPanel);btnClose.addEventListener("click",closePanel);panelOverlay.addEventListener("click",closePanel);
+btnSelectAll.addEventListener("click",function(){[].slice.call(panelList.querySelectorAll(".city-item")).map(function(el){return el.dataset.name;}).forEach(function(n){selectedCities.add(n);});syncMapVisibility();renderPanelList();updateCount();saveToLocalStorage();});
+btnDeselectAll.addEventListener("click",function(){[].slice.call(panelList.querySelectorAll(".city-item")).map(function(el){return el.dataset.name;}).forEach(function(n){selectedCities.delete(n);});syncMapVisibility();renderPanelList();updateCount();saveToLocalStorage();});
+btnReset.addEventListener("click",function(){selectedCities=new Set(DEFAULT_SELECTED);syncMapVisibility();renderPanelList();updateCount();saveToLocalStorage();});
+searchInput.addEventListener("input",function(){currentFilter=searchInput.value;renderPanelList();});
+function saveToLocalStorage(){try{localStorage.setItem("worldclock_selected",JSON.stringify(Array.from(selectedCities)));}catch(e){}}
+function loadFromLocalStorage(){try{var r=localStorage.getItem("worldclock_selected");if(r){var a=JSON.parse(r);if(Array.isArray(a)&&a.length>0){selectedCities=new Set(a.filter(function(n){return CITIES.some(function(c){return c.name===n;});}));return;}}}catch(e){}selectedCities=new Set(DEFAULT_SELECTED);}
+document.addEventListener("keydown",function(e){if(e.key==="Escape"&&panelOpen)closePanel();});
+loadFromLocalStorage();syncMapVisibility();renderRegionTabs();updateCount();updateClocks();fetchWeather();setInterval(fetchWeather,600000);
+</script>
+</body>
+</html>

@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>个股舆情报告 · {{ data.code if data else '' }}</title>
+<style>
+:root {
+  --bg: #0d1117; --panel: #161b22; --panel2: #1c2333; --border: #2d333b;
+  --text: #e6edf3; --muted: #8b949e; --blue: #58a6ff; --green: #3fb950;
+  --red: #f85149; --orange: #d29922; --purple: #bc8cff;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--bg); color:var(--text); font-family:"Microsoft YaHei","PingFang SC","Segoe UI",sans-serif; }
+.header { background:linear-gradient(135deg,#1a2332,#0d1117); border-bottom:1px solid var(--border); padding:22px 32px; }
+.header h1 { font-size:22px; }
+.header .sub { color:var(--muted); font-size:13px; margin-top:4px; }
+.container { max-width:1300px; margin:0 auto; padding:24px 32px; }
+.back { display:inline-block; color:var(--blue); text-decoration:none; font-size:14px; margin-bottom:16px; }
+.back:hover { text-decoration:underline; }
+
+.verdict {
+  background: var(--panel);
+  border:1px solid var(--border);
+  border-left:4px solid var(--blue);
+  border-radius:10px;
+  padding:18px 22px;
+  margin-bottom:20px;
+}
+.verdict .tone { font-size:15px; font-weight:600; }
+.verdict .score { font-size:13px; color:var(--muted); margin-top:6px; }
+.verdict .bar { height:8px; border-radius:4px; background:var(--panel2); margin-top:10px; position:relative; overflow:hidden; }
+.verdict .bar-fill { height:100%; border-radius:4px; transition:width .5s; }
+.verdict .bar-marker { position:absolute; top:-3px; width:3px; height:14px; background:#fff; border-radius:2px; }
+
+.grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+.panel { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:20px; }
+.panel h2 { font-size:16px; font-weight:600; margin-bottom:12px; }
+.panel h2 .tag { font-size:11px; color:var(--muted); font-weight:400; margin-left:8px; }
+
+.dist-row { display:flex; gap:8px; margin:12px 0; }
+.dist-cell { flex:1; text-align:center; padding:10px 4px; border-radius:8px; background:var(--panel2); }
+.dist-cell .n { font-size:18px; font-weight:700; }
+.dist-cell .l { font-size:11px; color:var(--muted); margin-top:2px; }
+.c-乐观 { color:var(--green); } .c-偏暖 { color:var(--orange); } .c-中性 { color:var(--muted); }
+.c-偏冷 { color:var(--purple); } .c-悲观 { color:var(--red); }
+
+.kw-wrap { display:flex; flex-wrap:wrap; gap:8px; }
+.kw { background:var(--panel2); border:1px solid var(--border); padding:5px 12px; border-radius:16px; font-size:13px; }
+.kw .cnt { color:var(--blue); font-size:12px; font-weight:600; margin-left:4px; }
+.kw.code { border-color:rgba(188,140,255,.4); } .kw.code .cnt { color:var(--purple); }
+
+.post-item { padding:9px 0; border-bottom:1px solid var(--border); }
+.post-item:last-child { border-bottom:none; }
+.post-item .t { font-size:13.5px; line-height:1.5; color:var(--text); text-decoration:none; display:block; }
+.post-item .t:hover { color:var(--blue); }
+.post-item .m { font-size:12px; color:var(--muted); margin-top:4px; display:flex; gap:10px; flex-wrap:wrap; }
+.badge { display:inline-block; padding:1px 8px; border-radius:10px; font-size:11px; }
+.badge.bull { background:rgba(63,185,80,.15); color:var(--green); }
+.badge.bear { background:rgba(248,81,73,.15); color:var(--red); }
+.badge.neutral { background:rgba(139,148,158,.15); color:var(--muted); }
+.badge.warm { background:rgba(210,153,34,.15); color:var(--orange); }
+.badge.cold { background:rgba(140,120,200,.15); color:var(--purple); }
+.badge.signal { background:rgba(63,185,80,.2); color:var(--green); font-weight:600; }
+
+.value-item { display:flex; align-items:flex-start; gap:10px; padding:10px 0; border-bottom:1px solid var(--border); }
+.value-item:last-child { border-bottom:none; }
+.value-item .info { flex:1; min-width:0; }
+.value-item .info a { color:var(--text); text-decoration:none; font-size:13.5px; display:block; }
+.value-item .info a:hover { color:var(--green); }
+.value-item .info .m { font-size:12px; color:var(--muted); margin-top:3px; }
+.sig-tags { display:flex; gap:5px; flex-wrap:wrap; }
+
+.back-btn { margin-top:24px; }
+.error-box { background:rgba(248,81,73,.1); border:1px solid rgba(248,81,73,.4); border-radius:10px; padding:20px; color:var(--red); }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>📈 个股舆情报告 <span style="color:var(--blue)">{{ data.code if data else '' }}</span></h1>
+  <div class="sub">雪球 + 东方财富股吧 舆情抓取 · 情绪分析 · 报告生成于 {{ data.fetched_at if data else '' }}</div>
+</div>
+
+<div class="container">
+  <a class="back" href="/sentiment/">← 返回首页</a>
+
+  {% if error %}
+  <div class="error-box">⚠️ {{ error }}</div>
+  {% elif data %}
+  <!-- 综合结论 -->
+  <div class="verdict">
+    <div class="tone">
+      {% if data.tone == '乐观' %}🟢{% elif data.tone == '悲观' %}🔴{% else %}🟡{% endif %}
+      综合情绪：{{ data.tone }}（{{ data.sentiment.avg_score }}）
+    </div>
+    <div class="score">结论：{{ data.verdict }} · 共分析 {{ data.total }} 条帖子（雪球 {{ data.sources.xueqiu.posts|length }} 条 / 东财 {{ data.sources.eastmoney.posts|length }} 条）</div>
+    <div class="bar">
+      <div class="bar-fill" style="width:{{ (data.sentiment.avg_score * 50 + 50)|round|int }}%;background:{{ '#3fb950' if data.tone=='乐观' else ('#f85149' if data.tone=='悲观' else '#d29922') }}"></div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <!-- 雪球板块 -->
+    <div class="panel">
+      <h2>🟡 雪球舆情 <span class="tag">{{ data.sources.xueqiu.posts|length }} 条 · 均分 {{ data.sources.xueqiu.sentiment.avg_score }}</span></h2>
+      <div class="dist-row">
+        {% for label, n in data.sources.xueqiu.sentiment.distribution.items() %}
+        <div class="dist-cell"><div class="n c-{{ label }}">{{ n }}</div><div class="l">{{ label }}</div></div>
+        {% endfor %}
+      </div>
+      <div style="margin-bottom:12px"><div class="kw-wrap">
+        {% for k in data.sources.xueqiu.keywords %}
+        <span class="kw {{ 'code' if k.type=='code' }}">{{ k.word }}<span class="cnt">×{{ k.count }}</span></span>
+        {% endfor %}
+      </div></div>
+      {% for p in data.sources.xueqiu.posts[:12] %}
+      <div class="post-item">
+        <a class="t" href="{{ p.url }}" target="_blank">{{ p.text[:100] }}{% if p.text|length>100 %}...{% endif %}</a>
+        <div class="m">
+          <span>👤 {{ p.user }}</span><span>🕐 {{ p.created_at }}</span>
+          <span class="badge {{ 'bull' if p.sentiment_label in ['乐观','偏暖'] else ('bear' if p.sentiment_label in ['悲观','偏冷'] else 'neutral') }}">{{ p.sentiment_label }} {{ p.sentiment_score }}</span>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- 东财板块 -->
+    <div class="panel">
+      <h2>🔵 东方财富股吧舆情 <span class="tag">{{ data.sources.eastmoney.posts|length }} 条 · 均分 {{ data.sources.eastmoney.sentiment.avg_score }}</span></h2>
+      <div class="dist-row">
+        {% for label, n in data.sources.eastmoney.sentiment.distribution.items() %}
+        <div class="dist-cell"><div class="n c-{{ label }}">{{ n }}</div><div class="l">{{ label }}</div></div>
+        {% endfor %}
+      </div>
+      <div style="margin-bottom:12px"><div class="kw-wrap">
+        {% for k in data.sources.eastmoney.keywords %}
+        <span class="kw {{ 'code' if k.type=='code' }}">{{ k.word }}<span class="cnt">×{{ k.count }}</span></span>
+        {% endfor %}
+      </div></div>
+      {% for p in data.sources.eastmoney.posts[:12] %}
+      <div class="post-item">
+        <a class="t" href="{{ p.url }}" target="_blank">{{ p.title }}</a>
+        <div class="m">
+          <span>👤 {{ p.author }}</span><span>🕐 {{ p.time }}</span>
+          <span>👁 {{ p.read_count }}</span><span>💬 {{ p.reply_count }}</span>
+          <span class="badge {{ 'bull' if p.sentiment_label in ['乐观','偏暖'] else ('bear' if p.sentiment_label in ['悲观','偏冷'] else 'neutral') }}">{{ p.sentiment_label }} {{ p.sentiment_score }}</span>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- 低估/买入信号 -->
+  <div class="panel" style="margin-top:20px">
+    <h2>💰 低估 / 买入机会信号帖 <span class="tag">{{ data.value_signals|length }} 条</span></h2>
+    {% if data.value_signals %}
+    {% for p in data.value_signals %}
+    <div class="value-item">
+      <span class="badge signal">信号</span>
+      <div class="info">
+        <a href="{{ p.url }}" target="_blank">{{ p.title or p.text[:60] }}</a>
+        <div class="m">
+          <span>{{ p.source }}</span>
+          {% if p.user %}· 👤 {{ p.user }}{% elif p.author %}· 👤 {{ p.author }}{% endif %}
+        </div>
+      </div>
+      <div class="sig-tags">{% for s in p.signals %}<span class="badge neutral">{{ s }}</span>{% endfor %}</div>
+    </div>
+    {% endfor %}
+    {% else %}<div style="color:var(--muted);padding:12px">未检测到低估/买入信号帖</div>{% endif %}
+  </div>
+
+  {% else %}
+  <div class="error-box">请输入股票代码查询</div>
+  {% endif %}
+</div>
+
+<div class="back-btn" style="text-align:center;color:var(--muted);font-size:12px;padding:24px">数据仅供研究参考，不构成投资建议</div>
+</body>
+</html>

@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>工艺路线图生成器</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;background:#f0f2f5;min-height:100vh}
+.hdr{background:linear-gradient(135deg,#1a73e8,#1557b0);color:#fff;padding:14px 20px;display:flex;justify-content:space-between;align-items:center}
+.hdr h1{font-size:19px}
+.btn{padding:8px 18px;border:none;border-radius:7px;cursor:pointer;font-size:13px;font-weight:600}
+.btn-p{background:#1a73e8;color:#fff}.btn-p:hover{background:#1557b0}
+.btn-s{background:#e8eaed;color:#333}.btn-s:hover{background:#dadce0}
+.btn-d{background:#ea4335;color:#fff;padding:5px 10px;font-size:11px}.btn-d:hover{background:#c62828}
+.btn-g{background:#34a853;color:#fff}.btn-g:hover{background:#2d9249}
+.btn-w{background:#fff;color:#1a73e8;font-size:12px;padding:6px 14px}.btn-w:hover{background:#e8f0fe}
+.btn-x{padding:5px 12px;font-size:11px}
+.ctr{max-width:980px;margin:0 auto;padding:16px}
+.card{background:#fff;border-radius:10px;padding:22px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.card h2{font-size:16px;color:#1a73e8;margin-bottom:4px}
+.sub{color:#666;font-size:12px;margin-bottom:14px}
+.fld{margin-bottom:10px}
+.fld label{display:block;font-weight:600;font-size:12px;color:#333;margin-bottom:3px}
+.fld input{padding:8px 10px;border:2px solid #e0e0e0;border-radius:7px;font-size:13px;width:100%}
+.fld input:focus{outline:none;border-color:#1a73e8}
+.rg{display:flex;gap:16px;margin-bottom:12px}
+.rg label{display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px}
+.rg input[type=radio]{width:16px;height:16px}
+.prow{display:flex;align-items:center;gap:6px;padding:3px 0}
+.prow select{padding:6px 8px;border:2px solid #e0e0e0;border-radius:6px;font-size:12px;background:#fff;min-width:120px}
+.prow select:focus{outline:none;border-color:#1a73e8}
+.num{width:20px;text-align:center;font-weight:700;color:#1a73e8;flex-shrink:0;font-size:12px}
+.dx{background:none;border:none;color:#ea4335;cursor:pointer;font-size:14px;padding:2px 4px}
+.adn{text-align:center;color:#aaa;font-size:13px}
+.plist{max-height:360px;overflow-y:auto}
+.tabs{display:flex;gap:3px;margin-bottom:10px;flex-wrap:wrap}
+.tab{padding:5px 14px;border:2px solid #e0e0e0;border-radius:7px 7px 0 0;background:#f8f9fa;cursor:pointer;font-size:12px;font-weight:600}
+.tab.ac{background:#1a73e8;color:#fff;border-color:#1a73e8}
+.tab.fd{background:#e8f5e9;border-color:#34a853}
+.tab.fd.ac{background:#34a853}
+.ctrl{margin-top:12px;display:flex;gap:6px;flex-wrap:wrap}
+.hidden{display:none}
+
+.mcfg{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px;margin:8px 0}
+.mcfg h3{color:#065f46;font-size:13px;margin-bottom:6px}
+.mrow{display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:12px;flex-wrap:wrap}
+.mrow select{padding:5px 8px;border:2px solid #d1d5db;border-radius:6px;font-size:12px}
+.mrow .cb{display:flex;align-items:center;gap:3px;font-size:11px}
+.acts{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+
+.res{background:#fff;border-radius:10px;padding:18px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.res h2{font-size:16px;color:#1a73e8;margin-bottom:10px}
+
+.chart{position:relative;padding:40px 0 60px 0}
+.chart-row{display:flex;justify-content:center;gap:48px;margin-bottom:16px;position:relative}
+.part-col{display:flex;flex-direction:column;align-items:center;border:1.5px dashed #94a3b8;border-radius:8px;padding:12px 14px 8px;min-width:100px}
+.part-name{font-size:11px;font-weight:700;color:#64748b;margin-bottom:4px}
+.node{width:110px;padding:8px 0;border-radius:7px;text-align:center;font-weight:600;font-size:12px;border:1.5px solid;margin:2px 0}
+.node.start{background:#dbeafe;border-color:#1d4ed8;color:#1e40af}
+.node.proc{background:#e5e7eb;border-color:#6b7280;color:#1f2937}
+.node.merge{background:#a7f3d0;border-color:#059669;color:#065f46}
+.node.end{background:#fecaca;border-color:#dc2626;color:#991b1b}
+.av{color:#64748b;font-size:16px;line-height:1}
+
+.merge-row{display:flex;justify-content:center;gap:48px;padding:30px 0 10px 0;position:relative}
+.merge-col{display:flex;flex-direction:column;align-items:center;border:1.5px dashed #059669;border-radius:8px;padding:8px 14px 6px;min-width:100px}
+.merge-label{font-size:10px;font-weight:700;color:#059669;margin-bottom:4px}
+.conn-label{position:absolute;color:#059669;font-size:10px;font-weight:600;white-space:nowrap}
+.line-h{position:absolute;border-top:2px dashed #059669;opacity:.7}
+.end-row{display:flex;justify-content:center;padding:20px 0 10px 0}
+
+.svlist{margin-top:10px}
+.svitem{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border:1px solid #e0e0e0;border-radius:7px;margin-bottom:6px;cursor:pointer;transition:.12s}
+.svitem:hover{background:#f0f7ff;border-color:#1a73e8}
+.svitem .inf{flex:1}
+.svitem .nm{font-weight:700;color:#333;font-size:13px}
+.svitem .ds{font-size:11px;color:#999;margin-top:2px}
+.svitem .iac{display:flex;gap:6px}
+.empty{text-align:center;padding:36px;color:#999;font-size:36px}
+</style>
+</head>
+<body>
+<div class="hdr">
+  <h1>🏭 工艺路线图生成器</h1>
+  <div><button class="btn btn-w" onclick="showNew()">+ 新建</button> <button class="btn btn-w" onclick="showSaved()">📋 已保存</button></div>
+</div>
+<div class="ctr">
+<div id="ns">
+<div class="card" id="s1">
+  <h2>第一步：产品信息</h2>
+  <div class="fld"><label>产品名称</label><input id="pn" placeholder="请输入产品名称..."></div>
+  <div class="fld"><label>工艺类型</label><div class="rg"><label><input type=radio name=ty value=single checked onchange="onT()">单一工艺</label><label><input type=radio name=ty value=combo onchange="onT()">组合工艺</label></div></div>
+  <div id="pf" class="fld hidden"><label>部分数量</label><div style="display:flex;gap:8px;align-items:center"><input id="pc" type=number min=2 max=10 value=2 style="width:60px"><span style="color:#666;font-size:12px">个部分 (A,B,C...)</span></div></div>
+  <button class="btn btn-p" onclick="go2()">下一步 →</button>
+</div>
+<div class="card hidden" id="s2">
+  <h2 id="s2t">第二步：录入工序</h2>
+  <div class="sub" id="s2d"></div>
+  <div class="tabs" id="tbs"></div>
+  <div id="bld"></div>
+  <div id="ms" class="hidden"></div>
+  <div class="acts">
+    <button class="btn btn-s" onclick="go1()">← 返回</button>
+    <button class="btn btn-p hidden" id="bm" onclick="tgM()">配置合流 🔀</button>
+    <button class="btn btn-g" id="bg" onclick="gen()">生成路线图</button>
+    <button class="btn btn-p hidden" id="bs" onclick="save()">💾 保存</button>
+  </div>
+</div>
+<div class="hidden" id="s3">
+  <div class="res"><h2 id="rt">工艺路线图</h2><div class="chart" id="cw"></div>
+    <div class="acts"><button class="btn btn-s" onclick="back()">← 返回修改</button><button class="btn btn-g" onclick="save()">💾 保存</button><button class="btn btn-p" onclick="showNew()">重新开始</button></div>
+  </div>
+</div>
+</div>
+<div id="ss" class="card hidden"><h2>📋 已保存的路线图</h2><div class="svlist" id="sl"></div></div>
+</div>
+<script>
+let P='',T='single',PL=[],PD=[],ci=0,MG=[],mm=false,eid=null
+const PO=['开料','丝印','喷墨','镭射','电压','啤料','品检','精益','包装']
+function $(id){return document.getElementById(id)}
+function S(id){$(id).classList.remove('hidden')}
+function H(id){$(id).classList.add('hidden')}
+function onT(){T=document.querySelector('input[name=ty]:checked').value;if(T==='combo')S('pf');else H('pf')}
+
+function showNew(){H('ss');S('ns');S('s1');H('s2');H('s3');document.querySelector('input[name=ty][value=single]').checked=true;$('pn').value='';$('pc').value=2;PL=[];PD=[];MG=[];mm=false;eid=null;onT()}
+function showSaved(){H('s1');H('s2');H('s3');S('ns');S('ss');rSL()}
+function go1(){S('s1');H('s2');H('s3');H('ms');mm=false}
+function back(){H('s3');S('s2')}
+
+function go2(){
+  P=$('pn').value.trim();if(!P){alert('请输入产品名称');return}
+  T=document.querySelector('input[name=ty]:checked').value
+  if(T==='combo'){let n=parseInt($('pc').value)||2;if(n<2){alert('至少2个部分');return}const L='ABCDEFGHIJ';PL=[];for(let i=0;i<n;i++)PL.push(L[i]);PD=PL.map(l=>({label:l,steps:[]}));$('bm').classList.remove('hidden');$('bg').classList.add('hidden');$('bs').classList.add('hidden')}
+  else{PL=['主'];PD=[{label:'主',steps:[]}];$('bm').classList.add('hidden');$('bg').classList.remove('hidden');$('bs').classList.add('hidden')}
+  MG=[];ci=0;mm=false;H('ms');iTb();rB();H('s1');H('s3');S('s2')
+}
+
+function iTb(){const tb=$('tbs');tb.innerHTML='';if(T==='combo'){PL.forEach((l,i)=>{const t=document.createElement('span');t.className='tab'+(i===0?' ac':'');t.textContent='部分 '+l;t.onclick=()=>swP(i);tb.appendChild(t)})}}
+function swP(i){svS();ci=i;document.querySelectorAll('.tab').forEach(t=>t.classList.remove('ac'));const el=document.querySelectorAll('.tab')[i];if(el)el.classList.add('ac');rB()}
+
+function svS(){const rows=document.querySelectorAll('#row .prow');const st=[];rows.forEach(r=>{const s=r.querySelector('select');if(s&&s.value)st.push({proc:s.value})});PD[ci].steps=st}
+function clS(){PD.forEach(p=>{while(p.steps.length>0&&!p.steps[p.steps.length-1].proc)p.steps.pop();p.steps=p.steps.filter(s=>s.proc)})}
+
+function rB(){
+  const p=PD[ci];$('s2t').textContent=T==='combo'?'第二步：录入工序 — 部分 '+p.label:'第二步：录入工序';$('s2d').textContent='逐行选择工序名称'
+  const st=p.steps;while(st.length>0&&!st[st.length-1].proc)st.pop();if(st.length===0||st[st.length-1].proc)st.push({proc:''})
+  let h='<div id="row" class="plist">';st.forEach((s,i)=>{const l=i===st.length-1;h+=`<div class="prow"><span class="num">${i+1}</span><select><option value="">-- 选择工序 --</option>`;PO.forEach(o=>h+=`<option value="${o}" ${s.proc===o?'selected':''}>${o}</option>`);h+=`</select><button class="dx" onclick="dS(this)">✕</button></div>`;if(!l)h+='<div class="adn">↓</div>'})
+  h+='</div><div class="ctrl"><button class="btn btn-p btn-x" onclick="aS()">+ 添加工序</button>';if(T==='combo'){const n=(ci+1)%PL.length;h+=`<button class="btn btn-s btn-x" onclick="swP(${n})">下一个 (${PL[n]}) →</button>`}h+='</div>'
+  $('bld').innerHTML=h
+  if(T==='combo'){PL.forEach((l,i)=>{const el=document.querySelectorAll('.tab')[i];if(el){el.classList.toggle('ac',i===ci);el.classList.toggle('fd',PD[i].steps.filter(s=>s.proc).length>0)}})}
+  document.querySelectorAll('#row select').forEach(s=>s.onchange=function(){if(this.value)onSel()});const all=document.querySelectorAll('#row select');if(all.length>0&&!all[all.length-1].value)all[all.length-1].focus()
+}
+function onSel(){svS();const p=PD[ci];while(p.steps.length>0&&!p.steps[p.steps.length-1].proc)p.steps.pop();p.steps.push({proc:''});rB()}
+function aS(){svS();const p=PD[ci];while(p.steps.length>0&&!p.steps[p.steps.length-1].proc)p.steps.pop();p.steps.push({proc:''});rB();const s=document.querySelectorAll('#row select');if(s.length)s[s.length-1].focus()}
+function dS(btn){svS();const rows=Array.from(document.querySelectorAll('#row .prow'));const i=rows.indexOf(btn.closest('.prow'));if(i>=0)PD[ci].steps.splice(i,1);rB()}
+
+function tgM(){mm=!mm;if(mm){clS();rMC();S('ms')}else H('ms')}
+function rMC(){clS();const ls=[];PD.forEach(p=>{if(p.steps.length>0)ls.push({label:p.label,proc:p.steps[p.steps.length-1].proc})})
+  if(ls.length<2){$('ms').innerHTML='<p style="color:#999;padding:8px;">需要至少2个部分有工序</p>';return}
+  let h='<div class="mcfg"><h3>🔀 合流配置</h3><p style="font-size:11px;color:#666;margin-bottom:6px;">每个部分最后工序自动作为来源。支持多层合流。</p>'
+  MG.forEach((g,gi)=>{h+=`<div class="mrow"><span>汇合:</span>`;
+    PL.forEach(pl=>{const has=ls.find(x=>x.label===pl);if(!has)return;const ck=g.src.includes(pl);h+=`<label class="cb"><input type=checkbox ${ck?'checked':''} onchange="onMC(${gi})" data-g="${gi}" data-p="${pl}"> ${pl}(${has.proc})</label>`});
+    const allmps=MG.filter(g2=>g2.mp).map(g2=>g2.mp);allmps.forEach((mp,mi)=>{if(mi>=gi)return;const ck=g.src.includes(mp);h+=`<label class="cb"><input type=checkbox ${ck?'checked':''} onchange="onMC(${gi})" data-g="${gi}" data-p="${mp}" style="border-color:#059669;"> 🔀${mp}</label>`});
+    h+=`<span style="margin:0 4px;">→</span><select onchange="onMC(${gi})" data-g="${gi}"><option value="">-- 合流工序 --</option>`;PO.forEach(o=>h+=`<option value="${o}" ${g.mp===o?'selected':''}>${o}</option>`);h+=`</select><button class="btn btn-d btn-x" onclick="dMG(${gi})">删除</button></div>`})
+  h+=`<button class="btn btn-p btn-x" onclick="aMG()">+ 添合流层</button></div>`
+  h+=`<div class="mcfg" style="background:#f8fafc;border-color:#e2e8f0;"><h3 style="color:#334155;">➡️ 合流后工序</h3><div id="pms"></div><button class="btn btn-p btn-x" onclick="aPM()">+ 添加工序</button></div>`
+  $('ms').innerHTML=h;rPM();$('bg').classList.remove('hidden')
+}
+function onMC(gi){const g=MG[gi];if(!g)return;g.src=[];document.querySelectorAll(`input[data-p][data-g="${gi}"]:checked`).forEach(cb=>g.src.push(cb.dataset.p));const s=document.querySelector(`select[data-g="${gi}"]`);if(s)g.mp=s.value;rPM()}
+function aMG(){MG.push({mp:'',src:[],ps:[]});rMC()}
+function dMG(i){MG.splice(i,1);rMC()}
+
+function rPM(){const d=$('pms');if(!d)return;if(MG.length===0)return;let st=MG[0].ps||[];
+  while(st.length>0&&!st[st.length-1].proc)st.pop();if(st.length===0||st[st.length-1].proc)st.push({proc:''})
+  let h='';st.forEach((s,i)=>{const l=i===st.length-1;h+=`<div class="prow"><span class="num">${i+1}</span><select><option value="">-- 选择工序 --</option>`;PO.forEach(o=>h+=`<option value="${o}" ${s.proc===o?'selected':''}>${o}</option>`);h+=`</select><button class="dx" onclick="dPM(this)">✕</button></div>`;if(!l)h+='<div class="adn">↓</div>'})
+  d.innerHTML=h;document.querySelectorAll('#pms select').forEach(s=>s.onchange=function(){if(this.value)onPM()})
+}
+function onPM(){spM();const st=MG[0].ps||[];while(st.length>0&&!st[st.length-1].proc)st.pop();st.push({proc:''});MG[0].ps=st;rPM()}
+function aPM(){spM();const st=MG[0].ps||[];while(st.length>0&&!st[st.length-1].proc)st.pop();st.push({proc:''});MG[0].ps=st;rPM();const s=document.querySelectorAll('#pms select');if(s.length)s[s.length-1].focus()}
+function dPM(btn){spM();const rows=Array.from(document.querySelectorAll('#pms .prow'));const i=rows.indexOf(btn.closest('.prow'));if(i>=0){MG[0].ps.splice(i,1);rPM()}}
+function spM(){MG.forEach(g=>{const st=[];document.querySelectorAll('#pms select').forEach(s=>{if(s.value)st.push({proc:s.value})});g.ps=st})}
+
+function gen(){
+  svS();if(mm)spM();if(mm){MG.forEach((g,gi)=>{const s=document.querySelector(`select[data-g="${gi}"]`);if(s)g.mp=s.value;g.src=[];document.querySelectorAll(`input[data-p][data-g="${gi}"]:checked`).forEach(cb=>g.src.push(cb.dataset.p))})}
+  clS();const vm=mm?MG.filter(g=>g.mp&&g.src.length>=2):[]
+  if(!PD.some(p=>p.steps.length>0)){alert('请至少选择一个工序');return}
+  H('s1');H('s2');S('s3');$('rt').textContent='工艺路线图 — '+P;ch(vm);$('bs').classList.remove('hidden')
+}
+
+function ch(vm){
+  const w=$('cw');w.innerHTML=''
+  if(T==='single'){const st=PD[0].steps;let h='<div style="display:flex;flex-direction:column;align-items:center;padding:20px;">';st.forEach((s,i)=>{h+=`<div class="node ${i===0?'start':(i===st.length-1?'end':'proc')}" style="width:150px;">${s.proc}</div>`;if(i<st.length-1)h+='<div class="av">↓</div>'});h+='</div>';w.innerHTML=h;return}
+  const parts=PD.filter(p=>p.steps.length>0)
+  const mprocs=vm.map(m=>m.mp)
+  const primaryMs=vm.filter(m=>m.src.every(s=>PL.includes(s)))
+  const secondaryMs=vm.filter(m=>m.src.some(s=>mprocs.includes(s)))
+  let h='<div class="chart">'
+  // Row 1: Part columns
+  h+='<div class="chart-row">'
+  parts.forEach(part=>{
+    h+=`<div class="part-col"><div class="part-name">部分 ${part.label}</div>`
+    part.steps.forEach((s,i)=>{const isLast=i===part.steps.length-1;let nc='proc';if(i===0)nc='start';if(isLast&&primaryMs.some(m=>m.src.includes(part.label)))nc='merge';h+=`<div class="node ${nc}">${s.proc}</div>`;if(!isLast)h+='<div class="av">↓</div>'})
+    h+='</div>'
+  })
+  h+='</div>'
+  // Row 2: Primary merges
+  if(primaryMs.length>0){
+    h+='<div class="merge-row merge-row-prim">'
+    primaryMs.forEach(mg=>{
+      const srcDescs=mg.src.map(s=>{const pp=parts.find(p=>p.label===s);return s+(pp?'('+pp.steps[pp.steps.length-1].proc+')':'')})
+      h+=`<div class="merge-col"><div class="merge-label">${srcDescs.join(' + ')}</div><div class="node merge">${mg.mp}</div></div>`
+    })
+    h+='</div>'
+  }
+  // Row 3: Secondary merges
+  if(secondaryMs.length>0){
+    h+='<div class="merge-row merge-row-sec">'
+    secondaryMs.forEach(mg=>{
+      const srcDescs=mg.src.map(s=>{const pp=parts.find(p=>p.label===s);if(pp)return s+'('+pp.steps[pp.steps.length-1].proc+')';return '🔀'+s})
+      h+=`<div class="merge-col"><div class="merge-label">${srcDescs.join(' + ')}</div><div class="node merge">${mg.mp}</div></div>`
+    })
+    h+='</div>'
+  }
+  // Row 4: Post-merge steps
+  const ps=(MG[0]?.ps||[]).filter(s=>s.proc)
+  if(ps.length>0){
+    h+='<div class="end-row"><div style="display:flex;flex-direction:column;align-items:center;">'
+    ps.forEach((s,i)=>{const isL=i===ps.length-1;h+=`<div class="node ${isL?'end':'proc'}">${s.proc}</div>`;if(!isL)h+='<div class="av">↓</div>'})
+    h+='</div></div>'
+  }
+  h+='</div>'
+  w.innerHTML=h
+  setTimeout(()=>drwLn(vm,parts),50)
+}
+
+function drwLn(vm,parts){
+  const cw=$('cw');if(!cw||vm.length===0)return
+  cw.querySelectorAll('canvas').forEach(c=>c.remove())
+  const cv=document.createElement('canvas')
+  cv.style.cssText='position:absolute;top:0;left:0;pointer-events:none;z-index:10'
+  cv.width=cw.scrollWidth;cv.height=cw.scrollHeight
+  cw.style.position='relative';cw.appendChild(cv)
+  const ctx=cv.getContext('2d')
+  ctx.strokeStyle='#059669';ctx.lineWidth=1.8;ctx.setLineDash([5,4]);ctx.lineCap='round'
+  const cr=cw.getBoundingClientRect()
+  // Arrow pointing up (into bottom of target)
+  function arrUp(x,y){ctx.save();ctx.setLineDash([]);ctx.fillStyle='#059669';ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x-5,y-10);ctx.lineTo(x+5,y-10);ctx.closePath();ctx.fill();ctx.restore()}
+  // Arrow pointing down (out of bottom of source)
+  function arrDn(x,y){ctx.save();ctx.setLineDash([]);ctx.fillStyle='#059669';ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x-5,y+10);ctx.lineTo(x+5,y+10);ctx.closePath();ctx.fill();ctx.restore()}
+  function b(el){const r=el.getBoundingClientRect();return{x:r.left-cr.left+r.width/2,y:r.bottom-cr.top}}
+  function t(el){const r=el.getBoundingClientRect();return{x:r.left-cr.left+r.width/2,y:r.top-cr.top}}
+
+  // Build arrays matching DOM order
+  const partCols=cw.querySelectorAll('.chart-row .part-col')
+  const primRow=cw.querySelector('.merge-row-prim')
+  const secRow=cw.querySelector('.merge-row-sec')
+  const primCols=primRow?[...primRow.querySelectorAll('.merge-col')]:[]
+  const secCols=secRow?[...secRow.querySelectorAll('.merge-col')]:[]
+  const allMC=[...primCols,...secCols]
+  const mprocs=vm.map(m=>m.mp)
+  const primaryMs=vm.filter(m=>m.src.every(s=>PL.includes(s)))
+  const secondaryMs=vm.filter(m=>m.src.some(s=>mprocs.includes(s)))
+
+  // Step 1: each part's last merge-class node bottom → each matching primary merge top
+  partCols.forEach(pc=>{
+    const nodes=pc.querySelectorAll('.node.merge')
+    if(!nodes.length)return
+    const srcPt=b(nodes[nodes.length-1])
+    const pname=pc.querySelector('.part-name').textContent.replace('部分 ','').trim()
+    primaryMs.forEach((mg,i)=>{
+      if(!mg.src.includes(pname)||!primCols[i])return
+      const tgtPt=t(primCols[i].querySelector('.node'))
+      const my=(srcPt.y+tgtPt.y)/2
+      ctx.beginPath();ctx.moveTo(srcPt.x,srcPt.y);ctx.lineTo(srcPt.x,my);ctx.lineTo(tgtPt.x,my);ctx.lineTo(tgtPt.x,tgtPt.y);ctx.stroke()
+      arrUp(tgtPt.x,tgtPt.y)
+    })
+  })
+
+  // Step 2: primary merge bottom → secondary merge top (dedup merge names)
+  if(secCols.length){
+    const used=[]
+    secondaryMs.forEach((mg,si)=>{
+      if(!secCols[si])return
+      const tgtPt=t(secCols[si].querySelector('.node'))
+      mg.src.forEach(src=>{
+        const pi=primaryMs.findIndex((m,i)=>m.mp===src&&!used.includes(i))
+        if(pi<0||!primCols[pi])return
+        used.push(pi)
+        const s=b(primCols[pi].querySelector('.node'))
+        const my=(s.y+tgtPt.y)/2
+        ctx.beginPath();ctx.moveTo(s.x,s.y);ctx.lineTo(s.x,my);ctx.lineTo(tgtPt.x,my);ctx.lineTo(tgtPt.x,tgtPt.y);ctx.stroke()
+        arrUp(tgtPt.x,tgtPt.y)
+      })
+    })
+  }
+
+  // Step 3: last merge bottom → first post-step top, then between post-steps
+  const postNodes=cw.querySelectorAll('.end-row .node')
+  if(postNodes.length&&allMC.length){
+    const lastNode=allMC[allMC.length-1].querySelector('.node')
+    if(lastNode){
+      const s=b(lastNode),tgt=t(postNodes[0])
+      const my=(s.y+tgt.y)/2
+      ctx.beginPath();ctx.moveTo(s.x,s.y);ctx.lineTo(s.x,my);ctx.lineTo(tgt.x,my);ctx.lineTo(tgt.x,tgt.y);ctx.stroke()
+      arrUp(tgt.x,tgt.y)
+    }
+    for(let i=1;i<postNodes.length;i++){
+      const s=b(postNodes[i-1]),tgt=t(postNodes[i])
+      ctx.beginPath();ctx.moveTo(s.x,s.y);ctx.lineTo(s.x,(s.y+tgt.y)/2);ctx.lineTo(tgt.x,(s.y+tgt.y)/2);ctx.lineTo(tgt.x,tgt.y);ctx.stroke()
+      arrUp(tgt.x,tgt.y)
+    }
+  }
+}
+
+function save(){
+  svS();clS()
+  if(mm){spM();MG.forEach((g,i)=>{const s=document.querySelector('select[data-g="'+i+'"]');if(s)g.mp=s.value;g.src=[];document.querySelectorAll('input[data-p][data-g="'+i+'"]:checked').forEach(cb=>g.src.push(cb.dataset.p))})}
+  if(!P||!PD.some(p=>p.steps.length>0)){alert('请先生成路线图');return}
+  const pdCopy=PD.map(p=>({label:p.label,steps:p.steps.map(s=>({proc:s.proc}))}))
+  const mgCopy=MG.filter(g=>g.mp&&g.src.length>=2).map(g=>({mp:g.mp,src:[...g.src],ps:(g.ps||[]).map(s=>({proc:s.proc}))}))
+  const d={P,T,PL,PD:pdCopy,MG:mgCopy,mm,eid:Date.now().toString(),ts:new Date().toISOString()}
+  const all=JSON.parse(localStorage.getItem('pr')||'[]')
+  all.push(d);localStorage.setItem('pr',JSON.stringify(all));eid=d.eid
+  alert('已保存: '+P);rSL()
+}
+function rSL(){const all=JSON.parse(localStorage.getItem('pr')||'[]');const dl=$('sl');if(all.length===0){dl.innerHTML='<div class="empty">📭<p style="font-size:14px;margin-top:8px;color:#999;">还没有保存的路线图</p></div>';return}
+  let h='';all.forEach((r,i)=>{const d=new Date(r.ts);const ds=d.toLocaleDateString('zh-CN')+' '+d.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});h+=`<div class="svitem"><div class="inf" onclick="vR('${r.eid}')"><div class="nm">${r.P} <span style="color:#999;font-weight:400;font-size:11px;">— ${r.T==='combo'?'组合 ('+(r.PL?.length||'')+'部分)':'单一'}</span></div><div class="ds">${ds}</div></div><div class="iac"><button class="btn btn-s btn-x" onclick="eR('${r.eid}')">✏️ 编辑</button><button class="btn btn-d btn-x" onclick="dR('${r.eid}')">🗑 删除</button></div></div>`});dl.innerHTML=h}
+function vR(id){const all=JSON.parse(localStorage.getItem('pr')||'[]');const r=all.find(rr=>rr.eid===id);if(!r)return;ldD(r);H('ss');S('ns');gen()}
+function eR(id){const all=JSON.parse(localStorage.getItem('pr')||'[]');const r=all.find(rr=>rr.eid===id);if(!r)return;ldD(r);H('ss');S('ns');eid=r.eid;$('pn').value=r.P||'';document.querySelector('input[name=ty][value="'+(r.T||'single')+'"]').checked=true;if(r.T==='combo'){$('pc').value=r.PL?.length||2}onT();S('s1');H('s2');H('s3')}
+function dR(id){if(!confirm('确定删除？'))return;const all=JSON.parse(localStorage.getItem('pr')||'[]');localStorage.setItem('pr',JSON.stringify(all.filter(r=>r.eid!==id)));rSL()}
+function ldD(r){P=r.P;T=r.T;PL=r.PL||[];PD=r.PD||[];MG=r.MG||[];mm=r.mm||false;ci=0}
+
+onT();rSL()
+</script>
+</body>
+</html>
