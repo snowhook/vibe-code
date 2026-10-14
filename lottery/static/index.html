@@ -308,6 +308,7 @@ textarea:focus{border-color:var(--accent)}
       <div class="row" style="margin-top:12px">
         <button class="btn pri" onclick="doBet()">✅ 确认投注并记账</button>
         <button class="btn" onclick="askLLM()">🤖 AI 点评自选池</button>
+        <button class="btn" onclick="exportPoolTxt()" title="把自选池（或选区预览）导出为「日期-彩种名.txt」，含每注号码、注数、金额与概率">📄 导出文本文件</button>
       </div>
       <div id="p-llm" class="note hide"></div>
       <div class="note">复式说明：在一个区选超过规定个数即为复式，每注会按组合数自动展开注数与金额。<br>每注可单独设<b>倍投倍数</b>，该注金额 = 展开注数 × 单价 × 倍数，池底合计随之更新。<br>每注右侧 × 可单独删除；虚线框的那一行是<b>当前选区预览</b>，点「＋ 加入自选池」才会真正入池。</div>
@@ -326,7 +327,16 @@ textarea:focus{border-color:var(--accent)}
       <div class="note">结算口径：按你保存的每注号码对照该期开奖，命中奖级自动回款；浮动奖（一/二等、快乐8 高奖级）取当期官方奖级表金额。</div>
     </div>
     <div class="card">
-      <h2><span class="bar"></span>账本明细</h2>
+      <h2><span class="bar"></span>账本明细
+        <div class="spacer"></div>
+        <span class="note" style="margin:0;white-space:nowrap">排序</span>
+        <select id="l-sort" style="width:auto;margin-left:6px" onchange="loadLedger()">
+          <option value="date">投注日期（新→旧）</option>
+          <option value="issue">期号（新→旧）</option>
+          <option value="cost">投入（多→少）</option>
+          <option value="settled">待开奖优先</option>
+        </select>
+      </h2>
       <div id="l-table"><div class="loading">加载中…</div></div>
     </div>
   </section>
@@ -979,6 +989,155 @@ async function poolCalc() {
 }
 
 
+/* 一注号码的人读文本（与后端 ticket_text 同口径）：红球 03 07 12 19 22 33 | 蓝球 05 */
+function tkText(t, g) {
+  if (!t || !g) return '—';
+  if (g.type === 'digit' && t.n) return '组选 ' + t.n.join(' ');
+  const parts = [];
+  for (const z of (g.zones || [])) {
+    const v = t[z.key];
+    if (!v || !v.length) continue;
+    const a = v.map ? v : [v];
+    parts.push(z.name + ' ' + a.map(n => String(n).padStart(2, '0')).join(' '));
+  }
+  return parts.join(' | ') || '—';
+}
+
+/* 文件名净化：Windows 不允许 \ / : * ? " < > | */
+function safeName(s) {
+  return String(s || '').replace(/[\\/:*?"<>|]/g, '_').trim() || '未命名';
+}
+
+/* ============ 剪贴板 ============
+   navigator.clipboard 只在「安全上下文」可用（HTTPS / localhost）；
+   走 HTTP 访问时会整条不存在，所以必须留 execCommand 兜底，
+   否则功能在部分部署下静默失效。 */
+async function copyText(text, tip) {
+  const t = String(text || '');
+  if (!t) { toast('没有可复制的内容'); return false; }
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(t);
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = t;
+      ta.setAttribute('readonly', '');
+      ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+      document.body.appendChild(ta);
+      ta.select(); ta.setSelectionRange(0, t.length);
+      const ok = document.execCommand('copy');
+      ta.remove();
+      if (!ok) throw new Error('execCommand 返回 false');
+    }
+    toast(tip || ('已复制 ' + t.split('\n').length + ' 行到剪贴板'));
+    return true;
+  } catch (e) {
+    console.error('复制失败', e);
+    toast('复制失败：' + ((e && e.message) || e) + ' —— 可手动选中号码后 Ctrl+C');
+    return false;
+  }
+}
+
+/* 一注号码 → 可粘贴文本（账本复制用；与导出口径一致）
+   rec 是**票据记录**（号码在 rec.numbers 里），不是裸号码对象 ——
+   传错层级会输出「—」，因为 tkText 只按 g.zones 去读 t[z.key]。 */
+function tkLine(rec, g) {
+  const t = (rec && rec.numbers) ? rec.numbers : rec;
+  const m = Math.max(1, parseInt(rec.mult, 10) || 1);
+  return tkText(t, g) + '　' + ((rec && rec.sets) || 1) + ' 注' + (m > 1 ? ' ×' + m + ' 倍' : '');
+}
+function ymd(d) {
+  const p = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+}
+
+/* 导出自选池为文本文件：文件名「日期-彩种名.txt」
+   注数/金额/概率**重新向服务端算一次**，不复用界面上的渲染结果 ——
+   用户可能刚改完倍数就点导出，界面上的数字还没回来（poolCalc 是异步的）。 */
+async function exportPoolTxt() {
+  const g = GAMES[CUR]; if (!g) return;
+  const play = $('p-play').value;
+  const hasPool = TICKETS.length > 0;
+  const hasPicks = Object.values(PICKS).some(a => a && a.length);
+  if (!hasPool && !hasPicks) return toast('自选池是空的，先选号或出号再导出');
+
+  const tks = hasPool ? TICKETS.map(t => numOnly(t)) : [numOnly(PICKS)];
+  const mults = hasPool ? TICKETS.map(t => Math.max(1, parseInt(t.mult, 10) || 1)) : [ovMult()];
+  const [r, pr] = await Promise.all([
+    hasPool ? api('pool/calc', { lottery: CUR, play, tickets: tks, mults })
+            : Promise.resolve({ ok: true, per: [], per_amount: [], total_sets: 0, total_amount: 0 }),
+    api('probability', { lottery: CUR, play, picks: hasPool ? null : PICKS }),
+  ]);
+  if (!r.ok) return toast(r.error || '统计失败，未导出');
+
+  let per, multsL, totalSets, totalAmount, label;
+  if (hasPool) {
+    per = r.per || []; multsL = r.mults || mults;
+    totalSets = r.total_sets || 0; totalAmount = r.total_amount || 0;
+    label = fmt(tks.length) + ' 组号码';
+  } else {
+    const n = (pr && pr.bet_count) || 0;
+    per = [n]; multsL = [ovMult()];
+    totalSets = n * multsL[0]; totalAmount = totalSets * g.price;
+    label = '选区预览 · 未入池';
+  }
+
+  /* 重复的组不增加号码覆盖：概率按去重后的有效注数算，金额照收（等同倍投）。
+     seen 里存的是 **1 起的注号**，dupOf 直接取它 —— 不要再 +1，
+     那样会把「第 3 注与第 1 注相同」写成「与第 2 注完全重复」。 */
+  const seen = new Map(); let effSets = 0;
+  const dupOf = [];
+  tks.forEach((t, i) => {
+    const sig = tkSig(t);
+    if (seen.has(sig)) { dupOf[i] = seen.get(sig); return; }
+    seen.set(sig, i + 1); effSets += per[i] || 0;
+  });
+
+  const rep = (pr && pr.ok) ? pr.report : null;
+  const single = rep ? rep.total_win : 0;
+  const trow = topRow(rep), topSingle = trow ? trow.prob : 0;
+  const pAny = combAny(single, effSets), pTop = combTop(topSingle, effSets);
+  const now = new Date(), p2 = n => String(n).padStart(2, '0');
+  const pname = ((g.plays || []).find(x => x.key === play) || {}).name || play;
+  const L = [];
+  L.push('彩票选号账本 · 自选池导出');
+  L.push('='.repeat(46));
+  L.push('导出时间：' + ymd(now) + ' ' + p2(now.getHours()) + ':' + p2(now.getMinutes()));
+  L.push('彩种：' + g.name + '（' + (g.org || '') + '） · 玩法：' + pname);
+  L.push('单价：' + yuan(g.price) + '/注');
+  L.push('');
+  L.push('【统计】');
+  L.push('  ' + label + ' · 本次注数 ' + fmt(totalSets) + ' 注' + (multsL.some(m => m > 1) ? '（含倍投）' : ''));
+  L.push('  投注金额 ' + yuan(totalAmount));
+  L.push('  号码覆盖 ' + fmt(effSets) + ' 注（完全重复的组不重复计入覆盖）');
+  L.push('  任一奖级概率 ' + (pAny * 100).toFixed(level(pAny)) + '%（单注 ' + (single * 100).toFixed(level(single)) + '% × ' + fmt(effSets) + ' 注）');
+  L.push('  最高奖级概率 ' + fmtOdds(pTop) + '（单注 ' + fmtOdds(topSingle) + ' × ' + fmt(effSets) + ' 注）');
+  L.push('');
+  L.push('【号码清单】');
+  tks.forEach((t, i) => {
+    const m = multsL[i] || 1;
+    const amt = hasPool ? (r.per_amount || [])[i] : totalAmount;
+    L.push('  ' + String(i + 1).padStart(2, ' ') + '. ' + tkText(t, g)
+      + '    ' + fmt(per[i] || 0) + ' 注' + (m > 1 ? ' ×' + m + ' 倍' : '') + ' · ' + yuan(amt)
+      + (dupOf[i] ? '（与第 ' + dupOf[i] + ' 注完全重复）' : ''));
+  });
+  L.push('');
+  L.push('-'.repeat(46));
+  L.push('本文件仅为投注记录。号码由策略或大模型生成，不改变中奖概率、也不是预测。');
+  L.push('购彩有风险，投注需理性；未满 18 周岁不得购买彩票。');
+
+  const fname = ymd(now) + '-' + safeName(g.name) + '.txt';
+  /* 前置 BOM：Windows 记事本按 UTF-8 打开，中文才不会变乱码 */
+  const blob = new Blob(['﻿' + L.join('\n')], { type: 'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = fname;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+  toast('已导出 ' + fname + '（' + fmt(totalSets) + ' 注 · ' + yuan(totalAmount) + '）');
+}
+
+
 async function doBet() {
   const play = $('p-play').value;
   if (TICKETS.length) {
@@ -1148,7 +1307,8 @@ function aiAddAll() {
 
 /* ============ 账本 ============ */
 async function loadLedger() {
-  const r = await api('ledger');
+  const sort = ($('l-sort') && $('l-sort').value) || 'date';
+  const r = await api('ledger?sort=' + encodeURIComponent(sort));
   if (!r.ok) return;
   const s = r.summary || {};
   const net = s.net || 0;
@@ -1161,18 +1321,59 @@ async function loadLedger() {
     <div class="kpi"><div class="l">回报率</div><div class="v ${net>0?'pos':'neg'}">${((s.roi||0)*100).toFixed(1)}%</div></div>`;
   const rows = r.rows || [];
   if (!rows.length) { $('l-table').innerHTML = '<div class="loading">暂无记账记录</div>'; return; }
-  $('l-table').innerHTML = `<table><thead><tr><th>彩种</th><th>期号</th><th>注数</th><th>投入</th><th>回款</th><th>盈亏</th><th>状态</th><th>操作</th></tr></thead><tbody>`
+  const needSec = dateCellsNeedSec(rows);
+  $('l-table').innerHTML = `<table><thead><tr><th>投注日期</th><th>彩种</th><th>期号</th><th>注数</th><th>投入</th><th>回款</th><th>盈亏</th><th>状态</th><th>操作</th></tr></thead><tbody>`
     + rows.map(x => {
       const net2 = (x.return_amount || 0) - (x.cost || 0);
       const g = GAMES[x.lottery] || { name: x.lottery };
-      return `<tr><td>${esc(g.name)}</td><td class="mono">${esc(x.issue)}</td><td>${fmt(x.sets)}</td>
+      const d = dateCell(x.bet_at, needSec);
+      return `<tr><td class="mono">${d}</td><td>${esc(g.name)}</td><td class="mono">${esc(x.issue)}</td><td>${fmt(x.sets)}</td>
         <td>${yuan(x.cost)}</td><td>${yuan(x.return_amount)}</td>
         <td class="${net2>0?'pos':net2<0?'neg':''}">${yuan(net2)}</td>
         <td>${x.settled ? '<span class="pill ok">已结算</span>' : '<span class="pill warn">待开奖</span>'}</td>
         <td><button class="btn sm" onclick="openRound('${x.lottery}','${esc(x.issue)}')">明细 / 修改</button>
+        <button class="btn sm" onclick="copyRound('${x.lottery}','${esc(x.issue)}')" title="把这一期的全部号码复制到剪贴板">📋 复制号码</button>
         <button class="btn sm danger" onclick="delRound('${x.lottery}','${esc(x.issue)}')">删除</button></td></tr>`;
     }).join('') + '</tbody></table>'
-    + '<div class="note">点「明细 / 修改」可查看该期每一注，并单独修改号码/期号/备注或删除单注；点「删除」则清掉该期全部投注记录。</div>';
+    + `<div class="note">「投注日期」是这一期<b>第一次下单</b>的时间（同一期多注只记最早那次），可在右上角切换排序。
+      点「📋 复制号码」把该期所有号码按「红球 01 05 … | 蓝球 03　1 注」逐行复制，可直接粘到微信/备忘录；
+      点「明细 / 修改」可查看该期每一注，并单独修改号码/期号/备注或删除单注；点「删除」则清掉该期全部投注记录。</div>`;
+}
+
+/* 账本日期格：今天显示「今天 HH:MM」，往年带年份；有时间为空时明确写「—」而不是留白。
+   sec=true 时补秒 —— 同一分钟里的几期，光看 HH:MM 分不出先后，
+   排序看起来就像没生效（实测三期连着投，全落在同一分钟内）。 */
+function dateCell(s, sec) {
+  const t = String(s || '');
+  if (!t) return '<span class="dim">—</span>';
+  const d = t.slice(0, 10), hm = t.slice(11, 16);
+  const time = hm + (sec ? ':' + t.slice(17, 19) : '');
+  const today = ymd(new Date());
+  if (d === today) return '今天 ' + time;
+  if (d === ymd(new Date(Date.now() - 86400000))) return '昨天 ' + time;
+  return esc(d.slice(2)) + ' ' + time;
+}
+
+/* 同一分钟出现多期时，整列都补上秒（否则用户看不出排序差别） */
+function dateCellsNeedSec(rows) {
+  const seen = {};
+  let dup = false;
+  rows.forEach(r => { const m = (r.bet_at || '').slice(0, 16); if (seen[m]) dup = true; seen[m] = 1; });
+  return dup;
+}
+
+/* 复制某一期的全部号码 */
+async function copyRound(lottery, issue) {
+  const r = await api('tickets?lottery=' + encodeURIComponent(lottery)
+                      + '&issue=' + encodeURIComponent(issue));
+  if (!r.ok) return toast(r.error || '读取该期号码失败');
+  const rows = r.tickets || [];
+  if (!rows.length) return toast('该期已无投注记录');
+  const g = GAMES[lottery] || { name: lottery };
+  const head = g.name + ' 第 ' + issue + ' 期（' + rows.length + ' 注）';
+  const body = rows.slice().sort((a, b) => (a.id || 0) - (b.id || 0))
+    .map((t, i) => '  ' + String(i + 1).padStart(2, ' ') + '. ' + tkLine(t, g)).join('\n');
+  await copyText(head + '\n' + body, '已复制 ' + g.name + ' ' + issue + ' 期共 ' + rows.length + ' 注号码');
 }
 
 /* ============ 账本：投注明细 / 修改 / 删除 ============ */
@@ -1233,9 +1434,13 @@ async function openRound(lottery, issue) {
   if (!M_ROWS.length) { $('m-body').innerHTML = '<div class="loading">该期已无投注记录</div>'; return; }
   const tot = M_ROWS.reduce((a, b) => a + (b.amount || 0), 0);
   const ret = M_ROWS.reduce((a, b) => a + (b.prize_amount || 0), 0);
+  const sec = dateCellsNeedSec(M_ROWS);
+  const d0 = dateCell(M_ROWS.reduce((a, b) =>
+      ((a && a.created_at) < (b.created_at || '') ? a : b), M_ROWS[0]).created_at, sec);
   $('m-body').innerHTML =
-      `<div class="pool-total"><span>${M_ROWS.length} 条记录 · 投入 <b>${yuan(tot)}</b> · 回款 <b>${yuan(ret)}</b></span>
+      `<div class="pool-total"><span>${M_ROWS.length} 条记录 · 投注 <b>${d0}</b> · 投入 <b>${yuan(tot)}</b> · 回款 <b>${yuan(ret)}</b></span>
         <div class="spacer"></div>
+        <button class="btn sm" onclick="copyMAll()">📋 复制本期全部号码</button>
         <button class="btn sm danger" onclick="delRound('${lottery}','${issue}')">删除整期记录</button></div>`
     + M_ROWS.map(t => {
       const gg = GAMES[t.lottery] || g;
@@ -1245,9 +1450,28 @@ async function openRound(lottery, issue) {
         <span class="pill">${esc(pn)}</span>${m > 1 ? `<span class="pill warn">${m} 倍</span>` : ''}
         <span class="amt">${t.sets} 注 · ${yuan(t.amount)} · ${t.settled
           ? '已结算 +' + yuan(t.prize_amount).slice(1) : '待开奖'}</span>
+        <span class="amt dim" style="margin-left:6px">${dateCell(t.created_at, sec)}</span>
+        <button class="btn sm" onclick="copyOne(${t.id})" title="复制这一注的号码">📋</button>
         <button class="btn sm" onclick="editTicket(${t.id})">修改</button>
         <button class="btn sm danger" onclick="delRec(${t.id})">删除</button></div>`;
     }).join('');
+}
+
+/* 复制弹窗里单注 / 整期的号码（号码已在 M_ROWS 里，不用再请求） */
+async function copyOne(id) {
+  const t = M_ROWS.find(x => x.id === id);
+  if (!t) return toast('记录已变化，请重新打开');
+  const g = GAMES[t.lottery] || { name: t.lottery };
+  await copyText(tkLine(t, g), '已复制：' + tkText(t.numbers, g));
+}
+
+async function copyMAll() {
+  if (!M_ROWS.length) return toast('该期已无投注记录');
+  const g = GAMES[M_LOTTERY] || { name: M_LOTTERY };
+  const head = g.name + ' 第 ' + M_ISSUE + ' 期（' + M_ROWS.length + ' 注）';
+  const body = M_ROWS.slice().sort((a, b) => (a.id || 0) - (b.id || 0))
+    .map((t, i) => '  ' + String(i + 1).padStart(2, ' ') + '. ' + tkLine(t, g)).join('\n');
+  await copyText(head + '\n' + body, '已复制 ' + M_ROWS.length + ' 注号码');
 }
 
 function editTicket(id) {

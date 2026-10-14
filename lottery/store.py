@@ -509,17 +509,42 @@ def upsert_ledger(user_id, lottery, issue, advice, acted, sets, cost,
     return lid
 
 
-def get_ledger(user_id, lottery=None, limit=200):
+def get_ledger(user_id, lottery=None, limit=200, sort='date'):
+    """账本明细（含投注日期）。
+
+    投注日期取该期 tickets 的 MIN(created_at) —— ledger.created_at 是账本行落库时刻，
+    补记/重算时会变；tickets.created_at 才是真正按下注的时刻。tickets 被清空时退回
+    ledger.created_at 兜底，避免老数据出现空白日期。
+
+    sort='date'（默认，按下注日期倒序）/ 'issue'（按期号倒序）/ 'cost'（按投入倒序）。
+    跨彩种时期号之间不可比（各彩种期号编码规则不同），所以日期是唯一稳妥的默认序。
+    """
     c = conn()
     try:
-        sql = 'SELECT * FROM ledger WHERE user_id=?'
+        sql = ('SELECT l.*, MIN(t.created_at) AS bet_at, COUNT(t.id) AS ticket_cnt '
+               'FROM ledger l LEFT JOIN tickets t '
+               '  ON t.user_id=l.user_id AND t.lottery=l.lottery AND t.issue=l.issue '
+               'WHERE l.user_id=?')
         args = [user_id]
         if lottery:
-            sql += ' AND lottery=?'
+            sql += ' AND l.lottery=?'
             args.append(lottery)
-        sql += ' ORDER BY issue DESC, id DESC LIMIT ?'
+        sql += ' GROUP BY l.id'
+        order = {'issue': 'l.issue DESC, l.id DESC',
+                 'cost': 'l.cost DESC, l.id DESC',
+                 'settled': 'l.settled ASC, l.id DESC'}.get(sort)
+        if not order:
+            # COALESCE 兜底：无票据的老行也要能按日期落位，不能整堆排到末尾
+            order = "COALESCE(MIN(t.created_at), l.created_at) DESC, l.id DESC"
+        sql += ' ORDER BY ' + order + ' LIMIT ?'
         args.append(limit)
-        return [dict(r) for r in c.execute(sql, args)]
+        out = []
+        for r in c.execute(sql, args):
+            d = dict(r)
+            d['bet_at'] = d.get('bet_at') or d.get('created_at') or ''
+            d['ticket_cnt'] = d.get('ticket_cnt') or 0
+            out.append(d)
+        return out
     finally:
         c.close()
 

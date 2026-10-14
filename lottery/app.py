@@ -471,7 +471,8 @@ class Handler(BaseHTTPRequestHandler):
             if not u:
                 return
             lt = one('lottery')
-            return self._json({'ok': True, 'rows': store.get_ledger(u['id'], lt, 300),
+            return self._json({'ok': True, 'rows': store.get_ledger(u['id'], lt, 300,
+                               one('sort') or 'date'),
                                'summary': store.ledger_summary(u['id'], lt)})
         if path == '/api/options':
             u = self._need()
