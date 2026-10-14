@@ -1,0 +1,2460 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>文学朗诵 · Literary Reciter</title>
+<style>
+/* ==========================================================================
+   设计基调：明亮通透 + 玻璃拟态 + 青紫渐变科技感（浅色）
+   正文用衬线体（文学质感），界面用无衬线体（科技质感）
+   ========================================================================== */
+:root{
+  color-scheme:light;
+  --bg-0:#f3f6fd;
+  --bg-1:#e9effb;
+  --panel:rgba(255,255,255,.76);
+  --panel-2:rgba(255,255,255,.92);
+  --solid:#ffffff;
+  --stroke:rgba(30,64,140,.14);
+  --stroke-2:rgba(30,64,140,.3);
+  --txt:#111c33;
+  --dim:#4e6187;
+  --dim-2:#7b89a8;
+  --cyan:#0891b2;
+  --violet:#6d5cf6;
+  --grad:linear-gradient(118deg,#0891b2 0%,#4f46e5 52%,#9333ea 100%);
+  --warm:#b45309;
+  --danger:#dc2626;
+  --ok:#16a34a;
+  --ui-font:"HarmonyOS Sans SC","MiSans","PingFang SC","Microsoft YaHei UI","Microsoft YaHei",system-ui,sans-serif;
+  --serif:"Source Han Serif SC","Noto Serif SC","Songti SC","STSong","SimSun",serif;
+  /* 正文用楷体（书写感、适合朗读）；标题保留宋体粗体重心 */
+  --kai:"STKaiti","华文楷体",KaiTi,"楷体","Noto Serif SC","Source Han Serif SC","Songti SC",serif;
+  --mono:"JetBrains Mono","Cascadia Mono",ui-monospace,Consolas,monospace;
+  --side-w:336px;          /* 侧栏宽度：播放条据此避开侧栏 */
+  --r:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:var(--ui-font);
+  color:var(--txt);
+  background:var(--bg-0);
+  overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ---------- 背景大气层 ---------- */
+.atmos{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.atmos::before{
+  content:"";position:absolute;inset:-20%;
+  background:
+    radial-gradient(46% 38% at 12% 4%,rgba(6,182,212,.13),transparent 62%),
+    radial-gradient(40% 40% at 88% 8%,rgba(139,92,246,.15),transparent 65%),
+    radial-gradient(50% 45% at 60% 105%,rgba(124,108,255,.11),transparent 68%);
+  filter:blur(8px);
+}
+.atmos::after{
+  content:"";position:absolute;inset:0;
+  background-image:
+    linear-gradient(rgba(30,64,140,.045) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(30,64,140,.045) 1px,transparent 1px);
+  background-size:56px 56px;
+  mask-image:radial-gradient(ellipse 100% 80% at 50% 30%,#000 20%,transparent 78%);
+  -webkit-mask-image:radial-gradient(ellipse 100% 80% at 50% 30%,#000 20%,transparent 78%);
+}
+
+/* ---------- 骨架 ---------- */
+.app{position:relative;z-index:1;display:flex;flex-direction:column;height:100vh}
+
+/* ---------- 顶栏 ---------- */
+.topbar{
+  flex:0 0 auto;display:flex;align-items:center;gap:18px;
+  padding:0 22px;height:62px;
+  background:rgba(255,255,255,.72);
+  backdrop-filter:blur(18px) saturate(150%);
+  border-bottom:1px solid var(--stroke);
+}
+.brand{display:flex;align-items:center;gap:11px;min-width:max-content}
+.brand .mark{
+  width:32px;height:32px;border-radius:9px;display:grid;place-items:center;
+  background:var(--grad);color:#ffffff;font-size:17px;font-weight:800;
+  box-shadow:0 0 22px rgba(6,182,212,.35);
+}
+.brand h1{
+  font-size:16px;font-weight:700;letter-spacing:.14em;
+  background:var(--grad);-webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;white-space:nowrap;
+}
+.brand .sub{font-size:9.5px;letter-spacing:.34em;color:var(--dim-2);text-transform:uppercase;margin-top:1px}
+
+.kb-chip{
+  display:flex;align-items:center;gap:9px;height:36px;padding:0 14px;
+  border:1px solid var(--stroke);border-radius:10px;
+  background:rgba(255,255,255,.7);cursor:pointer;
+  font-size:12.5px;color:var(--dim);transition:.18s;max-width:min(46vw,560px);
+}
+.kb-chip:hover{border-color:var(--stroke-2);color:var(--txt);background:rgba(255,255,255,.95)}
+.kb-chip .dot{width:7px;height:7px;border-radius:50%;background:var(--dim-2);flex:0 0 auto;transition:.2s}
+.kb-chip.ready .dot{background:var(--ok);box-shadow:0 0 9px var(--ok)}
+.kb-chip.scanning .dot{background:var(--warm);box-shadow:0 0 9px var(--warm);animation:blink 1s infinite}
+.kb-chip.error .dot{background:var(--danger);box-shadow:0 0 9px var(--danger)}
+.kb-chip .name{font-weight:600;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:210px}
+@keyframes blink{50%{opacity:.25}}
+
+.spacer{flex:1}
+.icon-btn{
+  width:38px;height:38px;flex:0 0 auto;display:grid;place-items:center;
+  border:1px solid var(--stroke);border-radius:10px;background:rgba(255,255,255,.7);
+  color:var(--dim);font-size:16px;cursor:pointer;transition:.18s;
+}
+.icon-btn:hover{color:var(--cyan);border-color:var(--stroke-2);transform:translateY(-1px)}
+
+/* ---------- 按钮 ---------- */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  height:36px;padding:0 15px;border-radius:10px;cursor:pointer;
+  font-family:inherit;font-size:12.5px;font-weight:500;letter-spacing:.02em;
+  color:var(--txt);background:rgba(255,255,255,.92);
+  border:1px solid var(--stroke);transition:.18s;white-space:nowrap;
+}
+.btn:hover{border-color:var(--stroke-2);background:rgba(236,242,252,1);transform:translateY(-1px)}
+.btn:active{transform:translateY(0)}
+.btn.primary{
+  background:var(--grad);border:0;color:#ffffff;font-weight:700;
+  box-shadow:0 4px 22px rgba(82,110,240,.32);
+}
+.btn.primary:hover{box-shadow:0 6px 28px rgba(82,110,240,.5)}
+.btn.ghost{background:transparent}
+.btn.danger{color:var(--danger);border-color:rgba(220,38,38,.3)}
+.btn.danger:hover{background:rgba(220,38,38,.08)}
+.btn.blocked{opacity:.42}
+.btn.blocked:hover{transform:none;border-color:var(--stroke);background:rgba(255,255,255,.92)}
+.btn[disabled]{opacity:.4;cursor:not-allowed}
+
+/* ---------- 主区 ---------- */
+main{flex:1 1 auto;display:grid;grid-template-columns:var(--side-w) minmax(0,1fr);min-height:0}
+
+/* ---------- 侧栏 ---------- */
+.sidebar{
+  display:flex;flex-direction:column;min-height:0;
+  border-right:1px solid var(--stroke);
+  background:rgba(255,255,255,.62);backdrop-filter:blur(10px);
+}
+.side-top{padding:14px;border-bottom:1px solid var(--stroke);display:flex;flex-direction:column;gap:9px}
+.search-wrap{position:relative}
+.search-wrap .si{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--dim-2);font-size:13px;pointer-events:none}
+input.search{
+  width:100%;height:38px;padding:0 12px 0 34px;border-radius:10px;
+  background:rgba(255,255,255,.95);border:1px solid var(--stroke);
+  color:var(--txt);font-family:inherit;font-size:13px;transition:.18s;
+}
+input.search::placeholder{color:var(--dim-2)}
+input.search:focus{outline:0;border-color:var(--cyan);box-shadow:0 0 0 3px rgba(6,182,212,.1)}
+
+.seg{display:flex;gap:4px;padding:3px;border-radius:10px;background:rgba(233,239,250,.9);border:1px solid var(--stroke)}
+.seg button{
+  flex:1;height:28px;border:0;border-radius:7px;background:transparent;
+  color:var(--dim);font-family:inherit;font-size:12px;cursor:pointer;transition:.15s;
+}
+.seg button:hover{color:var(--txt)}
+.seg button.on{background:var(--grad);color:#ffffff;font-weight:700}
+/* 播放条上的紧凑开关（全文 / 选区） */
+.seg.mini{padding:2px;gap:2px;border-radius:9px}
+.seg.mini button{flex:0 0 auto;height:30px;padding:0 12px;border-radius:7px;font-size:11.5px}
+.action-row{display:flex;gap:8px}
+.action-row .btn{flex:1}
+
+/* 标签筛选 */
+.tag-box{display:none;flex-direction:column;gap:7px}
+.tag-head{
+  display:flex;align-items:center;gap:8px;font-family:var(--mono);
+  font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim-2);
+}
+.tag-clear{
+  border:0;background:transparent;padding:0;cursor:pointer;
+  font-family:inherit;font-size:10px;letter-spacing:.1em;color:var(--cyan);
+}
+.tag-clear:hover{text-decoration:underline}
+.tag-cloud{display:flex;flex-wrap:wrap;gap:5px;max-height:108px;overflow-y:auto;padding-right:2px}
+.tag-cloud::-webkit-scrollbar{width:6px}
+.tag-cloud::-webkit-scrollbar-thumb{background:rgba(30,64,140,.18);border-radius:3px}
+.tag-chip{
+  display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;
+  border:1px solid var(--stroke);background:rgba(255,255,255,.75);color:var(--dim);
+  font-family:inherit;font-size:11px;line-height:1.5;cursor:pointer;transition:.15s;
+}
+.tag-chip:hover{border-color:var(--stroke-2);color:var(--txt);background:#fff}
+.tag-chip .n{font-family:var(--mono);font-size:9.5px;color:var(--dim-2)}
+.tag-chip.on{
+  background:var(--grad);border-color:transparent;color:#fff;font-weight:600;
+  box-shadow:0 3px 12px rgba(82,110,240,.28);
+}
+.tag-chip.on .n{color:rgba(255,255,255,.82)}
+
+.stats{
+  padding:0 14px 12px;font-size:11.5px;line-height:1.6;color:var(--dim-2);
+  display:flex;align-items:center;gap:7px;
+}
+.stats .ok{color:var(--ok);font-weight:600}
+.stats .err{color:var(--danger)}
+.stats .warn{color:var(--warm)}
+
+.work-list{flex:1 1 auto;overflow-y:auto;padding:8px 12px 120px;display:flex;flex-direction:column;gap:7px}
+.work-list::-webkit-scrollbar{width:7px}
+.work-list::-webkit-scrollbar-thumb{background:rgba(30,64,140,.18);border-radius:4px}
+.work-list::-webkit-scrollbar-thumb:hover{background:rgba(30,64,140,.32)}
+
+.work-item{
+  position:relative;padding:11px 13px;border-radius:11px;cursor:pointer;
+  background:rgba(255,255,255,.72);border:1px solid var(--stroke);transition:.16s;
+}
+.work-item:hover{background:#fff;border-color:var(--stroke-2);transform:translateX(2px)}
+.work-item.active{
+  background:linear-gradient(118deg,rgba(6,182,212,.12),rgba(139,92,246,.14));
+  border-color:rgba(60,110,220,.5);
+  box-shadow:0 0 0 1px rgba(60,110,220,.16),0 6px 22px rgba(6,182,212,.09);
+}
+.work-item.active::before{
+  content:"";position:absolute;left:0;top:14%;height:72%;width:3px;border-radius:0 3px 3px 0;
+  background:var(--grad);
+}
+.work-item .t{font-size:13.5px;font-weight:600;margin-bottom:4px;line-height:1.4}
+.work-item .m{font-size:11px;color:var(--dim-2);display:flex;gap:7px;align-items:center}
+.work-item .m .sep{opacity:.4}
+.work-item .m .len{font-family:var(--mono);margin-left:auto;color:var(--dim)}
+.work-item .tg{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.work-item .tg i{
+  font-style:normal;font-size:10px;padding:1px 7px;border-radius:20px;
+  background:rgba(30,64,140,.07);border:1px solid var(--stroke);color:var(--dim-2);
+}
+
+.empty-list{padding:26px 14px;text-align:center;color:var(--dim-2);font-size:12.5px}
+
+/* ---------- 阅读区：暖白纸面卡片 ---------- */
+.content{
+  overflow-y:auto;padding:34px 26px 190px;min-height:0;scroll-behavior:smooth;
+  background:
+    radial-gradient(120% 62% at 100% 0%,rgba(6,182,212,.07),transparent 62%),
+    radial-gradient(110% 58% at 0% 100%,rgba(147,51,234,.06),transparent 60%),
+    linear-gradient(180deg,var(--bg-1),var(--bg-0));
+}
+.content::-webkit-scrollbar{width:9px}
+.content::-webkit-scrollbar-thumb{background:rgba(30,64,140,.18);border-radius:5px}
+.content::-webkit-scrollbar-thumb:hover{background:rgba(30,64,140,.3)}
+
+.empty-state{
+  height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:20px;text-align:center;padding:40px;
+}
+.empty-state .orb{
+  width:96px;height:96px;border-radius:26px;display:grid;place-items:center;font-size:42px;
+  background:linear-gradient(150deg,rgba(6,182,212,.14),rgba(139,92,246,.16));
+  border:1px solid var(--stroke-2);box-shadow:0 0 60px rgba(82,110,240,.18);
+}
+.empty-state h2{font-size:19px;font-weight:600;letter-spacing:.03em}
+.empty-state p{font-size:13px;color:var(--dim-2);line-height:1.9;max-width:420px}
+.empty-state kbd{
+  font-family:var(--mono);font-size:11px;padding:2px 6px;border-radius:5px;
+  background:rgba(30,64,140,.1);border:1px solid var(--stroke);color:var(--dim);
+}
+
+.reader{
+  max-width:800px;margin:0 auto;padding:54px 62px 68px;border-radius:26px;
+  border:1px solid rgba(30,64,140,.1);
+  background:linear-gradient(180deg,#fffdfa 0%,#fffbf3 100%);
+  box-shadow:
+    0 1px 2px rgba(24,42,90,.04),
+    0 20px 44px -22px rgba(24,42,90,.18),
+    0 48px 96px -56px rgba(24,42,90,.34);
+  animation:rise .45s cubic-bezier(.2,.8,.3,1);
+}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.reader-head{position:relative;margin-bottom:30px;padding-bottom:24px;border-bottom:1px solid rgba(30,64,140,.1)}
+.reader-head::after{
+  content:"";position:absolute;left:0;bottom:-1px;width:92px;height:2px;border-radius:2px;
+  background:var(--grad);
+}
+.reader-head .kicker{
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.3em;text-transform:uppercase;
+  color:var(--cyan);opacity:.9;margin-bottom:14px;
+}
+.reader-head h2{
+  font-family:var(--serif);font-size:clamp(27px,3.1vw,36px);font-weight:700;line-height:1.32;
+  letter-spacing:.06em;color:#0f1a2e;text-wrap:balance;
+}
+.reader-head .byline{
+  margin-top:14px;font-size:12.5px;color:var(--dim);display:flex;align-items:center;gap:9px;
+  flex-wrap:wrap;font-variant-numeric:tabular-nums;
+}
+.reader-head .byline .tag{
+  font-size:11px;padding:3px 9px;border-radius:20px;
+  background:rgba(30,64,140,.07);border:1px solid var(--stroke);color:var(--dim);
+}
+.reader-head .byline .tag.tg{color:var(--cyan);border-color:rgba(6,182,212,.3);background:rgba(6,182,212,.07)}
+
+.piece-text{
+  font-family:var(--kai);
+  font-size:21px;line-height:2.36;letter-spacing:.055em;color:#232a3e;
+  white-space:pre-wrap;word-break:break-word;
+  text-rendering:optimizeLegibility;
+}
+.piece-text span{padding:1px 0;border-radius:3px}
+.piece-text span.rd{color:rgba(30,64,140,.32);transition:color .35s}
+.piece-text span.hl{
+  color:#0b1730;
+  background:linear-gradient(118deg,rgba(6,182,212,.24),rgba(139,92,246,.26));
+  box-shadow:0 0 14px rgba(6,182,212,.28);
+}
+
+/* ---------- 播放条 ---------- */
+.playbar{
+  position:fixed;bottom:18px;left:var(--side-w);right:18px;margin:0 auto;
+  width:min(1180px,calc(100vw - var(--side-w) - 36px));
+  display:grid;grid-template-columns:auto minmax(180px,1fr) auto;align-items:center;gap:22px;
+  padding:13px 20px;border-radius:18px;
+  background:rgba(255,255,255,.95);backdrop-filter:blur(24px) saturate(160%);
+  border:1px solid var(--stroke-2);
+  box-shadow:0 22px 60px rgba(24,42,90,.18),0 0 0 1px rgba(255,255,255,.7) inset;
+  z-index:60;transition:transform .42s cubic-bezier(.2,.9,.25,1),opacity .3s;
+  opacity:0;transform:translateY(130%);
+}
+.playbar.show{transform:translateY(0);opacity:1}
+
+.transport{display:flex;align-items:center;gap:8px}
+.tbtn{
+  width:40px;height:40px;border-radius:50%;display:grid;place-items:center;
+  border:1px solid var(--stroke);background:rgba(255,255,255,.92);
+  color:var(--dim);font-size:14px;cursor:pointer;transition:.16s;
+}
+.tbtn:hover{color:var(--cyan);border-color:var(--stroke-2)}
+.tbtn[disabled]{opacity:.3;cursor:not-allowed}
+.tbtn.main{
+  width:50px;height:50px;font-size:17px;color:#ffffff;
+  background:var(--grad);border:0;box-shadow:0 0 26px rgba(82,110,240,.45);
+}
+.tbtn.main:hover{box-shadow:0 0 34px rgba(82,110,240,.7);color:#ffffff}
+
+.pb-mid{min-width:0;display:flex;flex-direction:column;gap:7px}
+.pb-title{
+  font-size:12.5px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  display:flex;align-items:center;gap:8px;
+}
+.pb-title b{color:var(--txt);font-weight:600}
+.pb-title .badge{
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;padding:2px 7px;border-radius:5px;
+  background:rgba(6,182,212,.12);color:var(--cyan);border:1px solid rgba(6,182,212,.24);flex:0 0 auto;
+}
+.pb-line{display:flex;align-items:center;gap:12px}
+.progress{
+  flex:1;height:5px;border-radius:3px;background:rgba(30,64,140,.14);
+  overflow:hidden;position:relative;cursor:pointer;
+}
+.progress-fill{
+  height:100%;width:0;border-radius:3px;background:var(--grad);
+  box-shadow:0 0 12px rgba(6,182,212,.5);transition:width .12s linear;
+}
+.time{font-family:var(--mono);font-size:11px;color:var(--dim-2);white-space:nowrap;min-width:82px;text-align:right}
+
+.pb-right{display:flex;align-items:center;gap:9px}
+select.sel{
+  height:36px;border-radius:10px;padding:0 28px 0 11px;
+  background:rgba(255,255,255,.95) url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234d5f83' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 8px center/13px;
+  border:1px solid var(--stroke);color:var(--txt);font-family:inherit;font-size:12px;
+  cursor:pointer;appearance:none;transition:.16s;max-width:170px;
+}
+select.sel:hover{border-color:var(--stroke-2)}
+select.sel:focus{outline:0;border-color:var(--cyan)}
+select.sel.provider{max-width:130px;font-weight:600}
+.speed{display:flex;align-items:center;gap:8px;padding-left:4px}
+.speed .lab{font-family:var(--mono);font-size:10.5px;color:var(--dim-2);letter-spacing:.1em}
+input[type=range]{
+  -webkit-appearance:none;appearance:none;width:88px;height:3px;border-radius:2px;
+  background:rgba(30,64,140,.22);outline:0;cursor:pointer;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:13px;height:13px;border-radius:50%;
+  background:var(--grad);box-shadow:0 0 10px rgba(6,182,212,.6);cursor:pointer;
+}
+.speed .val{font-family:var(--mono);font-size:11px;color:var(--cyan);min-width:34px}
+
+/* ---------- 弹窗 ---------- */
+.backdrop{
+  position:fixed;inset:0;z-index:200;background:rgba(18,32,64,.38);
+  backdrop-filter:blur(7px);display:none;align-items:center;justify-content:center;padding:26px;
+}
+.backdrop.show{display:flex;animation:fade .2s}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.modal{
+  width:min(760px,100%);max-height:88vh;display:flex;flex-direction:column;
+  border-radius:20px;overflow:hidden;
+  background:linear-gradient(168deg,#ffffff,#f1f5fd);
+  border:1px solid var(--stroke-2);
+  box-shadow:0 40px 100px rgba(24,42,90,.28),0 0 0 1px rgba(255,255,255,.9) inset;
+  animation:pop .3s cubic-bezier(.2,.9,.3,1);
+}
+@keyframes pop{from{opacity:0;transform:translateY(18px) scale(.98)}to{opacity:1;transform:none}}
+.modal-head{
+  display:flex;align-items:center;gap:12px;padding:18px 24px;
+  border-bottom:1px solid var(--stroke);
+}
+.modal-head h2{font-size:15px;font-weight:700;letter-spacing:.1em}
+.modal-head .hint{font-size:11px;color:var(--dim-2);font-family:var(--mono);letter-spacing:.06em}
+.modal-body{overflow-y:auto;padding:22px 24px 26px;display:flex;flex-direction:column;gap:26px}
+.modal-body::-webkit-scrollbar{width:7px}
+.modal-body::-webkit-scrollbar-thumb{background:rgba(30,64,140,.2);border-radius:4px}
+.modal-foot{
+  padding:15px 24px;border-top:1px solid var(--stroke);display:flex;align-items:center;gap:10px;
+  background:rgba(246,249,254,.92);
+}
+
+section.cfg{display:flex;flex-direction:column;gap:13px}
+section.cfg > h3{
+  font-size:12px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--cyan);
+  display:flex;align-items:center;gap:9px;
+}
+section.cfg > h3::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--stroke-2),transparent)}
+.note{font-size:11.5px;line-height:1.85;color:var(--dim-2)}
+.note b{color:var(--dim)}
+.note a{color:var(--cyan);text-decoration:none;border-bottom:1px dashed rgba(6,182,212,.4)}
+
+.row{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.field{display:flex;flex-direction:column;gap:7px}
+.field > label{font-size:11.5px;color:var(--dim);letter-spacing:.04em;display:flex;align-items:center;gap:7px}
+.field > label .opt{font-size:10px;color:var(--dim-2);font-family:var(--mono)}
+input.txt{
+  width:100%;height:38px;padding:0 12px;border-radius:10px;
+  background:rgba(255,255,255,.95);border:1px solid var(--stroke);
+  color:var(--txt);font-family:var(--mono);font-size:12px;transition:.18s;
+}
+input.txt:focus{outline:0;border-color:var(--cyan);box-shadow:0 0 0 3px rgba(6,182,212,.09)}
+input.txt::placeholder{color:var(--dim-2);font-family:var(--ui-font)}
+.key-wrap{position:relative}
+.key-wrap input{padding-right:64px}
+.key-wrap .toggle{
+  position:absolute;right:6px;top:6px;height:26px;padding:0 10px;border-radius:7px;
+  border:1px solid var(--stroke);background:rgba(255,255,255,.95);color:var(--dim);
+  font-family:inherit;font-size:10.5px;cursor:pointer;
+}
+.key-wrap .toggle:hover{color:var(--cyan)}
+
+.ptabs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.ptab{
+  padding:11px 10px;border-radius:12px;cursor:pointer;text-align:left;
+  background:rgba(255,255,255,.78);border:1px solid var(--stroke);transition:.18s;
+}
+.ptab:hover{border-color:var(--stroke-2);background:#fff}
+.ptab.on{
+  border-color:rgba(60,110,220,.55);
+  background:linear-gradient(140deg,rgba(6,182,212,.13),rgba(139,92,246,.16));
+  box-shadow:0 0 0 1px rgba(60,110,220,.18);
+}
+.ptab .n{font-size:12.5px;font-weight:700;margin-bottom:3px}
+.ptab .d{font-size:10px;color:var(--dim-2);line-height:1.4}
+.ptab.on .d{color:var(--dim)}
+
+.voice-grid{display:flex;flex-direction:column;gap:9px}
+.pill{
+  display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;
+  font-size:11px;background:rgba(30,64,140,.1);border:1px solid var(--stroke);color:var(--dim);
+}
+.result{
+  font-size:11.5px;line-height:1.7;padding:10px 13px;border-radius:10px;display:none;
+  font-family:var(--mono);word-break:break-all;
+}
+.result.show{display:block}
+.result.ok{background:rgba(22,163,74,.09);border:1px solid rgba(22,163,74,.28);color:#15803d}
+.result.bad{background:rgba(220,38,38,.08);border:1px solid rgba(220,38,38,.28);color:#9f1239}
+.result.info{background:rgba(6,182,212,.08);border:1px solid rgba(6,182,212,.26);color:#0e566b}
+
+/* ---------- 提示条 ---------- */
+#toasts{position:fixed;top:78px;left:50%;transform:translateX(-50%);z-index:300;display:flex;flex-direction:column;gap:9px;align-items:center;pointer-events:none}
+.toast{
+  padding:11px 18px;border-radius:12px;font-size:12.5px;max-width:min(74vw,620px);
+  background:rgba(255,255,255,.97);border:1px solid var(--stroke-2);color:var(--txt);
+  box-shadow:0 16px 44px rgba(24,42,90,.2);backdrop-filter:blur(14px);
+  animation:drop .3s cubic-bezier(.2,.9,.3,1);
+}
+.toast.err{border-color:rgba(220,38,38,.45);color:#9f1239}
+.toast.ok{border-color:rgba(22,163,74,.45);color:#15803d}
+.toast.warn{border-color:rgba(180,83,9,.4);color:#92400e}
+@keyframes drop{from{opacity:0;transform:translateY(-14px)}to{opacity:1;transform:none}}
+
+/* ---------- 恢复条 ---------- */
+.restore{
+  display:none;align-items:center;gap:11px;padding:9px 22px;
+  background:linear-gradient(90deg,rgba(6,182,212,.09),rgba(139,92,246,.09));
+  border-bottom:1px solid var(--stroke);font-size:12.5px;color:var(--dim);
+}
+.restore.show{display:flex}
+
+/* ---------- 选中即朗读的浮出按钮 ---------- */
+.sel-btn{
+  position:fixed;left:0;top:0;z-index:140;display:none;align-items:center;gap:6px;
+  padding:8px 14px;border-radius:999px;border:0;cursor:pointer;white-space:nowrap;
+  background:var(--grad);color:#fff;font-family:var(--ui-font);font-size:12.5px;font-weight:600;
+  box-shadow:0 12px 28px -8px rgba(82,110,240,.6);
+}
+.sel-btn.show{display:inline-flex;animation:pop .16s ease-out}
+@keyframes pop{from{opacity:0;transform:translateY(4px) scale(.96)}to{opacity:1;transform:none}}
+
+@media (max-width:1080px){
+  :root{--side-w:290px}
+  main{grid-template-columns:var(--side-w) minmax(0,1fr)}
+  .content{padding:20px 14px 190px}
+  .reader{padding:32px 26px 40px;border-radius:20px}
+  .piece-text{font-size:19.5px;line-height:2.25}
+  .playbar{grid-template-columns:auto 1fr;grid-template-areas:"t m" "r r";gap:12px;padding:12px 16px}
+  .transport{grid-area:t}
+  .pb-mid{grid-area:m}
+  .pb-right{grid-area:r;justify-content:flex-start;flex-wrap:wrap}
+}
+</style>
+</head>
+<body>
+<div class="atmos"></div>
+
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="mark">◈</div>
+      <div>
+        <h1>文学朗诵</h1>
+        <div class="sub">Literary Reciter</div>
+      </div>
+    </div>
+
+    <button class="kb-chip" id="kbChip" title="点击选择 / 更换知识库文件夹">
+      <span class="dot"></span>
+      <span id="kbText">未选择知识库</span>
+      <span class="name" id="kbName"></span>
+    </button>
+
+    <span class="spacer"></span>
+    <button class="icon-btn" id="settingsBtn" title="音色与设置">⚙</button>
+  </header>
+
+  <div class="restore" id="restoreBar">
+    <span>检测到上次使用的知识库：<b id="restoreName" style="color:var(--txt)"></b></span>
+    <button class="btn" id="restoreBtn">恢复访问</button>
+    <button class="btn ghost" id="restoreForget">不恢复</button>
+  </div>
+
+  <main>
+    <aside class="sidebar">
+      <div class="side-top">
+        <div class="search-wrap">
+          <span class="si">⌕</span>
+          <input class="search" type="text" id="searchBox" placeholder="搜索篇名、作者或正文…">
+        </div>
+        <div class="seg" id="catSeg">
+          <button data-cat="all" class="on">全部</button>
+          <button data-cat="中国文学">中国文学</button>
+          <button data-cat="世界文学">世界文学</button>
+        </div>
+        <div class="action-row">
+          <button class="btn primary blocked" id="randomBtn">🎲 随机 20 篇</button>
+          <button class="btn blocked" id="refreshBtn" title="换一批">⇄</button>
+        </div>
+        <div class="tag-box" id="tagBox">
+          <div class="tag-head">
+            <span>标签 · 可多选</span>
+            <span class="spacer"></span>
+            <button class="tag-clear" id="tagClear">清除</button>
+          </div>
+          <div class="tag-cloud" id="tagCloud"></div>
+        </div>
+      </div>
+      <div class="stats" id="stats">请先选择知识库文件夹</div>
+      <div class="work-list" id="workList"></div>
+    </aside>
+
+    <section class="content" id="content">
+      <div class="empty-state">
+        <div class="orb">🎭</div>
+        <h2>从你的知识库开始朗诵</h2>
+        <p>点击左上角的知识库按钮，选择 Obsidian vault 文件夹。<br>只需选择一次，之后会自动记住。</p>
+        <p>
+          <kbd>Space</kbd> 播放 / 暂停 &nbsp;·&nbsp; <kbd>←</kbd> <kbd>→</kbd> 上一篇 / 下一篇
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <div class="playbar" id="playbar">
+    <div class="transport">
+      <button class="tbtn" id="prevBtn" title="上一篇">⏮</button>
+      <button class="tbtn main" id="playBtn" title="播放 / 暂停">▶</button>
+      <button class="tbtn" id="stopBtn" title="停止">⏹</button>
+      <button class="tbtn" id="nextBtn" title="下一篇">⏭</button>
+    </div>
+
+    <div class="pb-mid">
+      <div class="pb-title"><span class="badge" id="engineBadge">内置</span><span id="pbTitle">—</span></div>
+      <div class="pb-line">
+        <div class="progress" id="progressBar"><div class="progress-fill" id="progressFill"></div></div>
+        <span class="time" id="timeLabel">0:00 / —</span>
+      </div>
+    </div>
+
+    <div class="pb-right">
+      <div class="seg mini" id="rangeSeg" title="朗诵范围">
+        <button data-r="all" class="on">全文</button>
+        <button data-r="sel">选区</button>
+      </div>
+      <select class="sel provider" id="providerSelect" title="语音供应商"></select>
+      <select class="sel" id="voiceSelect" title="音色"></select>
+      <div class="speed">
+        <span class="lab">RATE</span>
+        <input type="range" id="speedRange" min="0.5" max="2" step="0.05" value="1">
+        <span class="val" id="speedVal">1.00x</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+<button class="sel-btn" id="selBtn">▶ 朗诵选中</button>
+<audio id="cloudAudio"></audio>
+
+<!-- ================= 设置弹窗 ================= -->
+<div class="backdrop" id="settingsModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>设置</h2>
+      <span class="hint">API Key 只保存在本机（本文件内嵌配置或 localStorage），不会上传</span>
+      <span class="spacer"></span>
+      <button class="icon-btn" id="modalClose" title="关闭">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <!-- 知识库 -->
+      <section class="cfg">
+        <h3>知识库</h3>
+        <div class="row">
+          <button class="btn primary" id="pickFolderBtn">📁 选择 / 更换知识库</button>
+          <button class="btn" id="rescanBtn">↻ 重新扫描</button>
+          <button class="btn danger" id="forgetKbBtn">清除记录</button>
+        </div>
+        <div class="note" id="kbNote">尚未选择。选择一次后会被记住，下次打开自动恢复。</div>
+      </section>
+
+      <!-- 语音服务 -->
+      <section class="cfg">
+        <h3>语音服务</h3>
+        <div class="ptabs" id="providerTabs"></div>
+
+        <div id="providerConfig" class="voice-grid"></div>
+
+        <div class="field">
+          <label>音色 <span class="opt" id="voiceCount"></span></label>
+          <select class="sel" id="cfgVoice" style="max-width:none;width:100%"></select>
+        </div>
+
+        <div class="field" id="customVoiceField" style="display:none">
+          <label>自定义音色 ID <span class="opt">填这里则覆盖上面的选择</span></label>
+          <input class="txt" id="customVoiceId" placeholder="例如 复刻音色的 voice_id">
+        </div>
+
+        <div class="field">
+          <label>代理地址 <span class="opt">可选 · 遇到跨域(CORS)限制时填写</span></label>
+          <input class="txt" id="proxyInput" placeholder="https://your-proxy.example.com/{url}  或  https://your-proxy.example.com">
+          <div class="note">
+            浏览器直接调用云端 TTS 可能被 <b>CORS</b> 拦截。若测试时报“网络请求失败”，
+            可填一个自建代理（支持 <b>{url}</b> 占位符，将被替换为编码后的目标地址）。
+          </div>
+        </div>
+
+        <div class="row">
+          <button class="btn" id="testBtn">🔊 测试并试听</button>
+          <span class="note" style="flex:1">会用当前供应商合成一句“你好，这是一段试听。”</span>
+        </div>
+        <div class="result" id="testResult"></div>
+      </section>
+
+      <section class="cfg">
+        <h3>说明</h3>
+        <div class="note">
+          <b>系统内置</b>：使用浏览器语音合成，免费、离线可用，但音色与情感取决于本机系统语音库。<br>
+          <b>MiniMax</b>：<a href="https://platform.minimaxi.com" target="_blank">platform.minimaxi.com</a> 获取 API Key，模型 speech-02-hd 等，长文本会自动分片。<br>
+          <b>千问</b>：阿里云百炼 DashScope，模型 qwen-audio-3.1-tts-flash，音色需用该模型的专属音色，长文本自动按 380 字分片。<br>
+          <b>自定义</b>：任何 OpenAI 兼容的 <code>/v1/audio/speech</code> 接口（OpenAI、SiliconFlow 等）。
+        </div>
+      </section>
+    </div>
+
+    <div class="modal-foot">
+      <span class="note" style="flex:1">设置会自动保存</span>
+      <button class="btn primary" id="saveSettings">完成</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ==========================================================================
+   文学朗诵 — 单文件 HTML 应用
+   1) 知识库扫描（File System Access API + IndexedDB 句柄持久化）
+   2) 作品搜索 / 随机 20 篇
+   3) 多供应商 TTS（系统内置 / MiniMax / 千问 / 自定义 OpenAI 兼容）
+   4) 播放 + 同步字幕
+   ========================================================================== */
+
+/* ==========================================================================
+   ★ 内嵌配置（可选）：把 API Key 填在下面，Key 就跟着这个 HTML 文件走
+   --------------------------------------------------------------------------
+   本文件为公开版本，所有 Key 均已留空，请在「设置」弹窗里填写，
+   填写后会存在浏览器 localStorage 里，换目录 / 换电脑 / 换浏览器需重新输入。
+   注意：不要把填好的 Key 提交到公开仓库，文件被别人拿到就等于 Key 泄露。
+   优先级：这里填写了的项 > 设置弹窗里改过的值（存 localStorage）> 内置默认值。
+   也就是说，只要这里填了非空值，就以文件为准，浏览器里残留的旧 Key 不会干扰。
+   留空则表示「不用文件里的值」，此时以设置弹窗为准。
+   ========================================================================== */
+const EMBEDDED = {
+  keys: {
+    minimax: '',   // MiniMax API Key
+    qwen:    '',   // 阿里云百炼 DashScope API Key
+    custom:  '',   // 自定义 OpenAI 兼容服务的 Key
+  },
+  groupId: '',     // MiniMax 的 GroupId（用 MiniMax 时通常必填）
+};
+
+/* ---------------- 常量 ---------------- */
+const TARGET_DIRS = ['中国文学', '世界文学'];
+const IDB_NAME = 'lit-reciter';
+const IDB_VER = 1;
+const SETTINGS_KEY = 'lit-reciter-settings';
+
+const PROVIDERS = {
+  webspeech: { name: '系统内置', desc: '浏览器离线语音', chunk: 0,    free: true },
+  minimax:   { name: 'MiniMax',  desc: 'speech-02-hd',    chunk: 3000, key: 'MiniMax API Key' },
+  qwen:      { name: '千问',      desc: 'qwen-audio-3.1-tts-flash', chunk: 380, key: 'DashScope API Key' },
+  custom:    { name: '自定义',    desc: 'OpenAI 兼容',     chunk: 1500, key: 'API Key（可留空）' },
+};
+
+/* 常用音色（可手动填写音色 ID 覆盖） */
+const MINIMAX_VOICES = [
+  ['male-qn-qingse', '青涩青年 · 男'],
+  ['male-qn-jingying', '精英青年 · 男'],
+  ['male-qn-badao', '霸道青年 · 男'],
+  ['male-qn-daxuesheng', '青年大学生 · 男'],
+  ['female-shaonv', '少女 · 女'],
+  ['female-yujie', '御姐 · 女'],
+  ['female-chengshu', '成熟女性 · 女'],
+  ['female-tianmei', '甜美女性 · 女'],
+  ['presenter_male', '播音男声'],
+  ['presenter_female', '播音女声'],
+  ['audiobook_male_1', '有声书男声'],
+  ['audiobook_female_1', '有声书女声'],
+  ['male-qn-qingse-jingpin', '青涩青年 · 精品'],
+  ['female-shaonv-jingpin', '少女 · 精品'],
+  ['female-yujie-jingpin', '御姐 · 精品'],
+  ['female-chengshu-jingpin', '成熟女性 · 精品'],
+  ['female-tianmei-jingpin', '甜美女性 · 精品'],
+  ['Chinese (Mandarin)_Warm_Girl', '温暖女孩'],
+  ['Chinese (Mandarin)_Gentleman', '温润男声'],
+];
+
+/* 千问语音合成：qwen-audio-3.1-tts-flash（Qwen-Audio-TTS 系列）
+   端点走 audio/tts/SpeechSynthesizer，请求体为 { text, voice, format, sample_rate }。
+   ★ voice 必须用带 _v3.1 后缀的专属音色，跨模型混用会报 [cosyvoice:]Engine error [411]。
+   下面 32 个音色均已实测返回 200。 */
+const QWEN_MODEL = 'qwen-audio-3.1-tts-flash';
+const QWEN_VOICES = [
+  ['longsanshu_v3.1',    '龙三叔 · 沉稳质感男 · 有声书'],
+  ['libai_v3.1',         '李白 · 古代诗仙男 · 诗词朗诵'],
+  ['huozhuoshi_v3.1',    '霍拙石 · 清亮男 · 有声书'],
+  ['anmingyuan_v3.1',    '安明远 · 清亮自然男'],
+  ['longanlang_v3.1',    '龙安朗 · 清爽利落男'],
+  ['longanzhi_v3.1',     '龙安智 · 睿智轻熟男'],
+  ['longhan_v3.1',       '龙寒 · 温暖痴情男'],
+  ['longzhe_v3.1',       '龙哲 · 呆板大暖男'],
+  ['longanyang_v3.1',    '龙安洋 · 阳光大男孩'],
+  ['longyuan_v3.1',      '龙媛 · 温暖治愈女 · 有声书'],
+  ['longmiao_v3.1',      '龙妙 · 抑扬顿挫女 · 有声书'],
+  ['yeqinghe_v3.1',      '叶清禾 · 亲切温柔女 · 有声书'],
+  ['wenhuaizhi_v3.1',    '闻怀之 · 稳重成熟女 · 有声书'],
+  ['guyunshu_v3.1',      '顾云舒 · 成熟稳重女 · 有声书'],
+  ['baianran_v3.1',      '白安然 · 低沉浑厚女 · 有声书'],
+  ['xuyanchu_v3.1',      '许言初 · 沉稳磁性女 · 有声书'],
+  ['xuxiaoqiao_v3.1',    '徐小俏 · 自然俏皮女 · 有声书'],
+  ['yunhuanhuan_v3.1',   '云欢欢 · 高亢热情女 · 有声书'],
+  ['wenhuaiqing_v3.1',   '温怀清 · 清亮柔和女'],
+  ['longanwen_v3.1',     '龙安温 · 优雅知性女'],
+  ['longxing_v3.1',      '龙星 · 温婉邻家女'],
+  ['longhua_v3.1',       '龙华 · 元气甜美女'],
+  ['longanya_v3.1',      '龙安雅 · 高雅气质女'],
+  ['longwan_v3.1',       '龙婉 · 细腻柔声女'],
+  ['longxiaoxia_v3.1',   '龙小夏 · 沉稳权威女'],
+  ['loongstella_v3.1',   'Stella · 飒爽利落女 · 新闻播报'],
+  ['longanhuan_v3.1',    '龙安欢 · 女 · 支持多方言'],
+  ['longanlingxin_v3.1', '龙安灵心 · 女 · 支持多方言'],
+  ['longanfengyue_v3.1', '龙安风悦 · 女 · 东北话'],
+  ['xunanchuan_v3.1',    '许南川 · 男 · 甘肃话'],
+  ['longjielidou_v3.1',  '龙杰力豆 · 天真男童音'],
+  ['longling_v3.1',      '龙铃 · 稚气女童声'],
+];
+
+/* ---------------- 全局状态 ---------------- */
+const state = {
+  allWorks: [],          // [{ path, title, author, category, subcat, text }]
+  folderName: '',
+  filtered: [],
+  currentList: [],
+  currentIdx: -1,
+  currentText: '',
+  // 标签
+  tags: [],
+  tagCounts: {},
+  activeTags: [],
+  // 系统语音
+  sysVoices: [],
+  // 播放时序
+  isPlaying: false,
+  isPaused: false,
+  estimatedCps: 5,
+  estimatedDuration: 0,
+  speechStartTs: 0,
+  pausedTotal: 0,
+  pauseTs: 0,
+  boundaries: [],
+  hlFrom: null,
+  hlTo: null,
+  cursor: null,
+  lastHighlight: -1,
+  // 朗诵范围：'all' 全文 | 'sel' 选区
+  rangeMode: 'all',
+  readFrom: 0,
+  readTo: 0,
+};
+
+/* ---------------- IndexedDB（持久化目录句柄 + 作品缓存） ---------------- */
+function idbOpen() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(IDB_NAME, IDB_VER);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains('kv')) db.createObjectStore('kv');
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function idbSet(key, val) {
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('kv', 'readwrite');
+    tx.objectStore('kv').put(val, key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+async function idbGet(key) {
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('kv', 'readonly');
+    const r = tx.objectStore('kv').get(key);
+    r.onsuccess = () => resolve(r.result);
+    r.onerror = () => reject(r.error);
+  });
+}
+async function idbDel(key) {
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('kv', 'readwrite');
+    tx.objectStore('kv').delete(key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+/* ---------------- 设置（localStorage） ---------------- */
+const S = {
+  provider: 'webspeech',
+  voice: { webspeech: '', minimax: 'male-qn-qingse', qwen: QWEN_VOICES[0][0], custom: '' },
+  customVoiceId: '',
+  keys: { minimax: '', qwen: '', custom: '' },
+  endpoints: {
+    minimax: 'https://api.minimaxi.com/v1/t2a_v2',
+    qwen: 'https://dashscope.aliyuncs.com/api/v1/services/audio/tts/SpeechSynthesizer',
+    custom: 'https://api.openai.com/v1/audio/speech',
+  },
+  model: { minimax: 'speech-02-hd', qwen: QWEN_MODEL, custom: 'tts-1' },
+  groupId: '',
+  proxy: '',
+  speed: 1,
+};
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (raw) {
+      const o = JSON.parse(raw);
+      ['provider', 'customVoiceId', 'groupId', 'proxy'].forEach(k => { if (o[k] != null) S[k] = o[k]; });
+      ['voice', 'keys', 'endpoints', 'model'].forEach(k => { if (o[k]) Object.assign(S[k], o[k]); });
+      if (typeof o.speed === 'number') S.speed = o.speed;
+    }
+  } catch (e) { console.warn('[文学朗诵] 设置读取失败', e); }
+  // 旧版存下来的千问模型 id（qwen3-tts-flash / tts-next）统一改为当前模型
+  const QWEN_OLD_MODELS = ['qwen3-tts-flash', 'qwen3-tts-instruct-flash', 'qwen-audio-3.1-tts-next'];
+  if (QWEN_OLD_MODELS.indexOf(S.model.qwen) >= 0) S.model.qwen = QWEN_MODEL;
+  // 旧音色（Cherry / tts-next 的风格描述）已不是有效音色 ID，交回 renderVoiceSelect 兜底为首项
+  if (!QWEN_VOICES.some(v => v[0] === S.voice.qwen)) S.voice.qwen = QWEN_VOICES[0][0];
+  // 旧端点（multimodal-generation）对本模型无效，恢复为默认端点
+  if (/multimodal-generation/.test(S.endpoints.qwen || '')) S.endpoints.qwen = 'https://dashscope.aliyuncs.com/api/v1/services/audio/tts/SpeechSynthesizer';
+  applyEmbedded();                       // 最后应用 → 文件内嵌配置优先级最高
+}
+/** 把 EMBEDDED 中填写了非空值的项铺进 S（覆盖 localStorage 里的旧值） */
+function applyEmbedded() {
+  const E = EMBEDDED || {};
+  const keys = E.keys || {};
+  Object.keys(keys).forEach(p => { if (keys[p]) S.keys[p] = keys[p]; });
+  if (E.groupId) S.groupId = E.groupId;
+}
+/** 该供应商的 Key 是否来自文件内嵌配置 */
+function keyFromFile(p) {
+  return !!(EMBEDDED && EMBEDDED.keys && EMBEDDED.keys[p]);
+}
+function saveSettings() {
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(S)); }
+  catch (e) { toast('设置保存失败：' + e.message, 'err'); }
+}
+
+/* ---------------- DOM ---------------- */
+const $ = id => document.getElementById(id);
+const kbChip = $('kbChip'), kbText = $('kbText'), kbName = $('kbName');
+const settingsBtn = $('settingsBtn'), settingsModal = $('settingsModal'), modalClose = $('modalClose');
+const restoreBar = $('restoreBar'), restoreName = $('restoreName'), restoreBtn = $('restoreBtn'), restoreForget = $('restoreForget');
+const searchBox = $('searchBox'), catSeg = $('catSeg');
+const tagBox = $('tagBox'), tagCloud = $('tagCloud'), tagClear = $('tagClear');
+const randomBtn = $('randomBtn'), refreshBtn = $('refreshBtn');
+const statsEl = $('stats'), workListEl = $('workList'), contentEl = $('content');
+const playbar = $('playbar'), engineBadge = $('engineBadge'), pbTitle = $('pbTitle');
+const providerSelect = $('providerSelect'), voiceSelect = $('voiceSelect');
+const speedRange = $('speedRange'), speedVal = $('speedVal');
+const playBtn = $('playBtn'), stopBtn = $('stopBtn'), prevBtn = $('prevBtn'), nextBtn = $('nextBtn');
+const progressBar = $('progressBar'), progressFill = $('progressFill'), timeLabel = $('timeLabel');
+const pickFolderBtn = $('pickFolderBtn'), rescanBtn = $('rescanBtn'), forgetKbBtn = $('forgetKbBtn'), kbNote = $('kbNote');
+const providerTabs = $('providerTabs'), providerConfig = $('providerConfig');
+const cfgVoice = $('cfgVoice'), voiceCount = $('voiceCount'), customVoiceField = $('customVoiceField');
+const customVoiceId = $('customVoiceId'), proxyInput = $('proxyInput'), testBtn = $('testBtn'), testResult = $('testResult');
+const saveSettingsBtn = $('saveSettings'), toastsEl = $('toasts'), cloudAudio = $('cloudAudio');
+const rangeSeg = $('rangeSeg'), selBtn = $('selBtn');
+
+/* ---------------- 小工具 ---------------- */
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s == null ? '' : String(s);
+  return d.innerHTML;
+}
+function formatTime(sec) {
+  sec = Math.max(0, Math.round(sec || 0));
+  const m = Math.floor(sec / 60), s = sec % 60;
+  return m + ':' + String(s).padStart(2, '0');
+}
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+function toast(msg, kind, ms) {
+  const el = document.createElement('div');
+  el.className = 'toast' + (kind ? ' ' + kind : '');
+  el.textContent = msg;
+  toastsEl.appendChild(el);
+  setTimeout(() => { el.style.transition = 'opacity .3s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 320); }, ms || 4200);
+}
+
+/* ==========================================================================
+   一、知识库扫描与解析
+   ========================================================================== */
+let isScanning = false;
+let pendingHandle = null;
+let idbAvailable = true;   // 探测本机是否允许持久化目录句柄
+
+/** 读取文件句柄内容：FileSystemFileHandle 没有 text()，必须先 getFile() */
+async function readWithTimeout(handle, ms) {
+  const file = await handle.getFile();
+  return Promise.race([
+    file.text(),
+    new Promise((_, reject) => setTimeout(() => reject(new Error('读取超时')), ms)),
+  ]);
+}
+
+/** 定向遍历：只收录 中国文学 / 世界文学 下的 .md，其余目录最多浅探 2 层 */
+async function walkDir(dirHandle, prefix, out, depth, insideTarget) {
+  depth = depth || 0;
+  if (depth > 12) return;
+  try {
+    for await (const entry of dirHandle.values()) {
+      if (entry.name.startsWith('.')) continue;
+      const entryPath = prefix ? prefix + '/' + entry.name : entry.name;
+      if (entry.kind === 'directory') {
+        if (insideTarget || TARGET_DIRS.includes(entry.name)) {
+          await walkDir(entry, entryPath, out, depth + 1, true);
+        } else if (depth < 2) {
+          await walkDir(entry, entryPath, out, depth + 1, false);
+        }
+      } else if (insideTarget && entry.name.endsWith('.md')) {
+        out.push({ path: entryPath, file: entry });
+        if (out.length % 25 === 0) setStats('⏳ 扫描中… 已发现 ' + out.length + ' 篇', 'warn');
+      }
+    }
+  } catch (e) {
+    console.warn('[文学朗诵] 跳过目录:', prefix, e && e.message);
+  }
+}
+
+function parseWork(path, raw) {
+  const allParts = path.split('/');
+  const targetIdx = allParts.findIndex(p => TARGET_DIRS.includes(p));
+  const parts = targetIdx >= 0 ? allParts.slice(targetIdx) : allParts;
+  const category = parts[0];
+  const subcat = parts[1] || '';
+  const fname = parts[parts.length - 1].replace(/\.md$/, '');
+
+  let title = fname, author = '';
+  const m = fname.match(/·(.+)$/) || fname.match(/[—–]+(.+)$/) || fname.match(/-{2,}(.+)$/);
+  if (m) { title = fname.slice(0, m.index); author = m[1]; }
+  title = title.replace(/^《|》$/g, '');
+
+  if (/关系图|人物图|目录$|索引|清单|模板|待办/.test(title)) return null;
+
+  const text = extractBodyText(raw);
+  if (text.trim().length < 40) return null;
+
+  return { path, title, author, category, subcat, text, tags: parseTags(raw) };
+}
+
+/** 解析标签：frontmatter 的 tags（列表 / 内联数组）+ 正文行内 #标签 */
+const TAG_SKIP = /^(me|qwen|ai|todo|todoist|daily|template|tags)$/i;
+function parseTags(raw) {
+  const out = [];
+  const push = v => {
+    v = String(v == null ? '' : v).trim().replace(/^["']|["']$/g, '').replace(/^#/, '').trim();
+    if (!v || v.length > 24 || TAG_SKIP.test(v)) return;
+    if (!out.includes(v)) out.push(v);
+  };
+
+  const fm = raw.match(/^\uFEFF?---\r?\n([\s\S]*?)\r?\n---/);
+  if (fm) {
+    const lines = fm[1].split(/\r?\n/);
+    const i = lines.findIndex(l => /^tags\s*:/.test(l));
+    if (i >= 0) {
+      const inline = lines[i].replace(/^tags\s*:/, '').trim();
+      if (inline) inline.replace(/^\[|\]$/g, '').split(/[,，]/).forEach(push);
+      for (let j = i + 1; j < lines.length; j++) {
+        const m = lines[j].match(/^\s*-\s+(.+)$/);
+        if (!m) break;
+        push(m[1]);
+      }
+    }
+  }
+
+  const body = raw.replace(/```[\s\S]*?```/g, '');
+  const re = /(^|\s)#([\u4e00-\u9fa5A-Za-z][\u4e00-\u9fa5A-Za-z0-9_/·-]{0,19})/g;
+  let m;
+  while ((m = re.exec(body))) push(m[2]);
+  return out;
+}
+
+/** 只删除文末「参考资料 / 来源」这类元数据尾块，避免误伤正文中间的 --- 分隔线 */
+function stripTailMeta(t) {
+  const re = /\n-{3,}[ \t]*(?:\r?\n|$)/g;
+  let m, last = null;
+  while ((m = re.exec(t))) last = m;
+  if (!last) return t;
+  const tail = t.slice(last.index + last[0].length).trim();
+  if (tail && tail.length < 240 &&
+      /参考资料|参考文献|相关阅读|相关链接|参考书目|来源|出处|备注|参考：/.test(tail)) {
+    return t.slice(0, last.index);
+  }
+  return t;
+}
+
+/** #me / #Qwen / #DeepSeek 这类问答标记：去掉标记与提问行，保留回答正文 */
+function stripAiMarkers(t) {
+  const re = /^\s*#\s*(me|qwen|deepseek|gpt|chatgpt|claude|gemini|doubao|kimi|wenxin)\b[ \t]*:?[ \t]*/i;
+  const out = [];
+  for (const line of t.split('\n')) {
+    const m = line.match(re);
+    if (!m) { out.push(line); continue; }
+    const rest = line.slice(m[0].length);
+    if (/^me$/i.test(m[1])) continue;   // 提问行整行丢弃
+    if (rest.trim()) out.push(rest);    // 回答行保留冒号后的正文
+  }
+  return out.join('\n');
+}
+
+/** 从 Markdown 原文中提取适合朗读的纯文本正文 */
+function extractBodyText(raw) {
+  let t = raw;
+  t = t.replace(/^---[\s\S]*?---\s*/m, '');                  // frontmatter
+  t = stripTailMeta(t);                                      // 文末参考资料块
+  t = stripAiMarkers(t);                                     // #me / #Qwen 问答标记
+  t = t.replace(/<!--[\s\S]*?-->/g, '');                     // HTML 注释
+  t = t.replace(/^#{1,6}\s*/gm, '');                         // 标题符号
+  t = t.replace(/\*\*(.+?)\*\*/g, '$1');
+  t = t.replace(/\*(.+?)\*/g, '$1');
+  t = t.replace(/__(.+?)__/g, '$1');
+  t = t.replace(/~~(.+?)~~/g, '$1');
+  t = t.replace(/\[\[([^\[\]|]+)\|([^\[\]]+)\]\]/g, '$2');   // wikilink
+  t = t.replace(/\[\[([^\[\]]+)\]\]/g, '$1');
+  t = t.replace(/`([^`]+)`/g, '$1');
+  t = t.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');             // 链接
+  t = t.replace(/!\[.*?\]\([^)]+\)/g, '');                   // 图片
+  t = t.replace(/^>\s?/gm, '');
+  t = t.replace(/^\s*[-*+]\s+/gm, '');
+  t = t.replace(/^\s*\d+\.\s+/gm, '');
+  t = t.replace(/\s#[^\s#]+/g, '');                          // 行内标签
+  t = t.replace(/^-+\s*$/gm, '');
+  t = t.split('\n').map(l => l.trim()).join('\n');
+  t = t.replace(/\n{3,}/g, '\n\n');
+  return t.trim();
+}
+
+/* ---------- 状态显示 ---------- */
+function setStats(html, kind) {
+  statsEl.innerHTML = kind ? '<span class="' + kind + '">' + html + '</span>' : html;
+}
+function setKbChip(mode, text, name) {
+  kbChip.className = 'kb-chip' + (mode ? ' ' + mode : '');
+  kbText.textContent = text;
+  kbName.textContent = name || '';
+}
+function refreshKbNote() {
+  const idbWarn = idbAvailable ? '' :
+    '<br><span style="color:var(--danger)">⚠ 当前浏览器禁用了本地存储（IndexedDB），知识库记录无法保存，' +
+    '每次打开都需要重新选择文件夹。若通过 file:// 直接打开，可改用本地 HTTP 服务访问。</span>';
+  if (!state.folderName) {
+    kbNote.innerHTML = '尚未选择。选择一次后会被记住，下次打开自动恢复。' + idbWarn;
+    return;
+  }
+  kbNote.innerHTML =
+    '当前知识库：<b style="color:var(--txt)">' + escapeHtml(state.folderName) + '</b>' +
+    ' · 已载入 ' + state.allWorks.length + ' 篇作品' +
+    '<br><span style="color:var(--dim-2)">浏览器出于安全限制只能拿到文件夹名，无法读取完整磁盘路径。</span>' +
+    idbWarn;
+}
+
+/* ---------- 应用作品列表 ---------- */
+function applyWorks(works, withCache) {
+  state.allWorks = works.slice().sort((a, b) => a.path.localeCompare(b.path, 'zh'));
+  buildTagIndex();
+  randomBtn.classList.remove('blocked');
+  refreshBtn.classList.remove('blocked');
+  if (state.currentList.length === 0) {
+    state.filtered = state.allWorks.slice();
+    state.currentList = state.allWorks.slice();
+    renderWorkList();
+  } else {
+    applyFilter();
+  }
+  setKbChip('ready', '知识库', state.folderName);
+  setStats('✅ ' + escapeHtml(state.folderName) + ' · 已加载 ' + state.allWorks.length + ' 篇作品', 'ok');
+  refreshKbNote();
+  const cacheNote = withCache ? '（缓存）' : '';
+  console.log('[文学朗诵] 已载入作品' + cacheNote + ':', state.allWorks.length);
+}
+
+/* ---------- 扫描流程 ---------- */
+async function scanFromHandle(handle, opts) {
+  opts = opts || {};
+  if (isScanning) return;
+  isScanning = true;
+  state.folderName = handle.name;
+  setKbChip('scanning', '扫描中', handle.name);
+  refreshKbNote();
+  try {
+    const mdFiles = [];
+    await walkDir(handle, '', mdFiles, 0, false);
+    if (mdFiles.length === 0) {
+      setKbChip('error', '未找到目标目录', handle.name);
+      setStats('❌ 没找到 中国文学 / 世界文学 目录，请选择 vault 根目录', 'err');
+      return;
+    }
+    setStats('📖 共 ' + mdFiles.length + ' 篇，解析中…');
+
+    const works = [];
+    let skipped = 0, firstErr = '';
+    for (let i = 0; i < mdFiles.length; i++) {
+      const item = mdFiles[i];
+      try {
+        const text = await readWithTimeout(item.file, 6000);
+        const w = parseWork(item.path, text);
+        if (w) works.push(w); else skipped++;
+      } catch (e) {
+        if (!firstErr) { firstErr = (e && e.message) || String(e); console.warn('[文学朗诵] 首个失败样例:', item.path, firstErr); }
+        skipped++;
+      }
+      if (i % 15 === 0 || i === mdFiles.length - 1) {
+        setStats('📖 解析中 ' + (i + 1) + '/' + mdFiles.length + ' …');
+      }
+    }
+    console.log('[文学朗诵] 解析成功:', works.length, '跳过:', skipped, firstErr || '');
+
+    if (works.length === 0) {
+      setKbChip('error', '解析失败', handle.name);
+      setStats('❌ ' + mdFiles.length + ' 篇全部解析失败' + (firstErr ? '：' + escapeHtml(firstErr) : ''), 'err');
+      return;
+    }
+    applyWorks(works, false);
+    idbSet('worksCache', { folder: handle.name, ts: Date.now(), works }).catch(() => {});
+  } catch (err) {
+    console.error('[文学朗诵] 扫描出错', err);
+    setKbChip('error', '扫描出错', handle.name);
+    setStats('❌ 出错：' + escapeHtml((err && err.message) || String(err)), 'err');
+  } finally {
+    isScanning = false;
+    refreshKbNote();
+  }
+}
+
+async function chooseFolder() {
+  if (isScanning) { toast('正在扫描中，请稍候…', 'warn'); return; }
+  if (!('showDirectoryPicker' in window)) {
+    toast('浏览器不支持文件夹选择 API，请使用 Chrome / Edge 86+', 'err');
+    return;
+  }
+  let handle;
+  try {
+    handle = await window.showDirectoryPicker({ mode: 'read' });
+  } catch (e) {
+    if (e && e.name === 'AbortError') return;   // 用户取消
+    toast('选择文件夹失败：' + ((e && e.message) || e), 'err');
+    return;
+  }
+  try { await idbSet('vault', handle); } catch (e) {
+    console.warn('句柄保存失败', e);
+    toast('目录句柄无法保存，下次打开需重新选择（浏览器禁用了 IndexedDB）', 'warn', 8000);
+  }
+  await scanFromHandle(handle, {});
+}
+
+async function rescan() {
+  const handle = await idbGet('vault').catch(() => null);
+  if (!handle) { toast('还没有记录的知识库，请先选择文件夹', 'warn'); return; }
+  const perm = await handle.queryPermission({ mode: 'read' });
+  if (perm !== 'granted') {
+    const req = await handle.requestPermission({ mode: 'read' });
+    if (req !== 'granted') { toast('未获得读取权限', 'err'); return; }
+  }
+  await scanFromHandle(handle, {});
+}
+
+/* ---------- 启动时恢复 ---------- */
+async function initKnowledgeBase() {
+  try { await idbOpen(); idbAvailable = true; } catch (e) {
+    idbAvailable = false;
+    console.warn('[文学朗诵] IndexedDB 不可用', e);
+    toast('本机浏览器禁用了本地存储，知识库选择无法被记住', 'warn', 9000);
+  }
+  let handle = null;
+  try { handle = await idbGet('vault'); } catch (e) { console.warn(e); }
+  if (!handle) { setKbChip('', '未选择知识库'); refreshKbNote(); return; }
+
+  // 先显示缓存，秒开
+  try {
+    const cache = await idbGet('worksCache');
+    if (cache && cache.folder === handle.name && cache.works && cache.works.length) {
+      state.folderName = cache.folder;
+      applyWorks(cache.works, true);
+      setStats('✅ ' + escapeHtml(cache.folder) + ' · 缓存 ' + cache.works.length + ' 篇（正在校验…）', 'ok');
+    }
+  } catch (e) { /* ignore */ }
+
+  let perm = 'prompt';
+  try { perm = await handle.queryPermission({ mode: 'read' }); } catch (e) { /* ignore */ }
+
+  if (perm === 'granted') {
+    scanFromHandle(handle, {});
+  } else {
+    // 需要用户手势才能重新授权
+    pendingHandle = handle;
+    restoreName.textContent = handle.name;
+    restoreBar.classList.add('show');
+    setKbChip('', '待授权', handle.name);
+  }
+}
+
+restoreBtn.addEventListener('click', async () => {
+  if (!pendingHandle) return;
+  try {
+    const r = await pendingHandle.requestPermission({ mode: 'read' });
+    if (r === 'granted') {
+      restoreBar.classList.remove('show');
+      await scanFromHandle(pendingHandle, {});
+      pendingHandle = null;
+    } else {
+      toast('未获得读取权限', 'err');
+    }
+  } catch (e) { toast('恢复失败：' + ((e && e.message) || e), 'err'); }
+});
+restoreForget.addEventListener('click', async () => {
+  restoreBar.classList.remove('show');
+  pendingHandle = null;
+  await idbDel('vault').catch(() => {});
+  await idbDel('worksCache').catch(() => {});
+  setKbChip('', '未选择知识库');
+  toast('已清除知识库记录', 'ok');
+});
+
+forgetKbBtn.addEventListener('click', async () => {
+  await idbDel('vault').catch(() => {});
+  await idbDel('worksCache').catch(() => {});
+  state.allWorks = [];
+  state.filtered = [];
+  state.currentList = [];
+  state.currentIdx = -1;
+  state.folderName = '';
+  state.tags = [];
+  state.tagCounts = {};
+  state.activeTags = [];
+  tagBox.style.display = 'none';
+  randomBtn.classList.add('blocked');
+  refreshBtn.classList.add('blocked');
+  workListEl.innerHTML = '';
+  setKbChip('', '未选择知识库');
+  setStats('请先选择知识库文件夹');
+  refreshKbNote();
+  toast('已清除知识库记录', 'ok');
+});
+
+pickFolderBtn.addEventListener('click', chooseFolder);
+kbChip.addEventListener('click', chooseFolder);
+rescanBtn.addEventListener('click', rescan);
+
+/* ==========================================================================
+   二、搜索 / 过滤 / 随机
+   ========================================================================== */
+function applyFilter() {
+  const q = searchBox.value.trim().toLowerCase();
+  const cat = catSeg.querySelector('button.on').dataset.cat;
+  const picked = state.activeTags;
+  state.filtered = state.allWorks.filter(w => {
+    if (cat !== 'all' && w.category !== cat) return false;
+    if (picked.length && !picked.every(t => (w.tags || []).includes(t))) return false;
+    if (!q) return true;
+    return w.title.toLowerCase().includes(q) ||
+           w.author.toLowerCase().includes(q) ||
+           w.text.toLowerCase().includes(q) ||
+           (w.tags || []).some(t => t.toLowerCase().includes(q));
+  });
+  state.currentList = state.filtered;
+  if (state.currentIdx >= state.currentList.length) state.currentIdx = -1;
+  renderWorkList();
+}
+
+/* ---------- 标签索引与标签云 ---------- */
+function buildTagIndex() {
+  const counts = {};
+  state.allWorks.forEach(w => (w.tags || []).forEach(t => { counts[t] = (counts[t] || 0) + 1; }));
+  state.tagCounts = counts;
+  state.tags = Object.keys(counts).sort((a, b) => counts[b] - counts[a] || a.localeCompare(b, 'zh'));
+  state.activeTags = state.activeTags.filter(t => counts[t]);
+  renderTagCloud();
+}
+
+function renderTagCloud() {
+  if (!state.tags.length) { tagBox.style.display = 'none'; return; }
+  tagBox.style.display = 'flex';
+  tagCloud.innerHTML = state.tags.map(t =>
+    '<button class="tag-chip' + (state.activeTags.includes(t) ? ' on' : '') + '" data-tag="' + escapeHtml(t) + '">' +
+      escapeHtml(t) + '<span class="n">' + state.tagCounts[t] + '</span>' +
+    '</button>').join('');
+  tagClear.style.display = state.activeTags.length ? '' : 'none';
+}
+
+function refreshFilterStats() {
+  if (!state.allWorks.length) return;
+  if (state.activeTags.length) {
+    setStats('🏷 ' + state.activeTags.map(escapeHtml).join(' + ') +
+      ' · 共 ' + state.currentList.length + ' 篇');
+  } else {
+    setStats('✅ ' + escapeHtml(state.folderName) + ' · 已加载 ' + state.allWorks.length + ' 篇作品', 'ok');
+  }
+}
+
+function toggleTag(t) {
+  const i = state.activeTags.indexOf(t);
+  if (i >= 0) state.activeTags.splice(i, 1);
+  else state.activeTags.push(t);
+  renderTagCloud();
+  applyFilter();
+  refreshFilterStats();
+}
+
+tagCloud.addEventListener('click', e => {
+  const b = e.target.closest('.tag-chip');
+  if (b) toggleTag(b.dataset.tag);
+});
+tagClear.addEventListener('click', () => {
+  state.activeTags = [];
+  renderTagCloud();
+  applyFilter();
+  refreshFilterStats();
+});
+
+function renderWorkList() {
+  const list = state.currentList;
+  const activePath = state.currentIdx >= 0 && list[state.currentIdx] ? list[state.currentIdx].path : '';
+  workListEl.innerHTML = list.length === 0
+    ? '<div class="empty-list">没有匹配的作品</div>'
+    : list.map(w => {
+      const on = w.path === activePath ? ' active' : '';
+      const meta = (w.author ? escapeHtml(w.author) + '<span class="sep">·</span>' : '') +
+                   escapeHtml(w.category) + '<span class="sep">/</span>' + escapeHtml(w.subcat);
+      const tg = (w.tags && w.tags.length)
+        ? '<div class="tg">' + w.tags.slice(0, 3).map(t => '<i>' + escapeHtml(t) + '</i>').join('') +
+          (w.tags.length > 3 ? '<i>+' + (w.tags.length - 3) + '</i>' : '') + '</div>'
+        : '';
+      return '<div class="work-item' + on + '" data-path="' + escapeHtml(w.path) + '">' +
+        '<div class="t">' + escapeHtml(w.title) + '</div>' +
+        '<div class="m">' + meta + '<span class="len">' + w.text.length + ' 字</span></div>' +
+        tg +
+      '</div>';
+    }).join('');
+  workListEl.querySelectorAll('.work-item').forEach(el => {
+    el.onclick = () => {
+      const i = state.currentList.findIndex(w => w.path === el.dataset.path);
+      if (i >= 0) selectWork(i);
+    };
+  });
+}
+
+searchBox.addEventListener('input', applyFilter);
+catSeg.addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  catSeg.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+  applyFilter();
+});
+randomBtn.addEventListener('click', () => {
+  if (state.allWorks.length === 0) {
+    toast('请先选择知识库文件夹', 'warn');
+    kbChip.style.animation = 'none'; kbChip.offsetHeight;
+    kbChip.style.animation = 'blink .6s 3';
+    return;
+  }
+  const shuffled = state.allWorks.slice().sort(() => Math.random() - 0.5).slice(0, 20);
+  state.currentList = shuffled;
+  state.currentIdx = -1;
+  searchBox.value = '';
+  catSeg.querySelectorAll('button').forEach(x => x.classList.toggle('on', x.dataset.cat === 'all'));
+  renderWorkList();
+  setStats('🎲 已随机精选 ' + shuffled.length + ' 篇 · 点 ⇄ 换一批', 'ok');
+});
+refreshBtn.addEventListener('click', () => {
+  if (state.allWorks.length === 0) { toast('请先选择知识库文件夹', 'warn'); return; }
+  const source = state.filtered.length > 0 ? state.filtered : state.allWorks;
+  const shuffled = source.slice().sort(() => Math.random() - 0.5).slice(0, 20);
+  state.currentList = shuffled;
+  state.currentIdx = -1;
+  renderWorkList();
+  setStats('🎲 换了一批 · ' + shuffled.length + ' 篇', 'ok');
+});
+
+/* ==========================================================================
+   三、作品选择与阅读
+   ========================================================================== */
+function selectWork(idx) {
+  stopPlayback();
+  state.currentIdx = idx;
+  const w = state.currentList[idx];
+  if (!w) return;
+  state.currentText = w.text;
+  state.readFrom = 0; state.readTo = w.text.length;
+  pendingSel = null; hideSelBtn();
+  renderWorkList();
+
+  const chars = w.text.split('').map((c, i) =>
+    '<span id="char-' + i + '">' + escapeHtml(c) + '</span>').join('');
+  const byline = (w.author ? escapeHtml(w.author) : '佚名');
+
+  contentEl.innerHTML =
+    '<div class="reader">' +
+      '<div class="reader-head">' +
+        '<div class="kicker">' + escapeHtml(w.category) + ' / ' + escapeHtml(w.subcat) + '</div>' +
+        '<h2>' + escapeHtml(w.title) + '</h2>' +
+        '<div class="byline"><span>' + byline + '</span>' +
+          '<span class="tag">' + w.text.length + ' 字</span>' +
+          '<span class="tag">约 ' + formatTime(w.text.length / Math.max(2, 5 * S.speed)) + '</span>' +
+          (w.tags || []).slice(0, 8).map(t => '<span class="tag tg">' + escapeHtml(t) + '</span>').join('') +
+        '</div>' +
+      '</div>' +
+      '<div class="piece-text" id="pieceText">' + chars + '</div>' +
+    '</div>';
+  contentEl.querySelectorAll('.piece-text span').forEach(s => {
+    if (s.textContent !== '\n') s.style.display = 'inline';
+  });
+  contentEl.scrollTop = 0;
+
+  playbar.classList.add('show');
+  updateRangeUI();
+  progressFill.style.width = '0%';
+  updateTimeIdle();
+  loadSystemVoices();
+}
+
+/* ==========================================================================
+   四、供应商与音色
+   ========================================================================== */
+function loadSystemVoices() {
+  if (typeof speechSynthesis === 'undefined') return;
+  state.sysVoices = speechSynthesis.getVoices() || [];
+  const zh = state.sysVoices.filter(v => /zh|chinese|cmn/i.test(v.lang + ' ' + v.name));
+  const rest = state.sysVoices.filter(v => !/zh|chinese|cmn/i.test(v.lang + ' ' + v.name));
+  state.sysVoices = zh.concat(rest);
+  if (!S.voice.webspeech && state.sysVoices.length) {
+    S.voice.webspeech = state.sysVoices[0].name;
+    saveSettings();
+  }
+  renderProviderSelect();
+  renderVoiceSelect();
+}
+speechSynthesis && (speechSynthesis.onvoiceschanged = loadSystemVoices);
+
+function voiceCatalog(provider) {
+  if (provider === 'webspeech') {
+    return state.sysVoices.map(v => [v.name, v.name + ' (' + v.lang + ')']);
+  }
+  if (provider === 'minimax') return MINIMAX_VOICES.slice();
+  if (provider === 'qwen') return QWEN_VOICES.slice();
+  return []; // 自定义：只用手填 ID
+}
+
+function renderProviderSelect() {
+  providerSelect.innerHTML = Object.keys(PROVIDERS)
+    .map(k => '<option value="' + k + '"' + (k === S.provider ? ' selected' : '') + '>' + PROVIDERS[k].name + '</option>')
+    .join('');
+  engineBadge.textContent = PROVIDERS[S.provider].name;
+}
+
+function renderVoiceSelect() {
+  const cat = voiceCatalog(S.provider);
+  const cur = S.voice[S.provider];
+  if (cat.length === 0) {
+    voiceSelect.innerHTML = '<option value="">' +
+      (S.provider === 'webspeech' ? '（系统音色加载中…）' : '（请在设置中填写音色 ID）') + '</option>';
+    voiceSelect.disabled = false;
+    return;
+  }
+  voiceSelect.disabled = false;
+  voiceSelect.innerHTML = cat.map(([id, label]) =>
+    '<option value="' + escapeHtml(id) + '"' + (id === cur ? ' selected' : '') + '>' + escapeHtml(label) + '</option>'
+  ).join('');
+  if (!cat.some(x => x[0] === cur)) {
+    S.voice[S.provider] = cat[0][0];
+    saveSettings();
+    voiceSelect.value = cat[0][0];
+  }
+}
+
+function currentVoiceId() {
+  if (S.customVoiceId && S.provider !== 'webspeech') return S.customVoiceId.trim();
+  return S.voice[S.provider];
+}
+
+providerSelect.addEventListener('change', () => {
+  S.provider = providerSelect.value;
+  saveSettings();
+  renderVoiceSelect();
+  renderProviderSelect();
+  engineBadge.textContent = PROVIDERS[S.provider].name;
+  if (S.provider !== 'webspeech' && !S.keys[S.provider] && S.provider !== 'custom') {
+    toast('「' + PROVIDERS[S.provider].name + '」还没填 API Key，请在设置中填写', 'warn');
+    openSettings();
+  }
+  stopPlayback();
+});
+voiceSelect.addEventListener('change', () => {
+  S.voice[S.provider] = voiceSelect.value;
+  saveSettings();
+  if (S.provider === 'webspeech') syncWebSpeechVoice();
+  stopPlayback();
+});
+
+/* ==========================================================================
+   五、TTS 供应商实现
+   ========================================================================== */
+function withProxy(url) {
+  const p = (S.proxy || '').trim();
+  if (!p) return url;
+  if (p.includes('{url}')) return p.replace('{url}', encodeURIComponent(url));
+  return p.replace(/\/+$/, '') + '/' + url.replace(/^https?:\/\//, '');
+}
+
+async function safeFetch(url, opts) {
+  try {
+    return await fetch(url, opts);
+  } catch (e) {
+    const err = new Error('网络请求失败：' + ((e && e.message) || e) +
+      '　→ 若地址与密钥无误，通常是浏览器跨域(CORS)限制，可在设置中填写代理地址后重试。');
+    err.network = true;
+    throw err;
+  }
+}
+
+function hexToBytes(hex) {
+  const s = hex.replace(/[^0-9a-fA-F]/g, '');
+  const n = s.length >> 1;
+  const out = new Uint8Array(n);
+  for (let i = 0; i < n; i++) out[i] = parseInt(s.substr(i * 2, 2), 16);
+  return out;
+}
+function b64ToBytes(b64) {
+  const bin = atob(b64.replace(/\s/g, ''));
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+/** MiniMax 返回 hex；部分部署返回 base64，这里自动判别 */
+function audioStringToBlob(s, mime) {
+  const t = String(s).trim();
+  if (t.length > 100 && t.length % 2 === 0 && /^[0-9a-fA-F]+$/.test(t)) {
+    return new Blob([hexToBytes(t)], { type: mime });
+  }
+  return new Blob([b64ToBytes(t)], { type: mime });
+}
+
+async function synthMinimax(text) {
+  const key = (S.keys.minimax || '').trim();
+  if (!key) throw new Error('请先在设置中填写 MiniMax API Key');
+  let url = S.endpoints.minimax;
+  if (S.groupId) url += (url.includes('?') ? '&' : '?') + 'GroupId=' + encodeURIComponent(S.groupId);
+  const body = {
+    model: S.model.minimax || 'speech-02-hd',
+    text: text,
+    stream: false,
+    voice_setting: { voice_id: currentVoiceId(), speed: 1, vol: 1, pitch: 0 },
+    audio_setting: { sample_rate: 32000, bitrate: 128000, format: 'mp3', channel: 1 },
+  };
+  const res = await safeFetch(withProxy(url), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status + ' ' + (await res.text().catch(() => '')).slice(0, 200));
+  const j = await res.json();
+  if (j.base_resp && j.base_resp.status_code !== 0) {
+    throw new Error('MiniMax 错误 ' + j.base_resp.status_code + '：' + j.base_resp.status_msg);
+  }
+  const audio = j.data && j.data.audio;
+  if (!audio) throw new Error('MiniMax 未返回音频数据');
+  return { src: URL.createObjectURL(audioStringToBlob(audio, 'audio/mpeg')), objectUrl: true };
+}
+
+/** 把千问的错误响应转成一句人话（额度用尽 / 模型不存在 / 音色不支持） */
+async function qwenErrorText(res) {
+  const raw = await res.text().catch(() => '');
+  let code = '', msg = raw.slice(0, 200);
+  try { const e = JSON.parse(raw); code = e.code || ''; msg = e.message || msg; } catch (_) {}
+  if (/FreeTierOnly/.test(code)) return '免费额度已用尽，请到阿里云百炼控制台充值，或关闭「仅使用免费额度」模式';
+  if (/Throttling/.test(code)) return '请求过于频繁，请稍后重试（' + (msg || code) + '）';
+  if (/Engine error \[411\]/.test(msg)) return '音色与模型不匹配（' + (S.voice.qwen || '') + '），请在下拉里换一个音色';
+  if (/Model not exist/i.test(msg)) return '模型 ' + (S.model.qwen || QWEN_MODEL) + ' 不存在或未开通，请在设置里改用 qwen-audio-3.1-tts-flash';
+  return (code ? code + '：' : '') + msg;
+}
+
+async function synthQwen(text) {
+  const key = (S.keys.qwen || '').trim();
+  if (!key) throw new Error('请先在设置中填写 DashScope API Key');
+  const body = {
+    model: S.model.qwen || QWEN_MODEL,
+    input: { text: text, voice: currentVoiceId() || QWEN_VOICES[0][0], format: 'wav', sample_rate: 24000 },
+  };
+  const res = await safeFetch(withProxy(S.endpoints.qwen), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error('千问 ' + await qwenErrorText(res));
+  const j = await res.json();
+  if (j.code) throw new Error('千问错误 ' + j.code + '：' + j.message);
+  const a = j.output && j.output.audio;
+  if (!a) throw new Error('千问未返回音频数据');
+  // 优先直接用远端 URL 播放（<audio> 播放不需要 CORS）
+  if (a.url && !a.data) return { src: a.url, objectUrl: false };
+  if (a.data) return { src: URL.createObjectURL(new Blob([b64ToBytes(a.data)], { type: 'audio/wav' })), objectUrl: true };
+  if (a.url) return { src: a.url, objectUrl: false };
+  throw new Error('千问未返回可用音频');
+}
+
+async function synthCustom(text) {
+  const key = (S.keys.custom || '').trim();
+  const headers = { 'Content-Type': 'application/json' };
+  if (key) headers.Authorization = 'Bearer ' + key;
+  const body = {
+    model: S.model.custom || 'tts-1',
+    input: text,
+    voice: currentVoiceId() || 'alloy',
+    response_format: 'mp3',
+  };
+  const res = await safeFetch(withProxy(S.endpoints.custom), {
+    method: 'POST', headers: headers, body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status + ' ' + (await res.text().catch(() => '')).slice(0, 200));
+  return { src: URL.createObjectURL(await res.blob()), objectUrl: true };
+}
+
+async function synthesize(text) {
+  if (S.provider === 'minimax') return synthMinimax(text);
+  if (S.provider === 'qwen') return synthQwen(text);
+  if (S.provider === 'custom') return synthCustom(text);
+  throw new Error('当前供应商不支持云端合成');
+}
+
+/* ---------- 长文本分片 ---------- */
+function chunkText(text, limit) {
+  const parts = text.split(/(?<=[。！？!?；;…\n])/).filter(s => s.length);
+  const out = [];
+  let cur = '';
+  for (const p of parts) {
+    if (p.length > limit) {
+      if (cur) { out.push(cur); cur = ''; }
+      for (let i = 0; i < p.length; i += limit) out.push(p.slice(i, i + limit));
+      continue;
+    }
+    if ((cur + p).length > limit) { out.push(cur); cur = p; }
+    else cur += p;
+  }
+  if (cur) out.push(cur);
+  return out;
+}
+function buildSegments(text, limit) {
+  const segs = [];
+  let pos = 0;
+  for (const chunk of chunkText(text, limit)) {
+    let at = text.indexOf(chunk, pos);
+    if (at < 0) at = pos;
+    segs.push({ text: chunk, start: at, end: at + chunk.length });
+    pos = at + chunk.length;
+  }
+  return segs.length ? segs : [{ text: text, start: 0, end: text.length }];
+}
+
+/* ==========================================================================
+   六、朗诵范围（全文 / 选区）
+   ========================================================================== */
+/** 当前朗诵范围：全文模式恒为整篇；选区模式未选时为空 */
+function readRange() {
+  const total = (state.currentText || '').length;
+  let from = state.readFrom, to = state.readTo;
+  if (state.rangeMode !== 'sel') { from = 0; to = total; }
+  else if (!(to > from)) { from = 0; to = 0; }
+  from = Math.max(0, Math.min(total, from));
+  to = Math.max(from, Math.min(total, to));
+  return { from: from, to: to, len: to - from };
+}
+function readText() {
+  const r = readRange();
+  return (state.currentText || '').slice(r.from, r.to);
+}
+function updateTimeIdle() {
+  const r = readRange();
+  timeLabel.textContent = r.len
+    ? '0:00 / ' + formatTime(r.len / Math.max(2, 5 * S.speed))
+    : '0:00 / —';
+}
+function updateRangeUI() {
+  const w = state.currentList[state.currentIdx];
+  if (!w) return;
+  const r = readRange();
+  pbTitle.innerHTML = '<b>' + escapeHtml(w.title) + '</b>' +
+    (w.author ? ' · ' + escapeHtml(w.author) : '') +
+    (state.rangeMode === 'sel' && r.len
+      ? ' · <span style="color:var(--cyan)">选段 ' + r.len + ' 字</span>' : '');
+}
+
+let pendingSel = null;
+function hideSelBtn() { selBtn.classList.remove('show'); }
+
+/** 由节点向上找到所属字符 span 的下标 */
+function spanCharIdx(el) {
+  while (el && el !== document.body) {
+    if (el.id && el.id.indexOf('char-') === 0) {
+      const i = parseInt(el.id.slice(5), 10);
+      return isNaN(i) ? null : i;
+    }
+    el = el.parentElement;
+  }
+  return null;
+}
+/** 选区端点（container, offset）→ 字符下标；容器为 pieceText 时按子节点序号取 */
+function charIdxAt(container, offset, isEnd) {
+  const piece = document.getElementById('pieceText');
+  if (!piece || !container || !piece.contains(container) && container !== piece) return null;
+  if (container === piece) {
+    const kids = piece.children;
+    if (!kids.length) return null;
+    let k = isEnd ? offset - 1 : offset;
+    k = Math.max(0, Math.min(kids.length - 1, k));
+    return spanCharIdx(kids[k]);
+  }
+  if (container.nodeType === 3) return spanCharIdx(container.parentElement);
+  return spanCharIdx(container);
+}
+/** 当前选区 → 全文字符区间 [from, to) */
+function currentSelectionRange() {
+  const piece = document.getElementById('pieceText');
+  const sel = window.getSelection ? window.getSelection() : null;
+  if (!piece || !sel || sel.isCollapsed || sel.rangeCount === 0) return null;
+  const r = sel.getRangeAt(0);
+  if (!piece.contains(r.startContainer) || !piece.contains(r.endContainer)) return null;
+  const a = charIdxAt(r.startContainer, r.startOffset, false);
+  const b = charIdxAt(r.endContainer, r.endOffset, true);
+  if (a === null || b === null) return null;
+  const from = Math.min(a, b), to = Math.max(a, b) + 1;
+  const text = (state.currentText || '').slice(from, to);
+  if (text.replace(/\s/g, '').length < 2) return null;
+  const rect = r.getBoundingClientRect();
+  if (!rect || (!rect.width && !rect.height)) return null;
+  return { from: from, to: to, text: text, rect: rect };
+}
+function updateSelBtn() {
+  if (state.rangeMode !== 'sel' || !state.currentText) { hideSelBtn(); return; }
+  const s = currentSelectionRange();
+  if (!s) { hideSelBtn(); return; }
+  pendingSel = s;
+  selBtn.classList.add('show');
+  const w = selBtn.offsetWidth || 118, h = selBtn.offsetHeight || 34;
+  let left = s.rect.left + s.rect.width / 2 - w / 2;
+  left = Math.max(10, Math.min(window.innerWidth - w - 10, left));
+  let top = s.rect.top - h - 10;
+  if (top < 8) top = Math.min(window.innerHeight - h - 10, s.rect.bottom + 10);
+  selBtn.style.left = left + 'px';
+  selBtn.style.top = top + 'px';
+}
+
+function setRangeMode(mode) {
+  state.rangeMode = mode;
+  rangeSeg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.r === mode));
+  hideSelBtn();
+  pendingSel = null;
+  if (mode === 'all') {
+    state.readFrom = 0;
+    state.readTo = (state.currentText || '').length;
+  } else {
+    state.readFrom = 0;
+    state.readTo = 0;
+  }
+  playBtn.title = mode === 'sel' ? '朗诵选中的文字（先在正文中选择）' : '播放 / 暂停';
+  stopPlayback();
+  updateRangeUI();
+  if (mode === 'sel' && state.currentText) {
+    toast('用鼠标选中正文中想听的文字，再点浮出的「朗诵选中」', 'warn', 4200);
+  }
+}
+
+let selTimer = null;
+document.addEventListener('selectionchange', () => {
+  if (state.rangeMode !== 'sel') return;
+  clearTimeout(selTimer);
+  selTimer = setTimeout(updateSelBtn, 120);
+});
+contentEl.addEventListener('mouseup', () => {
+  if (state.rangeMode === 'sel') setTimeout(updateSelBtn, 0);
+});
+document.addEventListener('mousedown', e => {
+  if (e.target !== selBtn && !selBtn.contains(e.target)) hideSelBtn();
+});
+selBtn.addEventListener('mousedown', e => e.preventDefault());   // 保住选区
+selBtn.addEventListener('click', e => {
+  e.preventDefault();
+  const s = pendingSel || currentSelectionRange();
+  if (!s) { toast('请先在正文中选择要朗诵的文字', 'warn'); return; }
+  state.readFrom = s.from;
+  state.readTo = s.to;
+  hideSelBtn();
+  updateRangeUI();
+  updateTimeIdle();
+  startPlayback();
+});
+rangeSeg.addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (b && b.dataset.r !== state.rangeMode) setRangeMode(b.dataset.r);
+});
+
+/* ==========================================================================
+   七、播放引擎
+   ========================================================================== */
+const engine = {
+  mode: 'none',      // 'speech' | 'cloud'
+  segs: [],
+  urls: [],
+  durations: [],
+  idx: 0,
+  token: 0,
+  pending: 0,        // 正在合成的片段数
+  segResolve: null,
+  total: 0,
+};
+
+function syncWebSpeechVoice() { /* 由 startSpeech 内部按名字查找 */ }
+
+function currentUtteranceVoice() {
+  if (!state.sysVoices.length) return null;
+  return state.sysVoices.find(v => v.name === S.voice.webspeech) || state.sysVoices[0];
+}
+
+/** 本次朗读已进行的秒数（扣除暂停时长） */
+function elapsedSeconds() {
+  if (!state.speechStartTs) return 0;
+  let ms = Date.now() - state.speechStartTs - state.pausedTotal;
+  if (state.isPaused && state.pauseTs) ms -= Date.now() - state.pauseTs;
+  return Math.max(0, ms / 1000);
+}
+
+function setCharState(i, cls, on) {
+  const s = document.getElementById('char-' + i);
+  if (s) s.classList.toggle(cls, on);
+}
+function clearHighlight() {
+  contentEl.querySelectorAll('.piece-text span.hl, .piece-text span.rd')
+    .forEach(s => s.classList.remove('hl', 'rd'));
+  state.hlFrom = null; state.hlTo = null; state.cursor = null; state.lastHighlight = -1;
+}
+
+let lastAutoScroll = 0;
+/** 光标窗口高亮：从 from 到光标标记为已读，光标单独高亮 */
+function highlightChar(idx, all) {
+  const r = readRange();
+  const len = r.len;
+  if (len === 0) return;
+  const local = Math.max(0, Math.min(len - 1, Math.floor(idx)));
+  idx = local + r.from;                       // 局部下标 → 全文下标（DOM 的 char-* 按全文编号）
+  if (!all && idx === state.lastHighlight) return;
+
+  const from = r.from;
+  const to = all ? r.to - 1 : idx;
+
+  if (state.hlFrom !== null) {
+    for (let i = state.hlFrom; i <= state.hlTo; i++) {
+      if (i > to) setCharState(i, 'rd', false);
+    }
+  }
+  // 已读区间：仅增量标记新的部分
+  const markFrom = state.hlTo === null ? from : Math.max(from, state.hlTo + 1);
+  const markTo = Math.max(to - 1, -1);
+  for (let i = markFrom; i <= markTo; i++) setCharState(i, 'rd', true);
+
+  if (state.cursor !== null && state.cursor !== idx) setCharState(state.cursor, 'hl', false);
+  setCharState(idx, 'hl', true);
+
+  state.hlFrom = from; state.hlTo = to; state.cursor = idx; state.lastHighlight = idx;
+
+  if (!all && Date.now() - lastAutoScroll > 420) {
+    const el = document.getElementById('char-' + idx);
+    if (el) {
+      const box = contentEl.getBoundingClientRect();
+      const r = el.getBoundingClientRect();
+      if (r.top < box.top + 90 || r.bottom > box.bottom - 120) {
+        lastAutoScroll = Date.now();
+        el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }
+    }
+  }
+}
+
+/* ---------- 播放控制 ---------- */
+async function startPlayback() {
+  if (!state.currentText) return;
+  if (state.rangeMode === 'sel' && !(state.readTo > state.readFrom)) {
+    // 从播放条按播放时，浏览器会先清空 DOM 选区，所以再用 pendingSel 兜底
+    const s = currentSelectionRange() || pendingSel;
+    if (!s) {
+      toast('请先用鼠标选中正文中要朗诵的文字', 'warn', 4000);
+      return;
+    }
+    state.readFrom = s.from;
+    state.readTo = s.to;
+    updateRangeUI();
+    updateTimeIdle();
+  }
+  if (S.provider === 'webspeech') return startSpeech();
+  return startCloud();
+}
+
+function startSpeech() {
+  if (typeof speechSynthesis === 'undefined') { toast('当前浏览器不支持语音合成', 'err'); return; }
+  speechSynthesis.cancel();
+  clearHighlight();
+  engine.mode = 'speech';
+
+  const text = readText();
+  const len = text.length;
+  const rate = S.speed;
+  state.estimatedCps = Math.max(2, 5 * rate);
+  state.estimatedDuration = len / state.estimatedCps;
+  state.boundaries = [];
+  state.speechStartTs = Date.now();
+  state.pausedTotal = 0;
+  state.pauseTs = 0;
+
+  const u = new SpeechSynthesisUtterance(text);
+  const v = currentUtteranceVoice();
+  if (v) u.voice = v;
+  u.rate = rate;
+  u.pitch = 1;
+  u.lang = (v && v.lang) || 'zh-CN';
+
+  u.onboundary = e => {
+    if (typeof e.charIndex === 'number') {
+      state.boundaries.push({ ci: e.charIndex, t: elapsedSeconds() });
+      if (state.boundaries.length > 3000) state.boundaries.splice(0, 1000);
+    }
+  };
+  u.onstart = () => {
+    state.isPlaying = true; state.isPaused = false;
+    playBtn.textContent = '⏸';
+    startProgressTick();
+  };
+  u.onend = () => {
+    state.isPlaying = false; state.isPaused = false;
+    playBtn.textContent = '▶';
+    stopProgressTick();
+    highlightChar(len - 1, true);
+    progressFill.style.width = '100%';
+    timeLabel.textContent = formatTime(state.estimatedDuration) + ' / ' + formatTime(state.estimatedDuration);
+  };
+  u.onerror = ev => {
+    state.isPlaying = false; state.isPaused = false;
+    playBtn.textContent = '▶';
+    stopProgressTick();
+    if (ev && ev.error && ev.error !== 'interrupted' && ev.error !== 'canceled') {
+      toast('系统语音出错：' + ev.error, 'err');
+    }
+  };
+  speechSynthesis.speak(u);
+}
+
+async function startCloud() {
+  const text = readText();
+  if (!text) return;
+  if (!S.keys[S.provider] && S.provider !== 'custom') {
+    toast('「' + PROVIDERS[S.provider].name + '」需要先填写 API Key', 'warn');
+    openSettings();
+    return;
+  }
+  stopPlayback();
+  clearHighlight();
+  engine.mode = 'cloud';
+  engine.segs = buildSegments(text, PROVIDERS[S.provider].chunk || 1000);
+  engine.urls = [];
+  engine.durations = [];
+  engine.idx = 0;
+  engine.token++;
+  const token = engine.token;
+  engine.total = text.length;
+
+  // 后台顺序合成；第 0 段就绪即开播
+  engine.pending = engine.segs.length;
+  updateCloudBadge();
+  (async () => {
+    for (let i = 0; i < engine.segs.length; i++) {
+      if (token !== engine.token) return;
+      try {
+        const r = await synthesize(engine.segs[i].text);
+        if (token !== engine.token) { if (r.objectUrl) URL.revokeObjectURL(r.src); return; }
+        engine.urls[i] = r.src;
+        engine.objectFlags = engine.objectFlags || {};
+        engine.objectFlags[i] = r.objectUrl;
+      } catch (e) {
+        if (token !== engine.token) return;
+        console.error('[文学朗诵] 合成失败', e);
+        toast('合成失败（第 ' + (i + 1) + '/' + engine.segs.length + ' 段）：' + e.message, 'err', 9000);
+        engine.failed = true;
+      } finally {
+        engine.pending--;
+        updateCloudBadge();
+      }
+    }
+  })();
+
+  cloudPlayLoop(token, 0);
+}
+
+async function cloudPlayLoop(token, fromIdx) {
+  for (let k = fromIdx; k < engine.segs.length; k++) {
+    // 等待该片段就绪
+    let waited = 0;
+    while (!engine.urls[k]) {
+      if (token !== engine.token) return;
+      // 合成队列已结束但该片段仍缺失 → 说明它合成失败了，停止等待
+      if (engine.pending === 0 && !engine.urls[k]) return;
+      await sleep(160);
+      waited += 160;
+      if (waited > 120000) { toast('合成超时，请检查网络或代理地址', 'err'); return; }
+    }
+    if (token !== engine.token) return;
+    engine.idx = k;
+    await playOneSeg(engine.urls[k], k, token);
+    if (token !== engine.token) return;
+  }
+  onCloudEnd();
+}
+
+function playOneSeg(src, k, token) {
+  return new Promise(resolve => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      cloudAudio.onended = null;
+      cloudAudio.onerror = null;
+      cloudAudio.onloadedmetadata = null;
+      engine.segResolve = null;
+      resolve();
+    };
+    engine.segResolve = finish;
+
+    cloudAudio.onloadedmetadata = () => {
+      if (isFinite(cloudAudio.duration)) engine.durations[k] = cloudAudio.duration;
+    };
+    cloudAudio.onended = finish;
+    cloudAudio.onerror = () => {
+      if (token === engine.token) toast('音频播放失败（第 ' + (k + 1) + ' 段）', 'err');
+      finish();
+    };
+    cloudAudio.src = src;
+    cloudAudio.playbackRate = S.speed;
+    state.isPlaying = true; state.isPaused = false;
+    playBtn.textContent = '⏸';
+    cloudAudio.play().then(() => {
+      if (token !== engine.token) return;
+      startProgressTick();
+    }).catch(e => {
+      toast('播放被浏览器拦截：请点击页面后再试（' + e.message + '）', 'warn');
+      finish();
+    });
+  });
+}
+
+function onCloudEnd() {
+  state.isPlaying = false; state.isPaused = false;
+  playBtn.textContent = '▶';
+  stopProgressTick();
+  highlightChar(readRange().len - 1, true);
+  progressFill.style.width = '100%';
+  timeLabel.textContent = formatTime(cloudTotalDuration()) + ' / ' + formatTime(cloudTotalDuration());
+}
+
+function cloudTotalDuration() {
+  return engine.durations.reduce((a, b) => a + (b || 0), 0);
+}
+function updateCloudBadge() {
+  const done = engine.urls.filter(Boolean).length;
+  const total = engine.segs.length || 1;
+  engineBadge.textContent = done >= total
+    ? PROVIDERS[S.provider].name
+    : '合成 ' + done + '/' + total;
+}
+
+function pausePlayback() {
+  if (engine.mode === 'speech') speechSynthesis.pause();
+  else cloudAudio.pause();
+  state.isPaused = true;
+  state.pauseTs = Date.now();
+  playBtn.textContent = '▶';
+  stopProgressTick();
+}
+function resumePlayback() {
+  if (engine.mode === 'speech') speechSynthesis.resume();
+  else cloudAudio.play().catch(() => {});
+  if (state.pauseTs) { state.pausedTotal += Date.now() - state.pauseTs; state.pauseTs = 0; }
+  state.isPaused = false;
+  playBtn.textContent = '⏸';
+  startProgressTick();
+}
+function stopPlayback() {
+  if (typeof speechSynthesis !== 'undefined') speechSynthesis.cancel();
+  engine.token++;
+  if (engine.segResolve) { try { engine.segResolve(); } catch (e) { /* ignore */ } }
+  try { cloudAudio.pause(); cloudAudio.removeAttribute('src'); cloudAudio.load(); } catch (e) { /* ignore */ }
+  (engine.urls || []).forEach((u, i) => { if (u && engine.objectFlags && engine.objectFlags[i]) URL.revokeObjectURL(u); });
+  engine.urls = []; engine.segs = []; engine.durations = []; engine.idx = 0;
+  engine.pending = 0; engine.failed = false; engine.objectFlags = {};
+  if (S.provider !== 'webspeech') engineBadge.textContent = PROVIDERS[S.provider].name;
+
+  state.isPlaying = false; state.isPaused = false;
+  state.speechStartTs = 0; state.pausedTotal = 0; state.pauseTs = 0;
+  playBtn.textContent = '▶';
+  stopProgressTick();
+  clearHighlight();
+  progressFill.style.width = '0%';
+  updateTimeIdle();
+}
+
+playBtn.addEventListener('click', () => {
+  if (state.isPlaying && !state.isPaused) pausePlayback();
+  else if (state.isPaused) resumePlayback();
+  else startPlayback();
+});
+stopBtn.addEventListener('click', stopPlayback);
+prevBtn.addEventListener('click', () => { if (state.currentIdx > 0) selectWork(state.currentIdx - 1); });
+nextBtn.addEventListener('click', () => { if (state.currentIdx < state.currentList.length - 1) selectWork(state.currentIdx + 1); });
+
+speedRange.addEventListener('input', () => {
+  S.speed = parseFloat(speedRange.value) || 1;
+  speedVal.textContent = S.speed.toFixed(2) + 'x';
+});
+speedRange.addEventListener('change', () => {
+  saveSettings();
+  cloudAudio.playbackRate = S.speed;
+});
+
+/* ---------- 字幕推算 ---------- */
+function estimateCharIndex(elapsed) {
+  const len = readRange().len;
+  if (len === 0) return 0;
+  const bs = state.boundaries;
+  let anchor = null, prev = null;
+  for (let i = 0; i < bs.length; i++) {
+    if (bs[i].t <= elapsed) { prev = anchor; anchor = bs[i]; } else break;
+  }
+  if (anchor) {
+    let cps = 0;
+    if (prev && anchor.t - prev.t > 0.05) cps = (anchor.ci - prev.ci) / (anchor.t - prev.t);
+    if (!(cps > 0.5)) cps = state.estimatedCps;
+    return Math.min(len - 1, anchor.ci + (elapsed - anchor.t) * cps);
+  }
+  return Math.min(len - 1, elapsed * state.estimatedCps);
+}
+
+/* ---------- 进度条（rAF） ---------- */
+let progressRaf = null;
+function startProgressTick() {
+  stopProgressTick();
+  const tick = () => {
+    if (!state.isPlaying || state.isPaused) return;
+    const len = readRange().len || 1;
+
+    if (engine.mode === 'cloud') {
+      const seg = engine.segs[engine.idx];
+      let before = 0;
+      for (let i = 0; i < engine.idx; i++) before += engine.durations[i] || 0;
+      const cur = cloudAudio.currentTime || 0;
+      const elapsed = before + cur;
+      const played = seg ? seg.start + Math.min(1, cur / (cloudAudio.duration || seg.text.length / 5)) * seg.text.length : 0;
+      progressFill.style.width = Math.min(100, (played / len) * 100) + '%';
+      const ready = engine.urls.filter(Boolean).length;
+      const total = cloudTotalDuration();
+      const complete = ready >= engine.segs.length;
+      timeLabel.textContent = formatTime(elapsed) + ' / ' +
+        (complete ? formatTime(total) : '合成 ' + ready + '/' + engine.segs.length);
+      highlightChar(played);
+    } else {
+      const elapsed = elapsedSeconds();
+      const dur = state.estimatedDuration || 1;
+      progressFill.style.width = Math.min(100, (elapsed / dur) * 100) + '%';
+      timeLabel.textContent = formatTime(Math.min(elapsed, dur)) + ' / ' + formatTime(dur);
+      highlightChar(estimateCharIndex(elapsed));
+    }
+    progressRaf = requestAnimationFrame(tick);
+  };
+  progressRaf = requestAnimationFrame(tick);
+}
+function stopProgressTick() {
+  if (progressRaf) { cancelAnimationFrame(progressRaf); progressRaf = null; }
+}
+
+progressBar.addEventListener('click', e => {
+  if (!state.currentText) return;
+  const rect = progressBar.getBoundingClientRect();
+  const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+  toast('系统语音与云端音频均不支持精确定位，仅可预览字幕位置', 'warn', 3000);
+  highlightChar(Math.floor(ratio * readRange().len));
+});
+
+/* ---------- 快捷键 ---------- */
+document.addEventListener('keydown', e => {
+  const tag = (e.target && e.target.tagName) || '';
+  if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+  if (eaScope(e)) return;
+  if (e.code === 'Space') { e.preventDefault(); playBtn.click(); }
+  else if (e.code === 'ArrowLeft') { if (state.currentIdx > 0) selectWork(state.currentIdx - 1); }
+  else if (e.code === 'ArrowRight') { if (state.currentIdx < state.currentList.length - 1) selectWork(state.currentIdx + 1); }
+});
+function eaScope(e) { return settingsModal.classList.contains('show'); }
+
+/* ==========================================================================
+   七、设置弹窗
+   ========================================================================== */
+function renderProviderTabs() {
+  providerTabs.innerHTML = Object.keys(PROVIDERS).map(k =>
+    '<div class="ptab' + (k === S.provider ? ' on' : '') + '" data-p="' + k + '">' +
+      '<div class="n">' + PROVIDERS[k].name + '</div>' +
+      '<div class="d">' + PROVIDERS[k].desc + '</div>' +
+    '</div>').join('');
+  providerTabs.querySelectorAll('.ptab').forEach(el => {
+    el.onclick = () => {
+      S.provider = el.dataset.p;
+      saveSettings();
+      renderAll();
+    };
+  });
+}
+
+function fieldHtml(id, label, value, placeholder, opt) {
+  return '<div class="field"><label>' + label + (opt ? ' <span class="opt">' + opt + '</span>' : '') + '</label>' +
+    '<input class="txt" id="' + id + '" value="' + escapeHtml(value || '') + '" placeholder="' + escapeHtml(placeholder || '') + '"></div>';
+}
+
+function renderProviderConfig() {
+  const p = S.provider;
+  if (p === 'webspeech') {
+    providerConfig.innerHTML = '<div class="note">系统内置语音无需配置，音色来自本机系统语音库。' +
+      '检测到 <b>' + state.sysVoices.length + '</b> 个可用语音。免费、离线，但同步字幕依赖时间推算。</div>';
+    cfgVoice.disabled = state.sysVoices.length === 0;
+    return;
+  }
+  cfgVoice.disabled = false;
+  let html = '';
+  // API Key
+  html += '<div class="field"><label>' + PROVIDERS[p].key + (p === 'custom' ? ' <span class="opt">可留空</span>' : '') + '</label>' +
+    '<div class="key-wrap"><input class="txt" type="password" id="keyInput" value="' + escapeHtml(S.keys[p] || '') + '" placeholder="粘贴 API Key">' +
+    '<button class="toggle" id="keyToggle">显示</button></div>' +
+    (keyFromFile(p)
+      ? '<div class="note" style="margin-top:6px;color:var(--cyan)">该 Key 来自 HTML 文件顶部的内嵌配置，优先级最高；' +
+        '在此处修改刷新后会变回文件里的值。</div>'
+      : '') +
+    '</div>';
+  // Endpoint
+  html += fieldHtml('epInput', '接口地址', S.endpoints[p], '', '可编辑');
+  // Model
+  html += fieldHtml('modelInput', '模型', S.model[p], '', p === 'custom' ? '如 tts-1 / FunAudioLLM/CosyVoice2-0.5B' : '如 speech-02-hd');
+  // MiniMax GroupId
+  if (p === 'minimax') html += fieldHtml('groupIdInput', 'GroupId', S.groupId, '部分账号需要，可留空', '可选');
+  providerConfig.innerHTML = html;
+
+  const keyInput = $('keyInput');
+  keyInput.addEventListener('input', () => { S.keys[p] = keyInput.value.trim(); saveSettings(); });
+  $('keyToggle').onclick = () => {
+    const t = $('keyToggle');
+    keyInput.type = keyInput.type === 'password' ? 'text' : 'password';
+    t.textContent = keyInput.type === 'password' ? '显示' : '隐藏';
+  };
+  const ep = $('epInput');
+  ep.addEventListener('input', () => { S.endpoints[p] = ep.value.trim(); saveSettings(); });
+  const mi = $('modelInput');
+  mi.addEventListener('input', () => { S.model[p] = mi.value.trim(); saveSettings(); });
+  if (p === 'minimax') {
+    const gi = $('groupIdInput');
+    gi.addEventListener('input', () => { S.groupId = gi.value.trim(); saveSettings(); });
+  }
+}
+
+function renderCfgVoice() {
+  const cat = voiceCatalog(S.provider);
+  const cur = S.voice[S.provider];
+  if (cat.length === 0) {
+    cfgVoice.innerHTML = '<option value="">（无预设，请用下方自定义音色 ID）</option>';
+    voiceCount.textContent = '自定义供应商';
+    customVoiceField.style.display = 'block';
+  } else {
+    cfgVoice.innerHTML = cat.map(([id, label]) =>
+      '<option value="' + escapeHtml(id) + '"' + (id === cur ? ' selected' : '') + '>' +
+      escapeHtml(label) + '　·　' + escapeHtml(id) + '</option>').join('');
+    const extra = '<option value="__custom__"' + (S.customVoiceId ? ' selected' : '') + '>✎ 使用自定义音色 ID…</option>';
+    cfgVoice.innerHTML += extra;
+    voiceCount.textContent = cat.length + ' 个预设';
+    customVoiceField.style.display = S.customVoiceId ? 'block' : 'none';
+  }
+}
+
+cfgVoice.addEventListener('change', () => {
+  const v = cfgVoice.value;
+  if (v === '__custom__') {
+    customVoiceField.style.display = 'block';
+    setTimeout(() => customVoiceId.focus(), 30);
+  } else {
+    S.voice[S.provider] = v;
+    S.customVoiceId = '';
+    customVoiceId.value = '';
+    customVoiceField.style.display = 'none';
+    saveSettings();
+    renderVoiceSelect();
+  }
+});
+customVoiceId.addEventListener('input', () => {
+  S.customVoiceId = customVoiceId.value.trim();
+  saveSettings();
+});
+proxyInput.addEventListener('input', () => { S.proxy = proxyInput.value.trim(); saveSettings(); });
+
+testBtn.addEventListener('click', async () => {
+  testResult.className = 'result show info';
+  testResult.textContent = '正在测试…';
+  if (S.provider === 'webspeech') {
+    if (typeof speechSynthesis === 'undefined') {
+      testResult.className = 'result show bad';
+      testResult.textContent = '当前浏览器不支持语音合成';
+      return;
+    }
+    const u = new SpeechSynthesisUtterance('你好，这是一段试听。');
+    const v = currentUtteranceVoice();
+    if (v) u.voice = v;
+    u.rate = S.speed;
+    speechSynthesis.cancel();
+    speechSynthesis.speak(u);
+    testResult.className = 'result show ok';
+    testResult.textContent = '已通过系统语音播放试听。音色：' + (v ? v.name + ' (' + v.lang + ')' : '默认');
+    return;
+  }
+  const t0 = Date.now();
+  try {
+    const r = await synthesize('你好，这是一段试听。');
+    const ms = Date.now() - t0;
+    testResult.className = 'result show ok';
+    testResult.textContent = '✅ 成功：收到音频（' + ms + ' ms）音色 ' + (currentVoiceId() || '默认') + '。正在播放…';
+    const a = new Audio(r.src);
+    a.playbackRate = S.speed;
+    a.play().catch(e => { testResult.textContent += ' 播放被拦截：' + e.message; });
+    setTimeout(() => { if (r.objectUrl) URL.revokeObjectURL(r.src); }, 60000);
+  } catch (e) {
+    testResult.className = 'result show bad';
+    testResult.textContent = '❌ ' + e.message;
+  }
+});
+
+function renderAll() {
+  renderProviderTabs();
+  renderProviderConfig();
+  renderCfgVoice();
+  customVoiceId.value = S.customVoiceId || '';
+  proxyInput.value = S.proxy || '';
+  renderProviderSelect();
+  renderVoiceSelect();
+  refreshKbNote();
+}
+function openSettings() {
+  renderAll();
+  settingsModal.classList.add('show');
+}
+settingsBtn.addEventListener('click', openSettings);
+modalClose.addEventListener('click', () => settingsModal.classList.remove('show'));
+saveSettingsBtn.addEventListener('click', () => {
+  saveSettings();
+  settingsModal.classList.remove('show');
+  toast('设置已保存', 'ok', 2200);
+});
+settingsModal.addEventListener('click', e => {
+  if (e.target === settingsModal) settingsModal.classList.remove('show');
+});
+
+/* ==========================================================================
+   八、启动
+   ========================================================================== */
+(function init() {
+  loadSettings();
+  speedRange.value = S.speed;
+  speedVal.textContent = S.speed.toFixed(2) + 'x';
+  cloudAudio.playbackRate = S.speed;
+  renderProviderTabs();
+  renderProviderConfig();
+  renderCfgVoice();
+  proxyInput.value = S.proxy || '';
+  customVoiceId.value = S.customVoiceId || '';
+  renderProviderSelect();
+  loadSystemVoices();
+  renderWorkList();
+  initKnowledgeBase();
+})();
+</script>
+</body>
+</html>
