@@ -1,0 +1,13 @@
+[Unit]
+Description=Lottery draws auto update and ledger settle
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/admin/.openclaw/workspace/lottery
+ExecStart=/usr/bin/python3 /home/admin/.openclaw/workspace/lottery/auto_update.py
+User=admin
+Environment=HOME=/home/admin
+Environment=PATH=/home/admin/.local/bin:/usr/local/bin:/usr/bin:/bin
+TimeoutStartSec=900

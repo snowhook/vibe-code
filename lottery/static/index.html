@@ -1,0 +1,1547 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%AF%3C/text%3E%3C/svg%3E">
+<title>彩票选号 · 记账</title>
+<style>
+:root{
+  --bg:#16161a;--bg2:#1c1c22;--card:#202027;--card2:#26262e;
+  --line:rgba(255,255,255,.08);--line2:rgba(255,255,255,.14);
+  --text:#f2f2f4;--text2:#a8a8b4;--text3:#6e6e7c;
+  --accent:#ea580c;--accent2:#f97316;--ok:#10b981;--warn:#f59e0b;--bad:#ef4444;--blue:#3b82f6;
+  --r:14px;--r2:10px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'PingFang SC','Microsoft YaHei',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,select{font-family:inherit;background:var(--bg2);border:1px solid var(--line2);color:var(--text);
+  border-radius:8px;padding:8px 10px;font-size:14px;outline:none;width:100%}
+input:focus,select:focus{border-color:var(--accent)}
+a{color:var(--accent2)}
+.wrap{max-width:1180px;margin:0 auto;padding:0 16px 60px}
+/* login */
+#login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.lgbox{width:100%;max-width:380px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:32px}
+.lgbox h1{font-size:22px;margin-bottom:6px}
+.lgbox p{color:var(--text3);font-size:13px;margin-bottom:22px}
+.lgbox .f{margin-bottom:14px}
+.lgbox .f label{display:block;font-size:12px;color:var(--text2);margin-bottom:6px}
+/* header */
+header{position:sticky;top:0;z-index:20;background:rgba(22,22,26,.92);backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line)}
+.hd{max-width:1180px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px}
+.dot{width:10px;height:10px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2))}
+.spacer{flex:1}
+.uchip{font-size:12px;color:var(--text2);background:var(--card);padding:6px 10px;border-radius:20px;border:1px solid var(--line)}
+/* tabs */
+.tabs{display:flex;gap:6px;padding:14px 0 0;flex-wrap:wrap}
+.tab{padding:8px 15px;border-radius:20px;font-size:13.5px;color:var(--text2);border:1px solid transparent}
+.tab.on{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff}
+.tab:not(.on):hover{background:var(--card);color:var(--text)}
+/* cards */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px;margin-top:14px}
+.card h2{font-size:15px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.card h2 .bar{width:3px;height:15px;background:var(--accent);border-radius:2px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:820px){.grid2{grid-template-columns:1fr}}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.fld{flex:1;min-width:120px}
+.fld label{display:block;font-size:12px;color:var(--text2);margin-bottom:6px}
+/* balls */
+.zones{margin-top:4px}
+.zone{margin-bottom:16px}
+.zone .zt{font-size:13px;color:var(--text2);margin-bottom:8px;display:flex;justify-content:space-between}
+.zone .zt b{color:var(--accent2)}
+.balls{display:flex;flex-wrap:wrap;gap:6px}
+.ball{width:34px;height:34px;border-radius:50%;background:var(--card2);border:1px solid var(--line2);
+  font-size:13px;display:flex;align-items:center;justify-content:center;transition:.15s;font-weight:600}
+.ball:hover{border-color:var(--accent);transform:translateY(-2px)}
+.ball.on{background:linear-gradient(135deg,var(--accent),var(--accent2));border-color:transparent;color:#fff;box-shadow:0 3px 12px rgba(234,88,12,.35)}
+.ball.blue{background:var(--card2)}
+.ball.blue.on{background:linear-gradient(135deg,#2563eb,#3b82f6);box-shadow:0 3px 12px rgba(37,99,235,.35)}
+.ball small{font-size:9px;color:var(--text3);position:absolute;transform:translate(0,12px)}
+/* btn */
+.btn{padding:9px 18px;border-radius:9px;font-size:13.5px;background:var(--card2);border:1px solid var(--line2);transition:.15s}
+.btn:hover{border-color:var(--accent);color:var(--accent2)}
+.btn.pri{background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;color:#fff;font-weight:600}
+.btn.pri:hover{filter:brightness(1.1)}
+.btn.sm{padding:5px 11px;font-size:12px;border-radius:7px}
+.btn.danger:hover{border-color:var(--bad);color:var(--bad)}
+/* result */
+.tickets{margin-top:12px}
+.tk{display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--bg2);border-radius:var(--r2);
+  margin-bottom:6px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px;flex-wrap:wrap}
+.tk .idx{color:var(--text3);font-size:11px;min-width:22px}
+/* 号码球（展示用，全局）：自选池 / 账本 / 开奖数据统一用它，避免数字糊成一串 */
+.nb{display:inline-block;min-width:26px;height:26px;line-height:26px;text-align:center;border-radius:50%;
+  background:var(--card2);font-weight:600;font-size:13px;font-family:ui-monospace,Menlo,Consolas,monospace}
+.nb.bl{background:#1e3a8a33;color:#93c5fd}
+.nb.lg{min-width:38px;height:38px;line-height:38px;font-size:17px;font-weight:700}
+/* 选区预览行：与「已加入自选池」的行明确区分（虚线 + 标签） */
+.tk.prev{background:transparent;border:1px dashed var(--line2)}
+.tk .tag{font-size:11px;color:var(--text3);border:1px solid var(--line2);border-radius:6px;padding:1px 7px;white-space:nowrap}
+.tk .tag.hi{color:var(--warn);border-color:var(--warn)}
+.del{background:transparent;border:1px solid var(--line2);color:var(--text2);border-radius:6px;
+  width:26px;height:26px;line-height:1;cursor:pointer;font-size:17px;padding:0;flex:0 0 auto}
+.del:hover{border-color:var(--bad);color:var(--bad)}
+/* draws 开奖数据 */
+.dhero{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px}
+.dhero .top{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.dhero .iss{font-size:21px;font-weight:700;font-family:ui-monospace,Menlo,Consolas,monospace;letter-spacing:.5px}
+.dhero .qi{font-size:12px;color:var(--text3)}
+.dhero .dt{font-size:13.5px;color:var(--text2);margin-left:auto}
+.dhero .dt em{font-style:normal;color:var(--text3);margin-left:6px}
+.dgrps{display:flex;align-items:flex-start;gap:20px;flex-wrap:wrap;margin-top:16px}
+.dgrp{display:flex;flex-direction:column;gap:7px}
+.dgrp .gl{font-size:11.5px;color:var(--text3);letter-spacing:.5px}
+.dgrp .gb{display:flex;gap:8px;flex-wrap:wrap}
+.dpos{display:flex;flex-direction:column;align-items:center;gap:4px}
+.dpos i{font-style:normal;font-size:10.5px;color:var(--text3)}
+.dvsep{width:1px;align-self:stretch;background:var(--line2);margin:2px 0}
+.dmeta{display:flex;align-items:center;gap:22px;flex-wrap:wrap;margin-top:16px;padding-top:13px;
+  border-top:1px solid var(--line);font-size:12.5px;color:var(--text3)}
+.dmeta .m{display:flex;align-items:baseline;gap:6px}
+.dmeta b{color:var(--text);font-weight:600;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13.5px}
+.dlist{margin-top:18px}
+.dlist .cap{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--text3);margin-bottom:8px}
+.dlist .cap b{color:var(--text2)}
+table.dt{font-size:13px}
+table.dt td.nums{padding-top:7px;padding-bottom:7px}
+table.dt .cell{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+table.dt .gap{width:12px;height:1px;background:var(--line2);flex:0 0 auto}
+table.dt tr.now{background:rgba(234,88,12,.07)}
+table.dt tr.now td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
+table.dt .wk{font-size:11px;color:var(--text3);margin-left:6px}
+.dim{color:var(--text3)}
+/* stats */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}
+.kpi{background:var(--bg2);border-radius:var(--r2);padding:14px}
+.kpi .v{font-size:20px;font-weight:700;margin-top:4px}
+.kpi .l{font-size:11.5px;color:var(--text3)}
+.pos{color:#ff4d4f}.neg{color:#10b981}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:9px 8px;text-align:left;border-bottom:1px solid var(--line)}
+th{color:var(--text3);font-weight:500;font-size:12px}
+tr:hover td{background:var(--card2)}
+.mono{font-family:ui-monospace,Menlo,Consolas,monospace}
+.pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;background:var(--card2);color:var(--text2)}
+.warnbox{margin-top:8px;padding:8px 10px;border-left:3px solid var(--warn);background:var(--card2);border-radius:0 8px 8px 0;
+  font-size:13px;line-height:1.65;color:var(--text2)}
+.warnbox.soft{border-left-color:var(--line2)}
+.warnbox .dim{color:var(--text3);font-size:12.5px}
+.pill.ok{background:#10b98122;color:#34d399}
+.pill.warn{background:#f59e0b22;color:#fbbf24}
+.pill.bad{background:#ef444422;color:#f87171}
+.note{font-size:12px;color:var(--text3);line-height:1.7;margin-top:10px;padding:10px 12px;
+  background:#ffffff06;border-left:3px solid var(--accent);border-radius:6px}
+.hide{display:none!important}
+#toast{position:fixed;left:50%;bottom:32px;transform:translateX(-50%) translateY(80px);
+  background:var(--card2);border:1px solid var(--line2);padding:11px 20px;border-radius:10px;font-size:13.5px;
+  opacity:0;transition:.28s;pointer-events:none;z-index:99;max-width:88vw}
+#toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+.bar-wrap{height:6px;background:var(--bg2);border-radius:3px;overflow:hidden;margin-top:6px}
+.bar-in{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+.loading{color:var(--text3);font-size:13px;padding:16px 0;text-align:center}
+/* AI 出号 */
+textarea{font-family:inherit;background:var(--bg2);border:1px solid var(--line2);color:var(--text);
+  border-radius:8px;padding:9px 10px;font-size:13.5px;outline:none;width:100%;resize:vertical;line-height:1.6}
+textarea:focus{border-color:var(--accent)}
+.airec{display:flex;align-items:center;gap:8px;padding:8px 10px;margin-bottom:6px;background:var(--bg2);
+  border-radius:var(--r2);flex-wrap:wrap;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px}
+.airec .amt{margin-left:auto;font-family:'PingFang SC','Microsoft YaHei',sans-serif;font-size:12px;color:var(--text2)}
+.tk .amt{margin-left:auto;font-family:'PingFang SC','Microsoft YaHei',sans-serif;font-size:12px;color:var(--text2)}
+/* 投注倍数：自选池每注一个 */
+.tk .mult{display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--text3);white-space:nowrap}
+.tk .mult input{width:48px;height:26px;padding:0 4px;font-size:12.5px;text-align:center;
+  font-family:ui-monospace,Menlo,Consolas,monospace}
+.tk .mult em{font-style:normal;color:var(--accent2)}
+.pool-total{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:10px;padding:10px 12px;
+  background:var(--bg2);border-radius:var(--r2);font-size:13.5px;color:var(--text2)}
+.pool-total b{color:var(--accent2);font-size:15px}
+/* 自选池统计块：紧跟在待投注号码列表下面，注数/金额/概率都来自池内数据 */
+.pool-stat{margin-top:14px}
+/* 只有文字的合计行：不能用 flex，否则每个 <b> 会被当成弹性项摊开间距 */
+.pool-sum{margin-top:10px;padding:10px 12px;background:var(--bg2);border-radius:var(--r2);
+  font-size:13.5px;color:var(--text2)}
+.pool-sum b{color:var(--accent2);font-size:15px}
+/* 概率对照：KPI 里的小字「单注 …」，池底的多注口径那一行 */
+.kpi .sub{font-size:11px;color:var(--text3);margin-top:3px;line-height:1.45}
+.pool-sum .sub{margin-top:5px;font-size:12.5px;color:var(--text3);line-height:1.65}
+.pool-sum .sub b{font-size:13.5px}
+.pool-sum .dup{color:var(--warn)}
+.sec-h{font-size:12.5px;color:var(--text3);margin:14px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+/* 弹窗 */
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.62);z-index:80;display:flex;align-items:center;
+  justify-content:center;padding:18px}
+.mbox{width:100%;max-width:820px;max-height:86vh;overflow:auto;background:var(--card);
+  border:1px solid var(--line2);border-radius:var(--r);padding:18px}
+.mhd{display:flex;align-items:center;gap:10px;margin-bottom:14px;position:sticky;top:-18px;
+  background:var(--card);padding:6px 0 10px;border-bottom:1px solid var(--line);z-index:2}
+.mhd b{font-size:15px}
+</style>
+</head>
+<body>
+
+<!-- ============ 登录 ============ -->
+<div id="login">
+  <div class="lgbox">
+    <h1>🎯 彩票选号 · 记账</h1>
+    <p>多彩种 · 多种投注方式 · 概率与成本透明</p>
+    <div class="f"><label>用户名</label><input id="lg-u" autocomplete="username"></div>
+    <div class="f"><label>密码</label><input id="lg-p" type="password" autocomplete="current-password"></div>
+    <button class="btn pri" style="width:100%;padding:11px" onclick="doLogin()">登录</button>
+    <div id="lg-err" class="note hide" style="border-color:var(--bad);color:#f87171"></div>
+  </div>
+</div>
+
+<!-- ============ 主界面 ============ -->
+<div id="app" class="hide">
+<header>
+  <div class="hd">
+    <div class="logo"><span class="dot"></span>彩票选号 · 记账</div>
+    <div class="spacer"></div>
+    <span class="uchip" id="who"></span>
+    <button class="btn sm" onclick="doLogout()">退出</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="tabs">
+    <button class="tab on" data-tab="pick" onclick="switchTab('pick')">选号投注</button>
+    <button class="tab" data-tab="ledger" onclick="switchTab('ledger')">我的账本</button>
+    <button class="tab" data-tab="draws" onclick="switchTab('draws')">开奖数据</button>
+    <button class="tab" data-tab="stats" onclick="switchTab('stats')">号码统计</button>
+    <button class="tab" data-tab="prob" onclick="switchTab('prob')">概率表</button>
+    <button class="tab" data-tab="set" onclick="switchTab('set')">设置</button>
+  </div>
+
+  <!-- 选号 -->
+  <section id="tab-pick">
+    <div class="card">
+      <h2><span class="bar"></span>选彩种 · 选玩法</h2>
+      <div class="row">
+        <div class="fld"><label>彩种</label><select id="p-lottery" onchange="onLotteryChange()"></select></div>
+        <div class="fld"><label>玩法</label><select id="p-play" onchange="onPlayChange()"></select></div>
+        <div class="fld"><label>出号方式</label><select id="p-strategy" onchange="recalc()"></select></div>
+        <div class="fld" style="max-width:110px"><label>注数</label><input id="p-sets" type="number" min="1" max="200" value="5" onchange="recalc()"></div>
+        <button class="btn" onclick="doGenerate()">机选 / 按策略出号</button>
+      </div>
+      <div class="row" id="p-sizes-row" style="margin-top:10px;align-items:flex-end">
+        <span class="note" style="margin:0;white-space:nowrap">每组号码个数</span>
+        <div class="row" id="p-sizes" style="gap:8px"></div>
+        <span class="note" style="margin:0;flex:1">本区独立设置，只影响左边这个「机选 / 按策略出号」；个数大于单注规定即为<b>复式</b>，注数按组合数自动展开。</span>
+      </div>
+      <div class="note" id="p-note"></div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h2><span class="bar"></span>号码选择（可多选 = 复式）</h2>
+        <div class="zones" id="p-zones"></div>
+        <div class="row" style="margin-top:6px">
+          <button class="btn sm pri" onclick="addToPool()">＋ 加入自选池</button>
+          <button class="btn sm" onclick="clearZone()">清空选区</button>
+          <button class="btn sm" onclick="recalc()">计算</button>
+        </div>
+        <div class="note">点已选中的号码可单个取消。「加入自选池」把当前选区作为一注存到下方，并<b>自动清空选区</b>，方便接着选下一注；全部选完后在下方一次记账。</div>
+      </div>
+
+      <div class="card">
+        <h2><span class="bar"></span>随机补全 · 出注</h2>
+        <div id="pc-keep" class="note" style="margin-top:4px"></div>
+        <div class="row" style="margin-top:12px;align-items:flex-end">
+          <div class="fld" style="max-width:110px"><label>出几注</label>
+            <input id="pc-sets" type="number" min="1" max="200" step="1" value="1"></div>
+          <button class="btn pri" onclick="fillAndAdd()">🎲 随机补全并加入自选池</button>
+        </div>
+        <div class="row" id="pc-sizes-row" style="margin-top:10px;align-items:flex-end">
+          <span class="note" style="margin:0;white-space:nowrap">每组号码个数</span>
+          <div class="row" id="pc-sizes" style="gap:8px"></div>
+          <span class="note" style="margin:0;flex:1">本区独立设置，只影响下面的「随机补全」。</span>
+        </div>
+        <div id="p-advice" class="note" style="margin-top:12px"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="bar"></span>AI 出号（按你的提示词）</h2>
+      <div class="row">
+        <div class="fld" style="max-width:120px"><label>让 AI 出几注</label><input id="ai-sets" type="number" min="1" max="20" value="5"></div>
+        <button class="btn pri" onclick="aiPick()">🤖 让 AI 出号</button>
+        <button class="btn sm" onclick="aiFillPrompt()">填入示例提示词</button>
+      </div>
+      <div class="row" id="ai-sizes-row" style="margin-top:10px;align-items:flex-end">
+        <span class="note" style="margin:0;white-space:nowrap">每组号码个数</span>
+        <div class="row" id="ai-sizes" style="gap:8px"></div>
+        <span class="note" style="margin:0;flex:1">本区独立设置，只影响下面的 AI 出号；个数大于单注规定即为<b>复式</b>。</span>
+      </div>
+      <div class="fld" style="margin-top:10px">
+        <label>提示词（写下你要 AI 遵守的选号要求）</label>
+        <textarea id="ai-prompt" rows="3" placeholder="例如：避开连号与同尾号，红球尽量分散在三个区间，蓝球用长期没出的号，出 5 注"></textarea>
+      </div>
+      <div class="note">AI 只是按你的偏好生成号码组合，<b>不改变中奖概率、也不是预测</b>。<b>号码个数请用本卡片里的「每组号码个数」设定</b>（提示词里写个数不一定被遵守）；生成的号码需点右侧「＋ 加入投注池」才会进入下方自选池（可整批加入）。<br>每注右侧 × 可单独删除；结果区顶部还能「↻ 重新出号」或「清空」。</div>
+      <div id="p-llm2" class="note hide"></div>
+      <div id="ai-rows"></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="bar"></span>自选池（待记账）
+        <div class="spacer"></div>
+        <button class="btn sm danger" onclick="clearPool()">清空自选池</button>
+      </h2>
+      <div class="tickets" id="p-tickets"><div class="loading">自选池是空的 —— 选好号后点「＋ 加入自选池」，或点「机选 / 按策略出号」「🎲 随机补全并加入自选池」</div></div>
+
+      <!-- 池底统计：注数 / 金额 / 概率，全部取自「自选池里真正要投的号」；池空时退化为当前选区预览 -->
+      <div id="p-pool-stat" class="pool-stat hide">
+        <div class="kpis" id="p-pool-kpi"></div>
+        <div id="p-pool-total" class="pool-sum hide"></div>
+      </div>
+
+      <div class="row hide" id="p-mult-row" style="margin-top:12px;align-items:flex-end">
+        <div class="fld" style="max-width:130px"><label>倍投倍数</label>
+          <input id="p-mult" type="number" min="1" max="99" step="1" value="1" onchange="recalc()"></div>
+        <div class="note" style="margin:0;flex:1">自选池为空时，用号码表里的选区直接记账，倍数取这里；号码一旦入池，每注在各自行上设倍数。</div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn pri" onclick="doBet()">✅ 确认投注并记账</button>
+        <button class="btn" onclick="askLLM()">🤖 AI 点评自选池</button>
+      </div>
+      <div id="p-llm" class="note hide"></div>
+      <div class="note">复式说明：在一个区选超过规定个数即为复式，每注会按组合数自动展开注数与金额。<br>每注可单独设<b>倍投倍数</b>，该注金额 = 展开注数 × 单价 × 倍数，池底合计随之更新。<br>每注右侧 × 可单独删除；虚线框的那一行是<b>当前选区预览</b>，点「＋ 加入自选池」才会真正入池。</div>
+    </div>
+  </section>
+
+  <!-- 账本 -->
+  <section id="tab-ledger" class="hide">
+    <div class="card">
+      <h2><span class="bar"></span>盈亏总览</h2>
+      <div class="kpis" id="l-kpi"></div>
+      <div class="row" style="margin-top:14px">
+        <button class="btn pri" onclick="doUpdate()">🔄 更新开奖并自动结算</button>
+        <button class="btn" onclick="loadLedger()">刷新</button>
+      </div>
+      <div class="note">结算口径：按你保存的每注号码对照该期开奖，命中奖级自动回款；浮动奖（一/二等、快乐8 高奖级）取当期官方奖级表金额。</div>
+    </div>
+    <div class="card">
+      <h2><span class="bar"></span>账本明细</h2>
+      <div id="l-table"><div class="loading">加载中…</div></div>
+    </div>
+  </section>
+
+  <!-- 开奖 -->
+  <section id="tab-draws" class="hide">
+    <div class="card">
+      <h2><span class="bar"></span>开奖号码
+        <div class="spacer"></div>
+        <select id="d-lottery" style="width:auto;margin-left:auto" onchange="loadDraws()"></select>
+      </h2>
+      <div id="d-table"><div class="loading">加载中…</div></div>
+      <div class="note">号码按彩种分区展示（红球/蓝球、前区/后区等）；数字型彩种按位分开显示，不做补零。
+        「奖池」是当期开奖后的累计奖池金额。</div>
+    </div>
+  </section>
+
+  <!-- 统计 -->
+  <section id="tab-stats" class="hide">
+    <div class="card">
+      <h2><span class="bar"></span>号码频率与遗漏
+        <select id="s-lottery" style="width:auto;margin-left:auto" onchange="loadStats()"></select>
+      </h2>
+      <div id="s-body"><div class="loading">加载中…</div></div>
+      <div class="note">「遗漏」= 距今多少期未出现。统计学上遗漏长短不改变下一期的出现概率——独立事件没有记忆。</div>
+    </div>
+  </section>
+
+  <!-- 概率表 -->
+  <section id="tab-prob" class="hide">
+    <div class="card">
+      <h2><span class="bar"></span>奖级与概率
+        <select id="r-lottery" style="width:auto;margin-left:auto" onchange="loadProb()"></select>
+      </h2>
+      <div id="r-table"><div class="loading">加载中…</div></div>
+    </div>
+  </section>
+
+  <!-- 设置 -->
+  <section id="tab-set" class="hide">
+    <div class="card">
+      <h2><span class="bar"></span>修改我的密码</h2>
+      <div class="row">
+        <div class="fld"><label>原密码</label><input id="pw-old" type="password" autocomplete="current-password"></div>
+        <div class="fld"><label>新密码（≥6位）</label><input id="pw-new" type="password" autocomplete="new-password"></div>
+        <div class="fld"><label>确认新密码</label><input id="pw-new2" type="password" autocomplete="new-password"></div>
+        <button class="btn pri" onclick="changePw()">修改密码</button>
+      </div>
+      <div id="pw-status" class="pill" style="margin-top:10px"></div>
+    </div>
+    <div class="card">
+      <h2><span class="bar"></span>大模型配置（管理员）</h2>
+      <div class="row">
+        <div class="fld" style="max-width:150px"><label>启用</label><select id="m-enabled"><option value="0">关闭</option><option value="1">开启</option></select></div>
+        <div class="fld"><label>预设</label><select id="m-preset" onchange="applyPreset()"></select></div>
+        <div class="fld"><label>模型名</label><input id="m-model"></div>
+      </div>
+      <div class="fld" style="margin-top:10px"><label>接口地址 (Base URL)</label><input id="m-url"></div>
+      <div class="fld" style="margin-top:10px"><label>API Key <span style="color:var(--text3)">（留空则不修改）</span></label><input id="m-key" type="password" placeholder="sk-..."></div>
+      <div class="row" style="margin-top:14px">
+        <button class="btn pri" onclick="saveLLM()">保存配置</button>
+        <span id="m-status" class="pill"></span>
+      </div>
+    </div>
+    <div class="card">
+      <h2><span class="bar"></span>用户管理（管理员）</h2>
+      <div class="row">
+        <div class="fld"><label>用户名</label><input id="u-name"></div>
+        <div class="fld"><label>密码（≥6位）</label><input id="u-pass" type="password"></div>
+        <div class="fld" style="max-width:120px"><label>角色</label><select id="u-role"><option value="user">普通</option><option value="admin">管理员</option></select></div>
+        <button class="btn pri" onclick="addUser()">新增用户</button>
+      </div>
+      <div id="u-list" style="margin-top:14px"></div>
+    </div>
+    <div class="card">
+      <h2><span class="bar"></span>数据状态</h2>
+      <div id="db-info" class="note"></div>
+    </div>
+  </section>
+</div>
+</div>
+
+<!-- ============ 弹窗（投注明细 / 编辑） ============ -->
+<div id="modal" class="hide" onclick="if(event.target===this)closeModal()">
+  <div class="mbox">
+    <div class="mhd"><b id="m-title"></b><div class="spacer"></div>
+      <button class="btn sm" onclick="closeModal()">关闭</button></div>
+    <div id="m-body"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ============ 基础 ============ */
+let BASE = location.pathname;
+if (!BASE.endsWith('/')) BASE += '/';
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt = n => (n === null || n === undefined) ? '—' : Number(n).toLocaleString('zh-CN');
+const yuan = n => n === null || n === undefined ? '—' : '¥' + Number(n).toFixed(2).replace(/\.00$/, '');
+
+async function api(path, data, method) {
+  const opt = { method: method || (data ? 'POST' : 'GET'), credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' } };
+  if (data) opt.body = JSON.stringify(data);
+  const r = await fetch(BASE + 'api/' + path, opt);
+  let j = null;
+  try { j = await r.json(); } catch (e) { j = { ok: false, error: 'HTTP ' + r.status }; }
+  if (r.status === 401 && j.need_login) { showLogin(); }
+  return j;
+}
+function toast(msg) {
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 3200);
+}
+function showLogin() { $('login').classList.remove('hide'); $('app').classList.add('hide'); }
+function showApp() { $('login').classList.add('hide'); $('app').classList.remove('hide'); }
+
+/* ============ 登录 ============ */
+async function doLogin() {
+  const r = await api('login', { username: $('lg-u').value.trim(), password: $('lg-p').value });
+  if (!r.ok) { const e = $('lg-err'); e.textContent = r.error || '登录失败'; e.classList.remove('hide'); return; }
+  $('lg-err').classList.add('hide');
+  await boot();
+}
+async function doLogout() { await api('logout', {}); location.reload(); }
+
+/* ============ 启动 ============ */
+let GAMES = {}, STRATS = {}, CUR = null, PICKS = {}, TICKETS = [], IS_ADMIN = false;
+/* 每组号码的分区个数（复式约束），默认 = 各分区单注规定个数（红球 6 / 蓝球 1）。
+   三处「每组号码个数」各自独立、互不影响：
+     gen  = 机选 / 按策略出号区
+     fill = 随机补全 · 出注区
+     ai   = AI 出号区 */
+let SIZES = { gen: {}, fill: {}, ai: {} };
+
+async function boot() {
+  const me = await api('me');
+  if (!me.ok || !me.user) { showLogin(); return; }
+  showApp();
+  IS_ADMIN = me.user.role === 'admin';
+  $('who').textContent = me.user.username + (IS_ADMIN ? ' · 管理员' : '');
+  const g = await api('games');
+  GAMES = {}; (g.games || []).forEach(x => GAMES[x.code] = x);
+  STRATS = g.strategies || [];
+  const opts = Object.keys(GAMES).map(c => `<option value="${c}">${esc(GAMES[c].name)}（${GAMES[c].org}）</option>`).join('');
+  $('p-lottery').innerHTML = opts;
+  $('d-lottery').innerHTML = opts;
+  $('s-lottery').innerHTML = opts;
+  $('r-lottery').innerHTML = opts;
+  $('p-strategy').innerHTML = STRATS.map(s => `<option value="${s.key}" title="${esc(s.desc)}">${esc(s.name)}</option>`).join('');
+  onLotteryChange();
+}
+
+function switchTab(t) {
+  document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
+  ['pick','ledger','draws','stats','prob','set'].forEach(k => $('tab-' + k).classList.toggle('hide', k !== t));
+  if (t === 'ledger') loadLedger();
+  if (t === 'draws') loadDraws();
+  if (t === 'stats') loadStats();
+  if (t === 'prob') loadProb();
+  if (t === 'set') loadSettings();
+}
+
+/* ============ 选号 ============ */
+function onLotteryChange() {
+  CUR = $('p-lottery').value;
+  const g = GAMES[CUR];
+  $('p-play').innerHTML = g.plays.map(p => `<option value="${p.key}">${esc(p.name)}</option>`).join('');
+  $('p-note').textContent = (g.note || '') + `　单价 ${yuan(g.price)}/注`;
+  PICKS = {}; TICKETS = [];
+  SIZES = { gen: defGenN(), fill: defGenN(), ai: defGenN() };
+  aiClear();
+  renderGenSizes(); renderZones(); recalc(); renderTickets();
+}
+
+/* 玩法变了：分区的选号规则/个数可能变，重建号码表并清掉上一轮的 AI 结果 */
+function onPlayChange() {
+  PICKS = {}; aiClear();
+  SIZES = { gen: defGenN(), fill: defGenN(), ai: defGenN() };
+  renderGenSizes(); renderZones(); recalc(); renderTickets();
+}
+
+function zoneNeed(z) {
+  const g = GAMES[CUR];
+  if (CUR === 'kl8') return parseInt($('p-play').value) || 10;
+  return z.count;
+}
+
+/* ── 每组号码个数（复式约束）：出注与随机补全都按它出号 ── */
+/* 当前彩种/玩法下，可以设定「出几个」的分区：
+   - 分区型（双色球/大乐透/七乐彩/快乐8）：每个分区一个输入框
+   - 组选3/组选6：一个合成的「组选数字」槽
+   - 按位直选（3D/排列3 直选、排列5、七星彩）：每位固定 1 个数字，不设个数 */
+function sizeZones() {
+  const g = GAMES[CUR], play = $('p-play').value;
+  if (!g) return [];
+  if (g.type === 'digit') {
+    if (play !== 'g3' && play !== 'g6') return [];
+    const need = play === 'g3' ? 2 : 3;
+    return [{ key: 'n', name: '组选数字', count: need, min: need, max: 10 }];
+  }
+  return g.zones.map(z => {
+    const need = zoneNeed(z);
+    return { key: z.key, name: z.name, count: need, min: need, max: z.max - z.min + 1 };
+  });
+}
+
+function defGenN() {
+  const o = {};
+  sizeZones().forEach(z => { o[z.key] = z.count; });
+  return o;
+}
+
+function genN(k, scope) {
+  const z = sizeZones().find(x => x.key === k);
+  if (!z) return 0;
+  const box = SIZES[scope || 'gen'] || {};
+  const v = parseInt(box[k], 10);
+  return isFinite(v) ? Math.max(z.min, Math.min(v, z.max)) : z.count;
+}
+
+/* 三组控件各自独立（gen / fill / ai）——改任一处不影响另外两处。
+   每组的每一区一个输入框，默认 = 该区单注规定个数；大于规定即为复式。 */
+const SIZE_BOXES = [['gen', 'p-sizes'], ['fill', 'pc-sizes'], ['ai', 'ai-sizes']];
+
+function renderGenSizes() {
+  const zs = sizeZones();
+  SIZE_BOXES.forEach(([scope, id]) => {
+    const el = $(id);
+    if (!el) return;
+    el.innerHTML = zs.map(z => {
+      const v = genN(z.key, scope);
+      const tip = z.min > 1
+        ? `每组${z.name}出几个：正好 ${z.min} 个是单注，多于 ${z.min} 个为复式（按组合数展开注数）`
+        : `每组${z.name}出几个：1 个为单注，多于 1 个为复式（按组合数展开注数）`;
+      return `<div class="fld" style="max-width:104px;margin:0"><label>${esc(z.name)}</label>`
+        + `<input type="number" class="genn" data-scope="${scope}" data-k="${z.key}" `
+        + `min="${z.min}" max="${z.max}" step="1" value="${v}" title="${esc(tip)}" `
+        + `onchange="setGenSize(this.dataset.scope, this.dataset.k, this.value)"></div>`;
+    }).join('');
+  });
+  ['p-sizes-row', 'pc-sizes-row', 'ai-sizes-row'].forEach(id => { if ($(id)) $(id).style.display = zs.length ? '' : 'none'; });
+}
+
+function setGenSize(scope, k, v) {
+  const z = sizeZones().find(x => x.key === k);
+  if (!z) return;
+  let n = parseInt(v, 10);
+  if (!isFinite(n)) n = z.count;
+  n = Math.max(z.min, Math.min(n, z.max));
+  if (!SIZES[scope]) SIZES[scope] = {};
+  SIZES[scope][k] = n;
+  document.querySelectorAll('.genn').forEach(el => {
+    if (el.dataset.k === k && el.dataset.scope === scope) el.value = n;
+  });
+  recalc();
+}
+
+/* 组合数 C(n,k) —— 与后端 games.bet_count 同一口径，用于未出号时预估注数 */
+function comb(n, k) {
+  if (k < 0 || n < k) return 0;
+  let r = 1;
+  for (let i = 0; i < k; i++) r = r * (n - i) / (i + 1);
+  return Math.round(r);
+}
+/* 一组号码展开成多少注（复式）；scope 决定看哪一处的「每组号码个数」 */
+function groupCount(scope) {
+  const zs = sizeZones();
+  if (!zs.length) return 1;
+  let t = 1;
+  for (const z of zs) t *= comb(genN(z.key, scope), z.min);
+  return t;
+}
+
+function renderZones() {
+  const g = GAMES[CUR];
+  const play = $('p-play').value;
+  let html = '';
+  if (g.type === 'digit' && (play === 'g3' || play === 'g6')) {
+    const need = play === 'g3' ? 2 : 3;
+    html += `<div class="zone"><div class="zt"><span>选 ${need} 个数字（顺序不限）</span><span>已选 <b id="cnt-n">0</b>/${need}</span></div><div class="balls">`;
+    for (let n = 0; n <= 9; n++) html += `<button class="ball" data-z="n" data-n="${n}" onclick="toggleBall(this)">${n}</button>`;
+    html += '</div></div>';
+    $('p-zones').innerHTML = html;
+    PICKS = {}; return;
+  }
+  for (const z of g.zones) {
+    const need = zoneNeed(z);
+    const isBlue = (z.key === 'b' && CUR !== 'kl8') || z.key === 'g';
+    html += `<div class="zone"><div class="zt"><span>${esc(z.name)}（选 ${need} 个，可多选做复式）</span>`
+         + `<span>范围 ${z.min}~${z.max}</span></div><div class="balls">`;
+    for (let n = z.min; n <= z.max; n++)
+      html += `<button class="ball${isBlue?' blue':''}" data-z="${z.key}" data-n="${n}" onclick="toggleBall(this)">${String(n).padStart(2,'0')}</button>`;
+    html += '</div></div>';
+  }
+  $('p-zones').innerHTML = html;
+  PICKS = {};
+}
+
+function toggleBall(el) {
+  const z = el.dataset.z, n = parseInt(el.dataset.n);
+  PICKS[z] = PICKS[z] || [];
+  const i = PICKS[z].indexOf(n);
+  if (i >= 0) { PICKS[z].splice(i, 1); el.classList.remove('on'); }
+  else { PICKS[z].push(n); el.classList.add('on'); }
+  PICKS[z].sort((a, b) => a - b);
+  recalc(); renderTickets();
+}
+/* 只清「选区」（正在点选的那一注），不动自选池 */
+function clearZone() {
+  PICKS = {};
+  document.querySelectorAll('.ball.on').forEach(b => b.classList.remove('on'));
+  recalc(); renderTickets();
+}
+/* 只清「自选池」（已加入的待记账号码） */
+function clearPool() {
+  if (!TICKETS.length) return toast('自选池已经是空的');
+  const n = TICKETS.length;
+  TICKETS = []; renderTickets(); toast('已清空自选池（' + n + ' 注）');
+}
+function delTicket(i) {
+  TICKETS.splice(i, 1);
+  renderTickets();
+  toast(TICKETS.length ? ('已删除第 ' + (i + 1) + ' 注，剩 ' + TICKETS.length + ' 注') : '自选池已空');
+}
+/* 改某一注的投注倍数（收敛到 1~99），该注金额与池底合计随之重算 */
+function setMult(i, v) {
+  if (!TICKETS[i]) return;
+  const m = Math.max(1, Math.min(parseInt(v, 10) || 1, 99));
+  TICKETS[i].mult = m;
+  const el = $('pm-' + i);
+  if (el && String(el.value) !== String(m)) el.value = m;   // 输入非法时回填正确值
+  poolCalc();
+}
+/* 剥离前端内部字段（mult），只把号码交给服务端 */
+function numOnly(t) {
+  const o = {};
+  for (const k in t) if (k !== 'mult') o[k] = t[k];
+  return o;
+}
+/* 自选池里的倍投：作用于「选区直接记账」 */
+function ovMult() {
+  const el = $('p-mult');
+  return Math.max(1, Math.min(parseInt(el && el.value, 10) || 1, 99));
+}
+/* 选区是否够一注；返回错误文案或 null */
+function pickErr() {
+  const g = GAMES[CUR], play = $('p-play').value;
+  if (!Object.values(PICKS).some(a => a && a.length)) return '请先在号码表里点选号码';
+  if (g.type === 'digit' && (play === 'g3' || play === 'g6')) {
+    const need = play === 'g3' ? 2 : 3;
+    const n = ((PICKS.a || PICKS.n) || []).length;
+    return n < need ? ('组选需要选满 ' + need + ' 个数字（当前 ' + n + ' 个）') : null;
+  }
+  for (const z of g.zones) {
+    let need = z.count;
+    if (CUR === 'kl8') need = parseInt(play) || z.count;
+    const n = (PICKS[z.key] || []).length;
+    if (n < need) return z.name + ' 至少选 ' + need + ' 个（当前 ' + n + ' 个）';
+  }
+  return null;
+}
+/* 把当前选区作为一注加入自选池，然后清空选区，等待选下一注 */
+function addToPool() {
+  const e = pickErr();
+  if (e) return toast(e);
+  const one = {};
+  for (const k in PICKS) if (PICKS[k] && PICKS[k].length) one[k] = PICKS[k].slice();
+  TICKETS.push(one);
+  const n = TICKETS.length;
+  clearZone();
+  toast('已加入自选池（第 ' + n + ' 注），选区已清空');
+}
+
+/* 「保留号」提示：显示当前选区在随机补全后，各分区还差几个号没选满 */
+function keepTip() {
+  const g = GAMES[CUR], play = $('p-play').value;
+  const sizeTxt = sizeZones().map(z => `${z.name} ${genN(z.key, 'fill')}`).join(' · ');
+  if (!Object.values(PICKS).some(a => a && a.length))
+    return `在号码表里点选几个号作为<b>保留号</b> → 这里把空位<b>随机补全</b>成整注加入自选池；一个号都不选就是整注随机。可一次出多注。<br>按本区「每组号码个数」（${sizeTxt}）出号。`;
+  const pad = v => v.map(n => String(n).padStart(2, '0')).join(' ');
+  if (g.type === 'digit' && (play === 'g3' || play === 'g6')) {
+    const need = genN('n', 'fill') || (play === 'g3' ? 2 : 3);
+    const v = (PICKS.n || []);
+    return `保留号：<b>${v.join(' ') || '—'}</b>　还需随机补 <b>${Math.max(0, need - v.length)}</b> 个数字（0~9 不重复）。`;
+  }
+  const parts = [];
+  for (const z of g.zones) {
+    const need = genN(z.key, 'fill'), v = (PICKS[z.key] || []);
+    if (!v.length) { parts.push(`${z.name} 待补 <b>${need}</b> 个`); continue; }
+    parts.push(`${z.name} 保留 <b>${pad(v)}</b>，待补 <b>${Math.max(0, need - v.length)}</b> 个`);
+  }
+  return parts.join('　·　');
+}
+
+/* 以当前选区为「保留号」，把每区不足规定个数的空位随机补齐，返回一整组号码 */
+function randPick() {
+  const g = GAMES[CUR], play = $('p-play').value, one = {};
+  const draw = (keep, need, lo, hi) => {
+    const pool = [];
+    for (let i = lo; i <= hi; i++) if (keep.indexOf(i) < 0) pool.push(i);
+    const out = keep.slice();
+    while (out.length < need && pool.length)
+      out.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+    out.sort((a, b) => a - b);
+    return out;
+  };
+  if (g.type === 'digit' && (play === 'g3' || play === 'g6'))
+    return { n: draw((PICKS.n || []).slice(), genN('n', 'fill') || (play === 'g3' ? 2 : 3), 0, 9) };
+  for (const z of g.zones) {
+    const out = draw((PICKS[z.key] || []).slice(), genN(z.key, 'fill') || zoneNeed(z), z.min, z.max);
+    if (out.length) one[z.key] = out;
+  }
+  return one;
+}
+
+/* 随机补全 n 注并入池（保留号不动，方便连着出几批） */
+function fillAndAdd() {
+  const g = GAMES[CUR]; if (!g) return;
+  const n = Math.max(1, Math.min(parseInt($('pc-sets').value, 10) || 1, 200));
+  for (let i = 0; i < n; i++) TICKETS.push(randPick());
+  renderTickets();
+  const hasKeep = Object.values(PICKS).some(a => a && a.length);
+  const per = groupCount('fill');
+  toast(`已随机补全 ${n} 组号码并加入自选池`
+    + (per > 1 ? `（每组 ${per} 注，共 ${fmt(n * per)} 注）` : '')
+    + (hasKeep ? '（保留号继续生效）' : '') + '，到「自选池」确认投注');
+}
+
+/* 同一类竞态也存在于「重算」与「出号」：连点两次时先发的响应可能后到、
+   把新状态覆盖成旧状态，所以各自也用请求序号保护，永远以最后一次操作为准。
+
+   ADV_SEQ 是「重算」与「出号」**共用**的序号：两者都会写选号区那段说明文字（#p-advice），
+   各用各的序号挡不住跨来源的覆盖 —— 例如改「每组号码个数」触发的重算请求还在飞，
+   用户已经点了「出号」，重算的响应晚到就会把「已生成 N 组…」顶掉。
+   谁的操作更晚谁写，用同一个计数器即可。 */
+let REC_SEQ = 0, GEN_SEQ = 0, ADV_SEQ = 0;
+
+async function recalc() {
+  const g = GAMES[CUR]; if (!g) return;
+  if ($('pc-keep')) $('pc-keep').innerHTML = keepTip();
+  const seq = ++REC_SEQ, advSeq = ++ADV_SEQ;
+  const play = $('p-play').value;
+  const hasPicks = Object.values(PICKS).some(a => a && a.length);
+  const groups = parseInt($('p-sets').value || 1) || 1;
+  const per = groupCount('gen');                       // 一组号码展开成几注（复式，按出号区的个数）
+  const r = await api('probability', { lottery: CUR, play, picks: hasPicks ? PICKS : null });
+  if (seq !== REC_SEQ) return;                         // 期间又点/改过了，丢弃这次结果
+  /* 选号区只回答「我选了什么」；注数 / 金额 / 概率一律由下方自选池统计（poolCalc）统一呈现，
+     避免同一个数字在页面上出现两个来源。 */
+  if (advSeq === ADV_SEQ && $('p-advice')) $('p-advice').innerHTML = hasPicks
+    ? `已选：${Object.entries(PICKS).filter(([k,v])=>v.length).map(([k,v])=>k.toUpperCase()+' '+v.map(n=>String(n).padStart(2,'0')).join(' ')).join('　|　')}<br>`
+      + `复式展开为 <b>${fmt(r.bet_count)}</b> 注。点「＋ 加入自选池」存进下方池子；也可直接点「✅ 确认投注并记账」按这一注记账。`
+    : `未选号时按「注数 × 每组注数」机选${per > 1 ? ` —— 当前每组 <b>${per}</b> 注，${groups} 注 × ${per} = <b>${fmt(groups * per)}</b> 注` : ''}；点号码即进入复式模式（注数自动按组合展开）。`;
+  poolCalc();                                          // 池底统计跟着选区变（池空时统计的就是这一注选区）
+}
+function level(p) { return p < 0.001 ? 4 : p < 0.01 ? 3 : 2; }
+function fmtOdds(p) {
+  if (!(p > 0) || !isFinite(p)) return '—';              // 0 注 / 无该奖级时不显示 1/∞
+  return (p >= 1e-4) ? (p * 100).toFixed(4) + '%' : '1/' + Math.round(1 / p).toLocaleString();
+}
+function topRow(rep) {
+  if (!rep) return null;
+  const rows = (rep.rows || []).filter(x => x.prob > 0);
+  if (!rows.length) return null;
+  return rows.reduce((a, b) => a.level <= b.level ? a : b);
+}
+function topTxt(rep) { const r = topRow(rep); return r ? fmtOdds(r.prob) : '—'; }
+
+/* ── 多注口径的合计概率 ─────────────────────────────────────────────
+   最高奖级：能中它的只有「唯一一个」开奖组合，n 注互不相同的号码就是覆盖了 n 个组合，
+             命中概率精确等于 n × 单注（倍投不增加覆盖，所以倍数不参与本式）。
+   任一奖级：能中奖的组合有很多、彼此重叠，n 注之间会出现「同时中」，不能简单相加，
+             要用 1-(1-p)^n（数值上用 expm1/log1p 避免小概率下的精度丢失）。 */
+function combTop(p, n) { return Math.min(1, (p || 0) * Math.max(0, Math.floor(n) || 0)); }
+function combAny(p, n) {
+  n = Math.max(0, Math.floor(n) || 0);
+  if (!p || !n) return 0;
+  return Math.max(0, Math.min(1, -Math.expm1(n * Math.log1p(-p))));
+}
+/* 一组号码的签名（键名排序 + 号码排序）：识别自选池里「完全重复」的组 */
+function tkSig(t) {
+  const o = numOnly(t);
+  return Object.keys(o).sort()
+    .map(k => k + ':' + (o[k] || []).slice().sort((a, b) => a - b).join(','))
+    .join('|');
+}
+
+async function doGenerate() {
+  const sizes = {};
+  sizeZones().forEach(z => { sizes[z.key] = genN(z.key, 'gen'); });
+  const seq = ++GEN_SEQ, advSeq = ++ADV_SEQ;
+  const r = await api('generate', { lottery: CUR, play: $('p-play').value,
+    strategy: $('p-strategy').value, sets: parseInt($('p-sets').value || 5), sizes });
+  if (seq !== GEN_SEQ) return;                 // 期间又点了一次出号，以最后一次为准
+  if (!r.ok) return toast(r.error || '出号失败');
+  TICKETS = r.tickets; PICKS = {};
+  document.querySelectorAll('.ball.on').forEach(b => b.classList.remove('on'));
+  renderTickets();
+  if ($('pc-keep')) $('pc-keep').innerHTML = keepTip();
+  const per = groupCount('gen');
+  const a = r.advice || {};
+  /* 出号结果已直接放进自选池，注数/金额/概率由池底统计呈现，这里只说明「生成了什么」+ 期望回报 */
+  if (advSeq === ADV_SEQ && $('p-advice')) $('p-advice').innerHTML = `已生成 <b>${fmt(r.groups || r.tickets.length)}</b> 组号码`
+    + (per > 1 ? `（每组 ${zonesBrief('gen')} = ${per} 注复式）` : '')
+    + `，展开 <b>${fmt(r.bet_count)}</b> 注，金额 <b>${yuan(r.cost)}</b>，已放入下方自选池。`
+    + (a.tips || []).map(t => '<br>· ' + esc(t)).join('')
+    + `<br><span class="dim">期望回报 ${yuan(r.ev)} · 长期回报率 ${(r.roi_est * 100).toFixed(1)}%（倍投只放大中奖金额，不改变中奖概率）</span>`;
+  toast('已生成 ' + fmt(r.groups || r.tickets.length) + ' 组号码，共 ' + fmt(r.bet_count) + ' 注');
+}
+
+/* 复式摘要，如「红球 8 / 蓝球 2」；scope 决定看哪一处的「每组号码个数」 */
+function zonesBrief(scope) {
+  return sizeZones().map(z => `${z.name} ${genN(z.key, scope)}`).join(' / ');
+}
+
+/* 一注号码的球形渲染（选区预览 / 自选池 / 账本明细 共用） */
+function ballHtml(t, g) {
+  if (!t || !g) return '';
+  if (g.type === 'digit' && t.n) return t.n.map(n => `<span class="nb">${n}</span>`).join('');
+  let s = '';
+  for (const z of (g.zones || [])) {
+    const v = t[z.key]; if (!v || !v.length) continue;
+    const cls = (z.key === 'b' || z.key === 'g') ? ' bl' : '';
+    s += (v.map ? v : [v]).map(n => `<span class="nb${cls}">${String(n).padStart(2,'0')}</span>`).join('');
+  }
+  return s;
+}
+
+function renderTickets() {
+  const g = GAMES[CUR];
+  if (TICKETS.length) {
+    $('p-tickets').innerHTML = TICKETS.map((t, i) => {
+      const m = Math.max(1, parseInt(t.mult, 10) || 1);
+      return `<div class="tk" data-pool="1"><span class="idx">${i+1}</span>${ballHtml(t, g)}`
+        + `<span class="spacer"></span>`
+        + `<span class="mult"><label for="pm-${i}">倍投</label>`
+        + `<input id="pm-${i}" type="number" min="1" max="99" step="1" value="${m}"`
+        + ` onchange="setMult(${i}, this.value)" title="这一注的投注倍数（1~99）"></span>`
+        + `<span class="amt" id="pk-${i}">…</span>`
+        + `<button class="del" onclick="delTicket(${i})" title="删除这一注">×</button></div>`;
+    }).join('');
+    poolCalc();
+    return;
+  }
+  if ($('p-llm')) $('p-llm').classList.add('hide');   // 池子空了就收起上一轮点评
+  const has = Object.values(PICKS).some(a => a && a.length);
+  if (!has) { $('p-tickets').innerHTML = '<div class="loading">自选池是空的 —— 选好号后点「＋ 加入自选池」，或点「机选 / 按策略出号」</div>'; poolCalc(); return; }
+  const g2 = GAMES[CUR];
+  let s = '';
+  for (const z of g2.zones) {
+    const v = PICKS[z.key]; if (!v || !v.length) continue;
+    const cls = (z.key === 'b' || z.key === 'g') ? ' bl' : '';
+    s += `<span class="idx">${z.name}</span>` + v.map(n => `<span class="nb${cls}">${String(n).padStart(2,'0')}</span>`).join('');
+  }
+  if (PICKS.n) s = PICKS.n.map(n => `<span class="nb">${n}</span>`).join('');
+  $('p-tickets').innerHTML = `<div class="tk prev"><span class="tag hi">选区预览 · 未加入</span>${s}</div>`;
+  poolCalc();                       // 池空时，池底统计的就是这一注「选区预览」
+}
+
+/* 自选池统计（本次注数 / 投注金额 / 任一奖级概率 / 最高奖级概率）
+   数据源就是「自选池里真正要投出去的号」：
+     · 池里有号 → 统计池内全部组，注数由服务端按复式展开，与记账口径一致；
+     · 池空但有选区 → 退化为统计那一注「选区预览」，与「确认投注」在池空时直接用选区记账的行为一致。
+   概率口径见 combTop/combAny：按「号码覆盖」算（完全重复的组只算一次），倍投不参与。
+   注意：池子的变化很快（增删/改倍数/改出号个数），必须用请求序号防「旧响应晚到覆盖新状态」——
+   否则会出现「3 组号码 · 共 140 注」（组数是新的、注数是上一批的）这种串台。 */
+let POOL_SEQ = 0;
+async function poolCalc() {
+  const g = GAMES[CUR]; if (!g) return;
+  const st = $('p-pool-stat'), kpi = $('p-pool-kpi'), el = $('p-pool-total'), mrow = $('p-mult-row');
+  if (!st || !kpi) return;
+  const seq = ++POOL_SEQ;
+  const play = $('p-play').value;
+  const hasPool = TICKETS.length > 0;
+  const hasPicks = Object.values(PICKS).some(a => a && a.length);
+  if (!hasPool && !hasPicks) {                    // 池空、选区也空 → 整块收起
+    st.classList.add('hide');
+    if (mrow) mrow.classList.add('hide');
+    return;
+  }
+  st.classList.add('hide');                       // 算完再亮，避免闪现上一批的数字
+  const tks = TICKETS.map(t => numOnly(t));
+  const mults = TICKETS.map(t => Math.max(1, parseInt(t.mult, 10) || 1));
+  const [r, pr] = await Promise.all([
+    hasPool ? api('pool/calc', { lottery: CUR, play, tickets: tks, mults })
+            : Promise.resolve({ ok: true, per: [], mults: [], per_amount: [],
+                                total_sets: 0, total_amount: 0 }),
+    api('probability', { lottery: CUR, play, picks: hasPool ? null : PICKS }),
+  ]);
+  if (seq !== POOL_SEQ) return;                   // 期间又有新请求了，丢弃这次结果
+  if (!r.ok) return;
+
+  const rep = (pr && pr.ok) ? pr.report : null;
+  let per, multsL, totalSets, totalAmount, label;
+  if (hasPool) {
+    per = r.per || []; multsL = r.mults || mults;
+    totalSets = r.total_sets || 0; totalAmount = r.total_amount || 0;
+    label = `${fmt(tks.length)} 组号码`;
+    per.forEach((n, i) => {                       // 逐行回填「N 注 · ¥X」
+      const m = multsL[i] || 1;
+      const amt = (r.per_amount || [])[i];
+      const el2 = $('pk-' + i);
+      if (el2) el2.textContent = (m > 1 ? n + ' 注 ×' + m + ' 倍 · ' + yuan(amt) : n + ' 注 · ' + yuan(amt));
+    });
+  } else {
+    const n = (pr && pr.bet_count) || 0;          // 选区预览：这一组号码展开成 n 注
+    per = [n]; multsL = [ovMult()];
+    totalSets = n * multsL[0]; totalAmount = totalSets * g.price;
+    label = '选区预览 · 未入池';
+  }
+
+  /* 池内「完全重复的组」不增加号码覆盖：概率按去重后的有效注数算，金额照收（等同倍投）。
+     覆盖数用每组展开注数（不含倍数）累加 —— 倍投不改变覆盖。 */
+  const seen = new Set(); let effSets = 0, dupGroups = 0;
+  (hasPool ? tks : [numOnly(PICKS)]).forEach((t, i) => {
+    const sig = tkSig(t);
+    if (seen.has(sig)) { dupGroups++; return; }
+    seen.add(sig); effSets += per[i] || 0;
+  });
+
+  const single = rep ? rep.total_win : 0;
+  const trow = topRow(rep), topSingle = trow ? trow.prob : 0;
+  const pAny = combAny(single, effSets), pTop = combTop(topSingle, effSets);
+  const multOn = multsL.some(m => m > 1);
+  const cover = `号码覆盖 ${fmt(effSets)} 注`;
+  kpi.innerHTML = `
+    <div class="kpi"><div class="l">本次注数${multOn ? '（含倍投）' : ''}</div>
+      <div class="v">${fmt(totalSets)}</div>
+      <div class="sub">${label} · ${cover}</div></div>
+    <div class="kpi"><div class="l">投注金额</div>
+      <div class="v">${yuan(totalAmount)}</div>
+      <div class="sub">单价 ${yuan(g.price)}/注${multOn ? ' · 已含倍投' : ''}</div></div>
+    <div class="kpi"><div class="l">任一奖级概率</div>
+      <div class="v">${(pAny*100).toFixed(level(pAny))}%</div>
+      <div class="sub">单注 ${(single*100).toFixed(level(single))}% × ${fmt(effSets)} 注</div></div>
+    <div class="kpi"><div class="l">最高奖级概率</div>
+      <div class="v">${fmtOdds(pTop)}</div>
+      <div class="sub">单注 ${fmtOdds(topSingle)} × ${fmt(effSets)} 注</div></div>`;
+
+  el.classList.add('hide');
+  if (dupGroups) {
+    el.innerHTML = `⚠ 有 <b>${dupGroups}</b> 组与前面完全重复：重复的号不增加中奖概率，但金额照收（等同倍投）`;
+    el.classList.remove('hide');
+  }
+  if (mrow) mrow.classList.toggle('hide', hasPool);  // 池里有号时，倍投在每一注自己的行上设
+  st.classList.remove('hide');
+}
+
+
+async function doBet() {
+  const play = $('p-play').value;
+  if (TICKETS.length) {
+    // 保存全部：逐注写入，每注带自己的投注倍数
+    let total = 0, amt = 0;
+    for (const t of TICKETS) {
+      const m = Math.max(1, Math.min(parseInt(t.mult, 10) || 1, 99));
+      const r = await api('bet', { lottery: CUR, play, numbers: numOnly(t), mult: m,
+        advice: $('p-strategy').value });
+      if (r.ok) { total += r.sets; amt += r.amount; }
+    }
+    toast(`已记账 ${total} 注，共 ${yuan(amt)}`);
+  } else if (Object.values(PICKS).some(a => a && a.length)) {
+    const r = await api('bet', { lottery: CUR, play, numbers: PICKS, mult: ovMult(),
+      advice: $('p-strategy').value });
+    if (!r.ok) return toast(r.error || '记账失败');
+    toast(`已记账 ${r.sets} 注，共 ${yuan(r.amount)}`);
+  } else return toast('请先在号码表里点选号码，或点「机选 / 按策略出号」');
+  TICKETS = []; clearZone(); loadLedger();
+}
+
+/* 把大模型返回的错误翻成人话，并指明去哪儿改 */
+function llmHint(err) {
+  const s = String(err || '');
+  if (s.indexOf('未启用') >= 0) return '大模型未启用 —— 去「设置 → 大模型配置」把「启用」切到「开启」并保存';
+  if (s.indexOf('未配置 API Key') >= 0) return '未配置 API Key —— 去「设置 → 大模型配置」填入 Key 并保存';
+  if (s.indexOf('HTTP 401') >= 0 || s.indexOf('HTTP 403') >= 0) return 'Key 无效或无权限（' + s.slice(0, 24) + '…）';
+  if (s.indexOf('HTTP 402') >= 0) return '账户余额不足（' + s.slice(0, 24) + '…）';
+  return s || '未知原因';
+}
+
+/* AI 点评「自选池」：把池内实际号码与倍数发给大模型，做客观点评（成本/期望/风险） */
+async function askLLM() {
+  const el = $('p-llm');
+  if (!TICKETS.length) {
+    el.classList.remove('hide');
+    el.innerHTML = '自选池是空的 —— 先选号入池（「＋ 加入自选池」「机选 / 按策略出号」「🎲 随机补全并加入自选池」），AI 才能针对池内投注点评。';
+    return;
+  }
+  el.classList.remove('hide'); el.textContent = '正在请求大模型…';
+  const r = await api('advice', { lottery: CUR, play: $('p-play').value,
+    strategy: $('p-strategy').value,
+    tickets: TICKETS.map(t => numOnly(t)),
+    mults: TICKETS.map(t => Math.max(1, parseInt(t.mult, 10) || 1)),
+    use_llm: true });
+  if (!r.ok) { el.textContent = r.error || '失败'; return; }
+  const a = r.advice || {};
+  const sets = a['自选池注数_展开后'] != null ? a['自选池注数_展开后'] : (a['自选池注数'] || 0);
+  const head = `本池 <b>${TICKETS.length}</b> 组号码 · 共 <b>${fmt(sets)}</b> 注`
+    + ` · 成本 <b>${yuan(a.cost)}</b> · 长期回报率 <b class="${a.roi_est < 0 ? 'neg' : ''}">`
+    + `${((a.roi_est || 0) * 100).toFixed(1)}%</b>`;
+  el.innerHTML = `<div style="margin-bottom:8px">${head}</div>`
+    + (r.llm ? esc(r.llm).replace(/\n/g, '<br>')
+             : '<b>未接入大模型</b>（' + esc(llmHint(r.llm_error)) + '）')
+    + '<br><br>' + (a.tips || []).map(t => '· ' + esc(t)).join('<br>');
+}
+
+/* ============ AI 按提示词出号 ============ */
+let AI_TICKETS = [], AI_PER = [], AI_PRICE = 2;
+
+function aiFillPrompt() {
+  const g = GAMES[CUR];
+  const n = parseInt($('ai-sets').value || 5);
+  $('ai-prompt').value = `给我出 ${n} 注${g.name}：避开连号和同尾号，主区号码尽量分散在低、中、高三个区间，蓝/后区用近期偏冷的号。`
+    + '每组号码个数请按格式要求给，只按格式返回号码。';
+}
+
+function aiClear() {
+  AI_TICKETS = []; AI_PER = [];
+  $('ai-rows').innerHTML = '';
+  $('p-llm2').classList.add('hide');
+}
+
+/* 一键清空 AI 出的号码（保留提示词，方便直接重新出号） */
+function aiReset() {
+  const n = AI_TICKETS.length;
+  AI_TICKETS = []; AI_PER = [];
+  $('ai-rows').innerHTML = '';
+  const el = $('p-llm2');
+  el.innerHTML = n ? `已清空 AI 出的 <b>${fmt(n)}</b> 注号码。可点「🤖 让 AI 出号」重新生成。`
+                   : 'AI 出的号码已清空。';
+  el.classList.remove('hide');
+  toast('已清空 AI 出的号码');
+}
+
+/* 删除 AI 结果里的某一注 */
+function aiDelOne(i) {
+  if (i < 0 || i >= AI_TICKETS.length) return;
+  AI_TICKETS.splice(i, 1); AI_PER.splice(i, 1);
+  if (!AI_TICKETS.length) {
+    $('ai-rows').innerHTML = '';
+    const el = $('p-llm2');
+    el.innerHTML = 'AI 出的号码已全部移除。可点「🤖 让 AI 出号」重新生成。';
+    el.classList.remove('hide');
+    return;
+  }
+  aiRender();
+  toast('已移除第 ' + (i + 1) + ' 注，还剩 ' + AI_TICKETS.length + ' 注');
+}
+
+/* 渲染 AI 结果区：合计随增删实时重算 */
+function aiRender() {
+  const g = GAMES[CUR];
+  const tot = AI_PER.reduce((a, b) => a + b, 0);
+  $('ai-rows').innerHTML =
+      `<div class="pool-total"><span>共 <b>${fmt(AI_TICKETS.length)}</b> 组 · 展开 <b>${fmt(tot)}</b> 注 · 金额 <b>${yuan(tot * AI_PRICE)}</b></span>
+        <div class="spacer"></div>
+        <button class="btn sm" onclick="aiPick()">↻ 重新出号</button>
+        <button class="btn sm pri" onclick="aiAddAll()">全部加入投注池</button>
+        <button class="btn sm danger" onclick="aiReset()">清空</button></div>`
+    + AI_TICKETS.map((t, i) =>
+      `<div class="airec"><span class="idx">${i + 1}</span>${ballHtml(t, g)}<span class="spacer"></span>`
+      + `<span class="amt">${AI_PER[i]} 注 · ${yuan(AI_PER[i] * AI_PRICE)}</span>`
+      + `<button class="btn sm" onclick="aiAddOne(${i})">＋ 加入投注池</button>`
+      + `<button class="del" onclick="aiDelOne(${i})" title="删除这一注">×</button></div>`).join('');
+}
+
+async function aiPick() {
+  const p = $('ai-prompt').value.trim();
+  if (!p) return toast('请先填写提示词，告诉 AI 你的选号要求');
+  const el = $('p-llm2');
+  el.classList.remove('hide'); el.textContent = '正在请求大模型出号（若注数不够会自动补一轮，最多约半分钟）…';
+  $('ai-rows').innerHTML = '';
+  const sizes = {};
+  sizeZones().forEach(z => { sizes[z.key] = genN(z.key, 'ai'); });
+  const r = await api('ai/pick', { lottery: CUR, play: $('p-play').value,
+    prompt: p, sets: parseInt($('ai-sets').value || 5), sizes });
+  if (!r.ok) { el.textContent = r.error || '出号失败'; return; }
+  if (r.llm_error) { el.innerHTML = '<b>未接入大模型</b>（' + esc(llmHint(r.llm_error)) + '）'; return; }
+  AI_TICKETS = r.tickets || []; AI_PER = r.per || []; AI_PRICE = r.price || 2;
+  const got = AI_TICKETS.length, want = r.sets_wanted || got;
+  const brief = zonesBrief('ai');
+  let html = (r.note ? esc(r.note) + '<br>' : '')
+    + `AI 给出 <b>${fmt(got)}</b> 组` + (brief ? `（每组 ${esc(brief)}）` : '')
+    + (got === want ? '' : `（你要求的是 <b>${fmt(want)}</b> 组）`) + '。';
+  if (got < want) {
+    html += `<div class="warnbox">⚠️ 还差 <b>${fmt(want - got)}</b> 组没能生成`
+      + (r.bad ? `：有 <b>${fmt(r.bad)}</b> 组号码不合规被丢弃` : '')
+      + (r.dup ? `，有 <b>${fmt(r.dup)}</b> 组与已给出的号码重复` : '') + '。'
+      + (r.bad_reason && r.bad_reason.length ? `<br><span class="dim">原因：${r.bad_reason.map(esc).join('；')}</span>` : '')
+      + `<br>可以点下方「↻ 重新出号」再试一次，或把「让 AI 出几注」调小`
+      + (brief ? `；若要复式，请核对上方「每组号码个数」（当前 ${esc(brief)}）` : '') + '。</div>';
+  } else if (r.bad || r.dup) {
+    html += `<div class="warnbox soft">已自动补足到 <b>${fmt(got)}</b> 组`
+      + (r.bad ? `（丢弃了 ${fmt(r.bad)} 组不合规号码` : '（')
+      + (r.dup ? `、去掉了 ${fmt(r.dup)} 组重复号码）` : '）') + '。</div>';
+  }
+  el.innerHTML = html;
+  if (!AI_TICKETS.length) return;
+  aiRender();
+}
+
+function aiAddOne(i) {
+  if (!AI_TICKETS[i]) return;
+  TICKETS.push(JSON.parse(JSON.stringify(AI_TICKETS[i])));
+  renderTickets();
+  toast('已加入投注池（第 ' + TICKETS.length + ' 注）');
+}
+function aiAddAll() {
+  if (!AI_TICKETS.length) return;
+  const n = AI_TICKETS.length;
+  AI_TICKETS.forEach(t => TICKETS.push(JSON.parse(JSON.stringify(t))));
+  renderTickets();
+  toast('已把 AI 的 ' + n + ' 注全部加入投注池');
+}
+
+
+/* ============ 账本 ============ */
+async function loadLedger() {
+  const r = await api('ledger');
+  if (!r.ok) return;
+  const s = r.summary || {};
+  const net = s.net || 0;
+  $('l-kpi').innerHTML = `
+    <div class="kpi"><div class="l">期数</div><div class="v">${fmt(s.rounds)}</div></div>
+    <div class="kpi"><div class="l">总注数</div><div class="v">${fmt(s.sets)}</div></div>
+    <div class="kpi"><div class="l">总投入</div><div class="v">${yuan(s.cost)}</div></div>
+    <div class="kpi"><div class="l">总回款</div><div class="v">${yuan(s.ret)}</div></div>
+    <div class="kpi"><div class="l">净盈亏</div><div class="v ${net>0?'pos':net<0?'neg':''}">${yuan(net)}</div></div>
+    <div class="kpi"><div class="l">回报率</div><div class="v ${net>0?'pos':'neg'}">${((s.roi||0)*100).toFixed(1)}%</div></div>`;
+  const rows = r.rows || [];
+  if (!rows.length) { $('l-table').innerHTML = '<div class="loading">暂无记账记录</div>'; return; }
+  $('l-table').innerHTML = `<table><thead><tr><th>彩种</th><th>期号</th><th>注数</th><th>投入</th><th>回款</th><th>盈亏</th><th>状态</th><th>操作</th></tr></thead><tbody>`
+    + rows.map(x => {
+      const net2 = (x.return_amount || 0) - (x.cost || 0);
+      const g = GAMES[x.lottery] || { name: x.lottery };
+      return `<tr><td>${esc(g.name)}</td><td class="mono">${esc(x.issue)}</td><td>${fmt(x.sets)}</td>
+        <td>${yuan(x.cost)}</td><td>${yuan(x.return_amount)}</td>
+        <td class="${net2>0?'pos':net2<0?'neg':''}">${yuan(net2)}</td>
+        <td>${x.settled ? '<span class="pill ok">已结算</span>' : '<span class="pill warn">待开奖</span>'}</td>
+        <td><button class="btn sm" onclick="openRound('${x.lottery}','${esc(x.issue)}')">明细 / 修改</button>
+        <button class="btn sm danger" onclick="delRound('${x.lottery}','${esc(x.issue)}')">删除</button></td></tr>`;
+    }).join('') + '</tbody></table>'
+    + '<div class="note">点「明细 / 修改」可查看该期每一注，并单独修改号码/期号/备注或删除单注；点「删除」则清掉该期全部投注记录。</div>';
+}
+
+/* ============ 账本：投注明细 / 修改 / 删除 ============ */
+let M_ROWS = [], M_LOTTERY = '', M_ISSUE = '', M_EDIT = null;
+
+function closeModal() { $('modal').classList.add('hide'); }
+
+function zoneHint(g, play) {
+  if (g.type === 'digit' && (play === 'g3' || play === 'g6'))
+    return '填 ' + (play === 'g3' ? 2 : 3) + ' 个互不相同的数字（0~9），用空格分隔。';
+  const parts = g.zones.map(z => {
+    let need = z.count;
+    if (g.code === 'kl8' && /^\d+$/.test(String(play))) need = parseInt(play);
+    return z.name + ' ' + need + ' 个（' + z.min + '~' + z.max + '）';
+  });
+  return parts.join('　|　') + '　—— 分区之间用 | 分隔，单个区内用空格或逗号分隔。';
+}
+
+function prefillNums(t, g, play) {
+  if (g.type === 'digit' && (play === 'g3' || play === 'g6')) return (t.n || []).join(' ');
+  return g.zones.map(z => {
+    const v = t[z.key];
+    if (!v || !v.length) return '';
+    return g.type === 'digit' ? v.join(' ') : v.map(n => String(n).padStart(2, '0')).join(' ');
+  }).join(' | ');
+}
+
+function parseNums(text, g, play) {
+  const raw = String(text || '').trim();
+  if (!raw) return null;
+  const nums = s => (s.match(/\d+/g) || []).map(Number);
+  if (g.type === 'digit' && (play === 'g3' || play === 'g6')) {
+    const ns = nums(raw);
+    return ns.length ? { n: Array.from(new Set(ns)).sort((a, b) => a - b) } : null;
+  }
+  const parts = raw.split(/[|｜/]/).map(s => s.trim());
+  if (parts.length !== g.zones.length) return null;
+  const out = {};
+  for (let i = 0; i < g.zones.length; i++) {
+    const ns = nums(parts[i]);
+    if (g.type === 'digit') { if (ns.length !== 1) return null; out[g.zones[i].key] = ns; continue; }
+    if (!ns.length) return null;
+    out[g.zones[i].key] = Array.from(new Set(ns)).sort((a, b) => a - b);
+  }
+  return out;
+}
+
+async function openRound(lottery, issue) {
+  M_LOTTERY = lottery; M_ISSUE = issue;
+  const g = GAMES[lottery] || { name: lottery };
+  $('m-title').textContent = g.name + ' · 第 ' + issue + ' 期投注明细';
+  $('m-body').innerHTML = '<div class="loading">加载中…</div>';
+  $('modal').classList.remove('hide');
+  const r = await api('tickets?lottery=' + encodeURIComponent(lottery)
+                      + '&issue=' + encodeURIComponent(issue));
+  if (!r.ok) { $('m-body').innerHTML = '<div class="loading">加载失败</div>'; return; }
+  M_ROWS = r.tickets || [];
+  if (!M_ROWS.length) { $('m-body').innerHTML = '<div class="loading">该期已无投注记录</div>'; return; }
+  const tot = M_ROWS.reduce((a, b) => a + (b.amount || 0), 0);
+  const ret = M_ROWS.reduce((a, b) => a + (b.prize_amount || 0), 0);
+  $('m-body').innerHTML =
+      `<div class="pool-total"><span>${M_ROWS.length} 条记录 · 投入 <b>${yuan(tot)}</b> · 回款 <b>${yuan(ret)}</b></span>
+        <div class="spacer"></div>
+        <button class="btn sm danger" onclick="delRound('${lottery}','${issue}')">删除整期记录</button></div>`
+    + M_ROWS.map(t => {
+      const gg = GAMES[t.lottery] || g;
+      const pn = ((gg.plays || []).find(p => p.key === t.play) || {}).name || t.play;
+      const m = Math.max(1, parseInt(t.mult, 10) || 1);
+      return `<div class="airec"><span class="idx">#${t.id}</span>${ballHtml(t.numbers, gg)}
+        <span class="pill">${esc(pn)}</span>${m > 1 ? `<span class="pill warn">${m} 倍</span>` : ''}
+        <span class="amt">${t.sets} 注 · ${yuan(t.amount)} · ${t.settled
+          ? '已结算 +' + yuan(t.prize_amount).slice(1) : '待开奖'}</span>
+        <button class="btn sm" onclick="editTicket(${t.id})">修改</button>
+        <button class="btn sm danger" onclick="delRec(${t.id})">删除</button></div>`;
+    }).join('');
+}
+
+function editTicket(id) {
+  const t = M_ROWS.find(x => x.id === id);
+  if (!t) return;
+  M_EDIT = t;
+  const code = t.lottery, g = GAMES[code];
+  const plays = (g.plays || []).map(p =>
+    `<option value="${p.key}"${p.key === t.play ? ' selected' : ''}>${esc(p.name)}</option>`).join('');
+  $('m-title').textContent = '修改投注记录 #' + id + '（' + g.name + '）';
+  $('m-body').innerHTML = `
+    <div class="row">
+      <div class="fld" style="max-width:220px"><label>期号</label><input id="e-issue" value="${esc(t.issue)}"></div>
+      <div class="fld" style="max-width:200px"><label>玩法</label><select id="e-play" onchange="eHint()">${plays}</select></div>
+      <div class="fld" style="max-width:130px"><label>倍投倍数</label><input id="e-mult" type="number" min="1" max="99" step="1" value="${Math.max(1, parseInt(t.mult, 10) || 1)}"></div>
+    </div>
+    <div class="fld" style="margin-top:10px"><label>号码</label><input id="e-nums" value="${esc(prefillNums(t.numbers, g, t.play))}"></div>
+    <div class="fld" style="margin-top:10px"><label>备注（可选）</label><input id="e-advice" value="${esc(t.advice || '')}"></div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn pri" onclick="saveTicket(${id})">保存修改</button>
+      <button class="btn" onclick="openRound('${code}','${esc(M_ISSUE)}')">返回明细</button>
+    </div>
+    <div class="note" id="e-hint">${esc(zoneHint(g, t.play))}</div>
+    <div id="e-status" class="pill" style="margin-top:10px"></div>`;
+}
+
+function eHint() {
+  const g = GAMES[M_EDIT ? M_EDIT.lottery : M_LOTTERY];
+  $('e-hint').textContent = zoneHint(g, $('e-play').value);
+}
+
+async function saveTicket(id) {
+  const t = M_ROWS.find(x => x.id === id);
+  if (!t) return;
+  const g = GAMES[t.lottery];
+  const play = $('e-play').value;
+  const nums = parseNums($('e-nums').value, g, play);
+  const st = $('e-status');
+  if (!nums) {
+    st.className = 'pill bad';
+    st.textContent = '号码填得不对 —— ' + zoneHint(g, play);
+    return;
+  }
+  const issue = $('e-issue').value.trim() || t.issue;
+  const mult = Math.max(1, Math.min(parseInt($('e-mult').value, 10) || 1, 99));
+  const r = await api('ticket/update', { id, play, issue, numbers: nums, mult,
+    advice: $('e-advice').value.trim() });
+  if (!r.ok) { st.className = 'pill bad'; st.textContent = r.error || '保存失败'; return; }
+  const stt = (r.settled || []).find(x => x.issue === issue && x.lottery === t.lottery);
+  toast('已修改：' + r.sets + ' 注 · ' + yuan(r.amount) + (r.mult > 1 ? '（' + r.mult + ' 倍）' : '')
+    + (stt ? '，已自动结算回款 ' + yuan(stt.ret) : ''));
+  await openRound(t.lottery, issue);
+  loadLedger();
+}
+
+async function delRec(id) {
+  if (!confirm('删除这条投注记录？该期账本金额会同步重算。')) return;
+  const r = await api('ticket/delete', { id });
+  if (!r.ok) return toast(r.error || '删除失败');
+  toast('已删除');
+  await openRound(M_LOTTERY, M_ISSUE);
+  loadLedger();
+}
+
+async function delRound(lottery, issue) {
+  if (!confirm('删除「' + issue + '」期的全部投注记录？该期账本行会一并移除，操作不可撤销。')) return;
+  const r = await api('ledger/delete', { lottery, issue });
+  if (!r.ok) return toast(r.error || '删除失败');
+  toast('已删除该期 ' + (r.deleted || 0) + ' 条记录');
+  closeModal(); loadLedger();
+}
+
+async function doUpdate() {
+  toast('正在更新开奖数据…');
+  const r = await api('update', { lottery: $('p-lottery').value === 'all' ? 'all' : 'all' });
+  if (!r.ok) return toast(r.error || '更新失败');
+  const bad = (r.result || []).filter(x => !x.ok);
+  const okc = (r.result || []).filter(x => x.ok).reduce((a, b) => a + b.inserted, 0);
+  toast(`更新完成：新增 ${okc} 期` + (bad.length ? `，${bad.length} 个彩种失败` : '')
+        + ((r.settled || []).length ? `，结算 ${r.settled.length} 条` : ''));
+  loadLedger(); loadDraws();
+}
+
+/* ============ 开奖 ============ */
+const WK = ['日', '一', '二', '三', '四', '五', '六'];
+/* 2026-10-11 → 周日（按本地日历算，不走时区解析） */
+function wkOf(s) {
+  const m = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(String(s || ''));
+  if (!m) return '';
+  const d = new Date(+m[1], +m[2] - 1, +m[3]);
+  return isNaN(d.getTime()) ? '' : '周' + WK[d.getDay()];
+}
+/* 大数按中文阅读习惯折算：363128812 → ¥3.63 亿 */
+function money(n) {
+  n = Number(n || 0);
+  if (!n) return '—';
+  if (n >= 1e8) return '¥' + (n / 1e8).toFixed(2) + ' 亿';
+  if (n >= 1e4) return '¥' + (n / 1e4).toFixed(2) + ' 万';
+  return '¥' + n.toFixed(0);
+}
+function ball(n, blue, lg) {
+  return `<span class="nb${blue ? ' bl' : ''}${lg ? ' lg' : ''}">${esc(n)}</span>`;
+}
+/* 把一期的开奖拆成「按区分组」。
+   数字型彩种（3D/排列3/排列5/七星彩）不补零——2,8,0 就该读作 2 8 0，而不是 020800；
+   区名直接取各彩种的 zone 名（红球/蓝球 · 前区/后区 · 百位/十位/个位 · 特别号）。 */
+function drawGroups(code, d) {
+  const g = GAMES[code] || {}, zs = g.zones || [], isDigit = g.type === 'digit';
+  const split = v => String(v || '').split(',').map(x => x.trim()).filter(Boolean);
+  const z1 = split(d.zone1), z2 = split(d.zone2), out = [];
+  if (z1.length) {
+    out.push({ label: isDigit ? '' : (zs[0] ? zs[0].name : '号码'), nums: z1, blue: false,
+               digits: isDigit, names: isDigit ? zs.map(z => z.name) : [] });
+  }
+  if (z2.length) {
+    const last = zs.length ? zs[zs.length - 1] : null;
+    out.push({ label: isDigit ? (last ? last.name : '特别号')
+                             : (zs.length > 1 ? zs[zs.length - 1].name : (code === 'qlc' ? '特别号' : '后区')),
+               nums: z2, blue: true, digits: isDigit,
+               names: isDigit ? [last ? last.name : '特别号'] : [] });
+  }
+  return out;
+}
+/* 一组的球（数字型彩种给每个球标出位名） */
+function groupBalls(gr, lg) {
+  if (gr.digits && lg) {
+    return gr.nums.map((n, i) => `<span class="dpos">${ball(n, gr.blue, true)}`
+      + `<i>${esc(gr.names[i] || '')}</i></span>`).join('');
+  }
+  return gr.nums.map(n => ball(n, gr.blue, lg)).join('');
+}
+/* 最新一期的附加信息：销售额 / 奖池 / 一等奖 */
+function metaHtml(code, d) {
+  const it = [];
+  if (+d.sales > 0) it.push(['销售额', `<b>${money(d.sales)}</b>`]);
+  if (+d.pool > 0) it.push(['奖池', `<b>${money(d.pool)}</b>`]);
+  /* 3D / 排列3 没有「一等奖」这个奖级，库里那两列存的是直选数据，不能当一等奖读 */
+  if (code !== '3d' && code !== 'pl3' && (+d.first_prize_count > 0 || +d.first_prize_amount > 0)) {
+    let v = '';
+    if (+d.first_prize_count > 0) v += `<b>${fmt(d.first_prize_count)} 注</b>`;
+    if (+d.first_prize_amount > 0) v += (v ? ' · 每注 ' : '每注 ') + `<b>${money(d.first_prize_amount)}</b>`;
+    it.push(['一等奖', v]);
+  }
+  if (!it.length) return '';
+  return '<div class="dmeta">' + it.map(([k, v]) => `<span class="m">${k}${v}</span>`).join('') + '</div>';
+}
+async function loadDraws() {
+  const lt = $('d-lottery').value;
+  const r = await api('draws?lottery=' + lt + '&limit=40');
+  if (!r.ok) { $('d-table').innerHTML = `<div class="loading">${esc(r.error || '读取失败')}</div>`; return; }
+  const rows = r.draws || [];
+  if (!rows.length) {
+    $('d-table').innerHTML = '<div class="loading">这个彩种还没有开奖数据 —— 点「🔄 更新开奖并自动结算」抓一次</div>';
+    return;
+  }
+  const cur = rows[0], gs = drawGroups(lt, cur);
+  let head = '';
+  if (gs.length) {
+    const parts = gs.map(gr => '<div class="dgrp">'
+      + (gr.label ? `<div class="gl">${esc(gr.label)}</div>` : '')
+      + `<div class="gb">${groupBalls(gr, true)}</div></div>`).join('<div class="dvsep"></div>');
+    head = `<div class="dhero">
+      <div class="top"><span class="iss">${esc(cur.issue)}</span><span class="qi">期 · 最新开奖</span>
+        <span class="dt">${esc(cur.draw_date || '')}${wkOf(cur.draw_date) ? `<em>${wkOf(cur.draw_date)}</em>` : ''}</span></div>
+      <div class="dgrps">${parts}</div>
+      ${metaHtml(lt, cur)}
+    </div>`;
+  }
+  const trs = rows.map((d, i) => {
+    const gs2 = drawGroups(lt, d);
+    const cell = gs2.length
+      ? gs2.map(gr => `<span class="gb">${groupBalls(gr, false)}</span>`).join('<span class="gap"></span>')
+      : '<span class="dim">—</span>';
+    const wk = wkOf(d.draw_date);
+    return `<tr class="${i === 0 ? 'now' : ''}">`
+      + `<td class="mono">${esc(d.issue)}</td>`
+      + `<td>${esc(d.draw_date || '—')}${wk ? `<span class="wk">${wk}</span>` : ''}</td>`
+      + `<td class="nums"><div class="cell">${cell}</div></td>`
+      + `<td class="mono">${+d.pool > 0 ? money(d.pool) : '<span class="dim">—</span>'}</td></tr>`;
+  }).join('');
+  $('d-table').innerHTML = head
+    + `<div class="dlist"><div class="cap">历史开奖 · 最近 <b>${fmt(rows.length)}</b> 期（最新在上，橙色为最新一期）</div>`
+    + `<table class="dt"><thead><tr><th>期号</th><th>开奖日期</th><th>开奖号码</th><th>奖池</th></tr></thead>`
+    + `<tbody>${trs}</tbody></table></div>`;
+}
+
+/* ============ 统计 ============ */
+async function loadStats() {
+  const lt = $('s-lottery').value;
+  const r = await api('stats?lottery=' + lt);
+  if (!r.ok) return;
+  const items = r.items || [];
+  const maxC = Math.max(1, ...items.map(x => x.count));
+  $('s-body').innerHTML = `<div class="note">共 ${fmt(r.total)} 期 · ${esc(r.zone_name)}</div>
+    <table><thead><tr><th>号码</th><th>出现次数</th><th>占比</th><th>当前遗漏</th></tr></thead><tbody>`
+    + items.map(x => `<tr><td class="mono"><b>${String(x.num).padStart(2,'0')}</b></td>
+        <td>${x.count}<div class="bar-wrap"><div class="bar-in" style="width:${(x.count/maxC*100).toFixed(0)}%"></div></div></td>
+        <td>${(x.count/r.total*100).toFixed(2)}%</td>
+        <td>${x.omission === null ? '—' : x.omission}</td></tr>`).join('')
+    + '</tbody></table>';
+}
+
+/* ============ 概率表 ============ */
+async function loadProb() {
+  const lt = $('r-lottery').value;
+  const r = await api('probability?lottery=' + lt);
+  if (!r.ok) return;
+  const rows = r.report?.rows || [];
+  $('r-table').innerHTML = `<table><thead><tr><th>玩法</th><th>奖级</th><th>单注概率</th><th>约合</th><th>参考奖金</th></tr></thead><tbody>`
+    + rows.map(x => `<tr><td>${esc(x.play)}</td><td>${esc(x.name)}</td>
+        <td>${x.prob >= 1e-4 ? (x.prob*100).toFixed(4)+'%' : '1/'+Math.round(1/x.prob).toLocaleString()}</td>
+        <td>${x.prob >= 1e-4 ? '' : (x.prob*100).toExponential(2)+'%'}</td>
+        <td>${x.amount ? yuan(x.amount) : '浮动（奖池）'}</td></tr>`).join('')
+    + `</tbody></table><div class="note">单注成本 ${yuan(GAMES[lt]?.price||2)}；浮动奖金额取决于当期奖池与中奖注数。<br>
+       <b>本工具不提供任何提高中奖概率的方法</b>——所有选号方式的单注概率完全相同。</div>`;
+}
+
+/* ============ 设置 ============ */
+async function loadSettings() {
+  const r = await api('options');
+  if (!r.ok) return;
+  const cfg = r.llm || {};
+  $('m-preset').innerHTML = (r.presets||[]).map(p => `<option value="${p.key}" data-url="${esc(p.base_url)}" data-model="${esc(p.model)}">${esc(p.name)}</option>`).join('');
+  $('m-enabled').value = cfg.enabled ? '1' : '0';
+  $('m-model').value = cfg.model || '';
+  $('m-url').value = cfg.base_url || '';
+  $('m-key').placeholder = cfg.has_key ? ('已配置 ' + (cfg.api_key_masked||'') + '（留空不修改）') : 'sk-...';
+  $('m-status').textContent = cfg.has_key ? '已配置 Key' : '未配置 Key';
+  $('m-status').className = 'pill ' + (cfg.has_key ? 'ok' : 'warn');
+  const d = r.db || {};
+  $('db-info').innerHTML = `开奖记录 <b>${fmt(d.total)}</b> 期 · 用户 <b>${fmt(d.users)}</b> · 投注记录 <b>${fmt(d.tickets)}</b> 条<br>`
+    + (d.per||[]).map(x => `${GAMES[x.lottery]?.name||x.lottery}: ${fmt(x.n)} 期（${x.a}~${x.b}）`).join('　|　');
+  if (IS_ADMIN && r.users) {
+    $('u-list').innerHTML = `<table><thead><tr><th>ID</th><th>用户名</th><th>角色</th><th>创建</th><th></th></tr></thead><tbody>`
+      + r.users.map(x => `<tr><td>${x.id}</td><td>${esc(x.username)}</td><td>${x.role}</td><td>${esc(x.created_at||'')}</td>
+        <td><button class="btn sm" onclick="resetPw(${x.id},'${esc(x.username)}')">重置密码</button>
+        ${x.username === 'admin' ? '' : `<button class="btn sm danger" onclick="delUser(${x.id})">删除</button>`}</td></tr>`).join('')
+      + '</tbody></table>';
+  }
+}
+function applyPreset() {
+  const o = $('m-preset').selectedOptions[0];
+  if (o && o.dataset.url) { $('m-url').value = o.dataset.url; $('m-model').value = o.dataset.model; }
+}
+async function saveLLM() {
+  const cfg = { enabled: $('m-enabled').value === '1', model: $('m-model').value.trim(),
+                base_url: $('m-url').value.trim() };
+  if ($('m-key').value.trim()) cfg.api_key = $('m-key').value.trim();
+  const r = await api('settings/llm', { config: cfg });
+  if (!r.ok) return toast(r.error || '保存失败');
+  $('m-key').value = '';
+  const c = r.llm || {};
+  if (!c.enabled) toast(c.has_key ? '已保存，但「启用」是关闭 —— AI 建议仍不可用' : '已保存，但未填 API Key —— AI 建议仍不可用');
+  else if (!c.has_key) toast('已保存并启用，但还缺 API Key —— AI 建议仍不可用');
+  else toast('配置已保存，大模型已就绪');
+  loadSettings();
+}
+async function addUser() {
+  const r = await api('users', { action: 'add', username: $('u-name').value.trim(),
+    password: $('u-pass').value, role: $('u-role').value });
+  toast(r.ok ? '用户已创建' : (r.error || '创建失败'));
+  if (r.ok) { $('u-name').value = ''; $('u-pass').value = ''; loadSettings(); }
+}
+async function changePw() {
+  const old = $('pw-old').value, nw = $('pw-new').value, nw2 = $('pw-new2').value;
+  const st = $('pw-status');
+  if (nw.length < 6) { st.textContent = '新密码至少 6 位'; st.style.color = 'var(--bad)'; return; }
+  if (nw !== nw2) { st.textContent = '两次输入的新密码不一致'; st.style.color = 'var(--bad)'; return; }
+  const r = await api('password', { old, new: nw });
+  if (r.ok) {
+    ['pw-old','pw-new','pw-new2'].forEach(i => $(i).value = '');
+    st.textContent = '密码已修改，其他设备需重新登录'; st.style.color = 'var(--ok)';
+    toast('密码已修改');
+  } else { st.textContent = r.error || '修改失败'; st.style.color = 'var(--bad)'; }
+}
+async function resetPw(id, name) {
+  const np = prompt(`为「${name}」设置新密码（≥6位）：`);
+  if (!np) return;
+  if (np.length < 6) { toast('密码至少 6 位'); return; }
+  const r = await api('users', { action: 'passwd', id, password: np });
+  toast(r.ok ? '密码已重置' : (r.error || '重置失败'));
+}
+async function delUser(id) {
+  if (!confirm('确定删除该用户及其全部账本？')) return;
+  const r = await api('users', { action: 'delete', id });
+  toast(r.ok ? '已删除' : (r.error || '删除失败')); loadSettings();
+}
+
+/* ============ 启动 ============ */
+$('lg-p').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+(async () => {
+  const me = await api('me');
+  if (me.ok && me.user) await boot(); else showLogin();
+})();
+</script>
+</body>
+</html>

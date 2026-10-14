@@ -1,0 +1,12 @@
+[Unit]
+Description=Run lottery draws auto update twice daily
+
+[Timer]
+# 每日 22:10 抓当日开奖；次日 09:10 兜底补抓（中国时间）
+OnCalendar=*-*-* 22:10:00
+OnCalendar=*-*-* 09:10:00
+Persistent=true
+RandomizedDelaySec=120
+
+[Install]
+WantedBy=timers.target

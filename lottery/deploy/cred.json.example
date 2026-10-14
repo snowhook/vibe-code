@@ -1,0 +1,7 @@
+{
+  "_说明": "复制为 cred.json 后填入真实值；cred.json 已被 .gitignore 排除，不会入库",
+  "host": "<服务器 IP 或域名>",
+  "port": 22,
+  "user": "<SSH 用户名>",
+  "pem": "<本机私钥文件路径>"
+}

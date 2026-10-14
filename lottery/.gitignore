@@ -1,0 +1,7 @@
+# ── 本目录为公开仓库内容，凭据与运行时数据一律不入库 ──
+deploy/cred.json
+data/*.db
+*.db
+__pycache__/
+*.py[cod]
+.bak/

@@ -1,0 +1,17 @@
+[Unit]
+Description=Lottery Pick and Ledger Web
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/admin/.openclaw/workspace/lottery
+ExecStart=/usr/bin/python3 /home/admin/.openclaw/workspace/lottery/app.py
+Restart=always
+RestartSec=5
+Environment=PORT=5010
+Environment=HOME=/home/admin
+Environment=PATH=/home/admin/.local/bin:/usr/local/bin:/usr/bin:/bin
+User=admin
+
+[Install]
+WantedBy=multi-user.target
