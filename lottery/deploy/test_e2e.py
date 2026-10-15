@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """端到端：投注 -> 结算 -> 账本一致性（含浮动奖、多注累加、删除级联）"""
 import json
-import os
 import ssl
 import urllib.request
 import http.cookiejar
@@ -25,8 +24,7 @@ def req(path, data=None, host=HOST):
     return json.loads(op.open(r, timeout=180).read().decode())
 
 
-ok = req('login', {'username': os.environ.get('LT_USER', 'admin'),
-                   'password': os.environ.get('LT_PASS', '')})['ok']
+ok = req('login', {'username': 'admin', 'password': '********'})['ok']
 print('1) 登录: %s' % ok)
 
 print('2) 投注（针对已开奖的 %s，开奖号 10,19,24,27,28,33 | 12）' % ISSUE)

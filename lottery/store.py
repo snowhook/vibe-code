@@ -277,6 +277,24 @@ def latest_issue(lottery):
         c.close()
 
 
+def next_issue(lottery):
+    """下注应针对的「下一期」= 最新已开奖期号 + 1。
+
+    修复历史 bug：/api/bet 默认用 latest_issue（最新**已开奖**期）打标，
+    导致用户在下一期开奖前下注会被贴成上一期的号、再拿上一期奖号结算。
+    期号格式为「年份前缀 + 3 位序号」（ssq 2026xxx / dlt 26xxx / pl3 26xxx /
+    kl8 2026xxx 等），年内整数 +1 即下一期；年份交界属罕见边角，可手动改期号兜底。
+    """
+    cur = latest_issue(lottery)
+    if not cur:
+        return None
+    try:
+        return str(int(cur) + 1)
+    except ValueError:
+        return None
+
+
+
 def get_draw(lottery, issue):
     c = conn()
     try:
@@ -553,7 +571,8 @@ def ledger_summary(user_id, lottery=None):
     c = conn()
     try:
         sql = ('SELECT COUNT(*) n, COALESCE(SUM(sets),0) sets, COALESCE(SUM(cost),0) cost, '
-               'COALESCE(SUM(return_amount),0) ret, COALESCE(SUM(settled),0) settled '
+               'COALESCE(SUM(return_amount),0) ret, COALESCE(SUM(settled),0) settled, '
+               'COALESCE(SUM(CASE WHEN return_amount>0 THEN 1 ELSE 0 END),0) win_rounds '
                'FROM ledger WHERE user_id=?')
         args = [user_id]
         if lottery:
@@ -562,9 +581,51 @@ def ledger_summary(user_id, lottery=None):
         r = c.execute(sql, args).fetchone()
         cost = r['cost'] or 0
         ret = r['ret'] or 0
+        # 中奖注数：tickets 表 prize_amount>0 的注数（与 lottery 过滤对齐）
+        wt_sql = 'SELECT COUNT(*) FROM tickets WHERE user_id=? AND prize_amount>0'
+        wt_args = [user_id]
+        if lottery:
+            wt_sql += ' AND lottery=?'
+            wt_args.append(lottery)
+        win_tickets = c.execute(wt_sql, wt_args).fetchone()[0]
         return dict(rounds=r['n'], sets=r['sets'], cost=cost, ret=ret,
                     net=ret - cost, roi=(ret - cost) / cost if cost else 0,
-                    settled_rounds=r['settled'])
+                    settled_rounds=r['settled'], win_rounds=r['win_rounds'],
+                    win_tickets=win_tickets)
+    finally:
+        c.close()
+
+
+def ledger_trend(user_id, lottery=None, by='day'):
+    """账本趋势：按投注日期（日/月）聚合投入与中奖回款，供前端画图。
+
+    bet_at 来自 tickets 首次下注时间，无票据行退回 ledger.created_at（与 get_ledger 一致）。
+    返回升序列表 [{date, cost, ret, net}]，date 形如 2026-10-15（日）或 2026-10（月）。
+    """
+    c = conn()
+    try:
+        sql = ('SELECT l.cost, l.return_amount, '
+               'COALESCE(MIN(t.created_at), l.created_at) AS bet_at '
+               'FROM ledger l LEFT JOIN tickets t '
+               '  ON t.user_id=l.user_id AND t.lottery=l.lottery AND t.issue=l.issue '
+               'WHERE l.user_id=?')
+        args = [user_id]
+        if lottery:
+            sql += ' AND l.lottery=?'
+            args.append(lottery)
+        sql += ' GROUP BY l.id'
+        rows = c.execute(sql, args).fetchall()
+        buckets = {}
+        for r in rows:
+            bet_at = r['bet_at'] or ''
+            d = ((bet_at or '')[:7] if by == 'month' else (bet_at or '')[:10]) or '未知'
+            b = buckets.setdefault(d, [0.0, 0.0])
+            b[0] += float(r['cost'] or 0)
+            b[1] += float(r['return_amount'] or 0)
+        out = [{'date': k, 'cost': round(v[0], 2), 'ret': round(v[1], 2),
+                'net': round(v[1] - v[0], 2)} for k, v in buckets.items()]
+        out.sort(key=lambda x: x['date'])
+        return out
     finally:
         c.close()
 

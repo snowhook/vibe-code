@@ -3,6 +3,8 @@
 """app.py — 彩票选号与记账系统（纯标准库，无第三方依赖）"""
 import json
 import os
+import random
+import re
 import sys
 import time
 import urllib.parse
@@ -159,6 +161,159 @@ def normalize_ticket_ex(code, play, t, strict_count=False, sizes=None):
     return sel, None
 
 
+# 部分彩种主区的「三区」划分（用户提示词里的"1区/2区/3区"指这个数）：
+#   key = 该彩种的主分区键；split = 按区序的 (下界, 上界) 列表。
+_MAIN_ZONE_SPLIT = {
+    'ssq': ('r', [(1, 11), (12, 22), (23, 33)]),   # 双色球红球 1-33 → 三区
+    'dlt': ('f', [(1, 12), (13, 23), (24, 35)]),   # 大乐透前区 1-35 → 三区
+}
+
+
+def _zone_obj(code, key):
+    g = G.GAMES.get(code)
+    if not g:
+        return None
+    for z in g['zones']:
+        if z['key'] == key:
+            return z
+    return None
+
+
+def parse_pick_constraints(prompt, code, play, sizes=None):
+    """从用户提示词里解析 AI 出号的硬性约束。
+
+    返回 {'zones': (主区key, [(lo,hi),...]) 或 None,
+          'odd_even': (a,b) 或 None}。
+    只认"只要/只有 N区"或"避开/排除/不要 N区"这两种句式；
+    像"分散在低中高三个区间"这种不点名具体区的，不当作约束。
+    """
+    cons = {'zones': None, 'odd_even': None}
+    g = G.GAMES.get(code)
+    if not g or g['type'] != 'zone' or code not in _MAIN_ZONE_SPLIT:
+        return cons
+    try:
+        p = (prompt or '').replace('：', ':').replace('，', ',').replace('。', '.')
+        zkey, split = _MAIN_ZONE_SPLIT[code]
+        cn = {'一': 1, '二': 2, '三': 3, '四': 4, '1': 1, '2': 2, '3': 3, '4': 4}
+        idxs = set()
+        for m in re.finditer(r'([一二三四1234])\s*区', p):
+            idxs.add(cn.get(m.group(1)))
+        forbidden = set()
+        for m in re.finditer(r'(不要|避开|排除|不含|禁用|去掉|别用|少用|避免)\s*([一二三四1234])\s*区', p):
+            forbidden.add(cn.get(m.group(2)))
+        only = re.search(r'(只要|仅有|只有|只|仅|只用|只选|选取|选)\s*[一二三四1234]', p)
+        if forbidden:
+            allowed = [i for i in (1, 2, 3) if i not in forbidden]
+        elif only and idxs:
+            allowed = sorted(idxs)
+        else:
+            allowed = None
+        if allowed:
+            ranges = [split[i - 1] for i in allowed if 1 <= i <= len(split)]
+            if ranges:
+                cons['zones'] = (zkey, ranges)
+        m = re.search(r'奇偶比\s*(\d+)\s*[:：比]\s*(\d+)', p) \
+            or re.search(r'奇偶\s*(\d+)\s*[:：比]\s*(\d+)', p)
+        if m:
+            a, b = int(m.group(1)), int(m.group(2))
+            if a + b > 0:
+                cons['odd_even'] = (a, b)
+    except Exception:
+        return {'zones': None, 'odd_even': None}
+    return cons
+
+
+def _build_extra(cons):
+    if not cons:
+        return None
+    parts = []
+    if cons.get('zones'):
+        zkey, allowed = cons['zones']
+        label = {'r': '红球', 'f': '前区'}.get(zkey, zkey)
+        rng = '、'.join('%d-%d' % r for r in allowed)
+        parts.append('%s只能取 %s 范围的号码，绝对不允许出现该范围之外的号码。' % (label, rng))
+    if cons.get('odd_even'):
+        a, b = cons['odd_even']
+        parts.append('红/前区中奇数与偶数个数比约为 %d:%d（例如 %d 个球里约 %d 奇 %d 偶）。'
+                     % (a, b, a + b, a, b))
+    return '\n'.join(parts) if parts else None
+
+
+def _enforce_constraints(code, play, n, cons, sizes=None):
+    """出号后硬校验：区间 + 奇偶比。返回 (合规, 原因)。"""
+    if not cons:
+        return True, None
+    g = G.GAMES.get(code)
+    if not g or g['type'] != 'zone' or code not in _MAIN_ZONE_SPLIT:
+        return True, None
+    zkey, _ = _MAIN_ZONE_SPLIT[code]
+    if cons.get('zones'):
+        _, allowed = cons['zones']
+        nums = n.get(zkey) or []
+        bad = [x for x in nums if not any(lo <= x <= hi for lo, hi in allowed)]
+        if bad:
+            rng = '、'.join('%d-%d' % r for r in allowed)
+            return False, '%s包含不在允许区间的号码 %s（只允许 %s）' % (
+                {'r': '红球', 'f': '前区'}.get(zkey, zkey), sorted(bad), rng)
+    oe = cons.get('odd_even')
+    if oe and zkey in n:
+        total = len(n[zkey])
+        target = round(total * oe[0] / (oe[0] + oe[1]))
+        odd = sum(1 for x in n[zkey] if x % 2 == 1)
+        if abs(odd - target) > 1:
+            return False, '%s奇偶比不是约 %d:%d（实际 %d 奇 %d 偶，共 %d 个）' % (
+                {'r': '红球', 'f': '前区'}.get(zkey, zkey), oe[0], oe[1],
+                odd, total - odd, total)
+    return True, None
+
+
+def _fill_compliant(code, play, cons, sizes):
+    """模型两轮仍凑不满时的兜底：在合规区间内随机生成一注（保证区间+奇偶）。"""
+    g = G.GAMES.get(code)
+    if not g or g['type'] != 'zone' or code not in _MAIN_ZONE_SPLIT:
+        return None
+    zkey, _ = _MAIN_ZONE_SPLIT[code]
+    z = _zone_obj(code, zkey)
+    if not z:
+        return None
+    total = need_count(code, play, z, sizes)
+    if total <= 0:
+        return None
+    _, allowed = cons['zones']
+    pool = []
+    for lo, hi in allowed:
+        pool += list(range(lo, hi + 1))
+    odds = [x for x in pool if x % 2 == 1]
+    evens = [x for x in pool if x % 2 == 0]
+    random.shuffle(odds)
+    random.shuffle(evens)
+    oe = cons.get('odd_even')
+    if oe and oe[0] + oe[1] > 0:
+        need_odd = round(total * oe[0] / (oe[0] + oe[1]))
+    else:
+        need_odd = total // 2
+    need_odd = max(0, min(need_odd, total, len(odds)))
+    need_even = total - need_odd
+    while need_even > len(evens) and need_odd > 0:
+        need_odd -= 1
+        need_even += 1
+    while need_odd > len(odds) and need_even > 0:
+        need_even -= 1
+        need_odd += 1
+    sel = odds[:need_odd] + evens[:need_even]
+    if len(sel) < total:
+        return None
+    random.shuffle(sel)
+    n = {zkey: sorted(sel)}
+    for zz in g['zones']:
+        if zz['key'] == zkey:
+            continue
+        n[zz['key']] = sorted(random.sample(range(zz['min'], zz['max'] + 1), zz['count']))
+    if G.bet_count(code, play, n) <= 0:
+        return None
+    return n
+
+
 def _mult_of(v, default=1):
     """投注倍数：非数字/越界一律收敛到 1~99，绝不因脏输入报 500。"""
     try:
@@ -166,6 +321,84 @@ def _mult_of(v, default=1):
     except (TypeError, ValueError):
         n = default
     return max(1, min(n, 99))
+
+
+# 送给大模型的号码样本组数上限。点评只需要结构特征，逐组核对不是模型的任务；
+# 送全量会让 prompt 随池子组数线性膨胀，几十组就足以让请求拖到几十秒（前端表现为「卡住」）。
+AI_REVIEW_SAMPLE = 12
+
+
+def _review_digest(code, play, tickets, mults):
+    """把整池号码压成「聚合特征 + 少量样本」，供大模型点评。
+
+    返回值会 **覆盖** payload 里的「自选池号码_每组一组」——
+    完整号码清单仍然保留在响应的 ctx 里（前端显示、导出文本都要用），只是不进 prompt。
+
+    聚合的是点评真正关心的三件事（对应 SYS_REVIEW 的第 4 条）：
+      · 号码落在哪些区间（是否全挤在小号/生日区间）
+      · 重复程度（多少组完全相同 —— 等同于无谓倍投）
+      · 每组号码个数（区分标准单式与复式，别把 2 组复式说成 28 注号码）
+    """
+    g = G.GAMES.get(code) or {}
+    zones = g.get('zones') or []
+    n = len(tickets)
+
+    # 每个区：号码取值范围、落在各区间的组数、每组平均个数
+    zone_stats = []
+    for z in zones:
+        key = z['key']
+        lo, hi = z.get('min', 1), z.get('max', 33)
+        per_counts, span_lo, span_hi = [], None, None
+        low_only = 0
+        for t in tickets:
+            v = t.get(key)
+            if not isinstance(v, (list, tuple)) or not len(v):
+                continue
+            try:
+                nums = [int(x) for x in v]
+            except (TypeError, ValueError):
+                continue
+            per_counts.append(len(nums))
+            mn, mx = min(nums), max(nums)
+            span_lo = mn if span_lo is None else min(span_lo, mn)
+            span_hi = mx if span_hi is None else max(span_hi, mx)
+            # 「全挤在下三分之一」——生日号 1~31 的典型特征
+            if mx <= lo + (hi - lo) // 3:
+                low_only += 1
+        if not per_counts:
+            continue
+        item = {
+            '区名': z.get('name') or key,
+            '每组号码个数': {
+                '最小': min(per_counts), '最大': max(per_counts),
+                '平均': round(sum(per_counts) / float(len(per_counts)), 1),
+            },
+            '全池覆盖号码范围': '%d~%d' % (span_lo, span_hi),
+            '全部落在低号区间的组数': low_only,
+        }
+        zone_stats.append(item)
+
+    # 完全重复的组（同号码同倍数）——重复组不增加中奖概率，只是白花钱
+    sig_count = {}
+    for t in tickets:
+        sig = json.dumps({k: sorted(v) for k, v in t.items() if k != 'mult' and isinstance(v, list)},
+                         ensure_ascii=False, sort_keys=True)
+        sig_count[sig] = sig_count.get(sig, 0) + 1
+    dup_groups = sum(c - 1 for c in sig_count.values() if c > 1)
+
+    sample = [ticket_text(code, play, t) for t in tickets[:AI_REVIEW_SAMPLE]]
+    out = {
+        '号码样本_最多%d组' % AI_REVIEW_SAMPLE: sample,
+        '号码明细已省略': (('共 %d 组，此处只列前 %d 组作样本；'
+                        '结构特征以「各区号码统计」为准。') % (n, len(sample))
+                       if n > len(sample) else None),
+        '各区号码统计': zone_stats,
+        '完全重复的组数': dup_groups,
+        '不同号码组合数': len(sig_count),
+    }
+    # 覆盖掉完整清单，payload 里就不再有 O(组数) 的号码行
+    out['自选池号码_每组一组'] = sample
+    return {k: v for k, v in out.items() if v is not None}
 
 
 def ticket_text(code, play, t):
@@ -211,8 +444,14 @@ def ai_pick_flow(code, play, prompt, sets, sizes=None):
     spec = ai_spec(code, play, sizes)
     price = g['price']
 
+    # 从提示词解析"区间/奇偶比"等硬性约束：写进 prompt 让模型守，出号后硬校验。
+    cons = parse_pick_constraints(prompt, code, play, sizes)
+    extra = _build_extra(cons)
+    if cons.get('zones') or cons.get('odd_even'):
+        spec += '\n（注意：用户额外要求见下方「硬性约束」，号码必须落在约束范围内。）'
+
     tks, per = [], []
-    bad, dup, reasons, notes = 0, 0, [], []
+    bad, dup, reasons, notes, fb = 0, 0, [], [], []
     llm_err, raw_txt = None, []
     seen = set()
     for attempt in range(2):
@@ -220,7 +459,8 @@ def ai_pick_flow(code, play, prompt, sets, sizes=None):
         if need <= 0:
             break
         txt, e = llm_mod.ai_pick(prompt, spec, g['name'], play_name, need,
-                                 avoid=(tks if attempt else None))
+                                 avoid=(tks if attempt else None),
+                                 extra=extra, feedback=(fb if attempt else None))
         if e:
             if not tks:
                 llm_err = e              # 一轮都没拿到 → 当致命错误报给前端
@@ -243,6 +483,14 @@ def ai_pick_flow(code, play, prompt, sets, sizes=None):
                 if len(reasons) < 3:
                     reasons.append(why)
                 continue
+            ok, cwhy = _enforce_constraints(code, play, n, cons, sizes)
+            if not ok:
+                bad += 1
+                if len(reasons) < 3:
+                    reasons.append(cwhy)
+                if cwhy not in fb:
+                    fb.append(cwhy)
+                continue
             key = json.dumps(n, sort_keys=True, ensure_ascii=False)
             if key in seen:
                 dup += 1
@@ -250,6 +498,22 @@ def ai_pick_flow(code, play, prompt, sets, sizes=None):
             seen.add(key)
             tks.append(n)
             per.append(G.bet_count(code, play, n))
+
+    # 兜底：带区间/奇偶约束但模型两轮仍凑不满，用代码在合规区间内确定性补满，
+    # 保证「要 N 注、且每注都守约束」（模型死活不守也不至于少给）。
+    if len(tks) < sets and cons.get('zones'):
+        for _ in range(sets - len(tks)):
+            n = _fill_compliant(code, play, cons, sizes)
+            if n is None:
+                break
+            key = json.dumps(n, sort_keys=True, ensure_ascii=False)
+            if key in seen:
+                continue
+            seen.add(key)
+            tks.append(n)
+            per.append(G.bet_count(code, play, n))
+        if len(tks) < sets:
+            notes.append('部分注由系统在合规区间内随机补齐（模型未能满足约束）')
 
     tot = sum(per)
     return {'ok': True, 'llm': '\n\n---\n\n'.join(raw_txt) or None,
@@ -474,13 +738,23 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({'ok': True, 'rows': store.get_ledger(u['id'], lt, 300,
                                one('sort') or 'date'),
                                'summary': store.ledger_summary(u['id'], lt)})
+        if path == '/api/ledger/trend':
+            u = self._need()
+            if not u:
+                return
+            by = one('by') or 'day'
+            if by not in ('day', 'month'):
+                by = 'day'
+            return self._json({'ok': True, 'by': by,
+                               'rows': store.ledger_trend(u['id'], one('lottery'), by)})
         if path == '/api/options':
             u = self._need()
             if not u:
                 return
-            cfg = llm_mod.get_config()
+            cfg = llm_mod.raw_config()
             return self._json({'ok': True, 'presets': llm_mod.PRESETS,
                                'llm': llm_mod.mask(cfg),
+                               'next_issue': {c: store.next_issue(c) for c in G.GAMES},
                                'users': store.list_users() if u.get('role') == 'admin' else None,
                                'db': store.stats()})
         return self._json({'ok': False, 'error': '未知接口'}, 404)
@@ -565,7 +839,9 @@ class Handler(BaseHTTPRequestHandler):
         if path == '/api/bet':
             code = b.get('lottery') or 'ssq'
             play = b.get('play') or 'std'
-            issue = b.get('issue') or (store.latest_issue(code) or '')
+            # 下注默认针对「下一期」（最新已开奖期 + 1），而非 latest_issue（上一期已开奖）。
+            # 前端显式传 issue 时以前端为准（支持手动指定历史期）。
+            issue = b.get('issue') or (store.next_issue(code) or '')
             numbers = b.get('numbers') or {}
             mult = _mult_of(b.get('mult'))
             base = G.bet_count(code, play, numbers) or int(b.get('sets') or 1)
@@ -643,6 +919,19 @@ class Handler(BaseHTTPRequestHandler):
             payload = {k: v for k, v in ctx.items() if k != 'recent'}
             payload['最近5期'] = [r['issue'] for r in store.recent_draws(code, 5)]
             if tickets:
+                # **点评只送样本组，不送全部号码**（AI_REVIEW_SAMPLE 组封顶）。
+                # 原实现把池里每一组的号码串都拼进 prompt：100 组就是 100 行号码，
+                # prompt 随组数线性膨胀，模型读完再生成要几十秒，前端表现为「卡住」。
+                # 点评要的是**结构特征**（分散度、是否集中在小号/生日区间、重复度），
+                # 这些用聚合值 + 少量样本就能说清；逐组核对不是模型的任务。
+                # 响应里仍返回完整 ctx['自选池号码_每组一组'] 给前端/导出用，不受影响。
+                #
+                # 池子本来就小的时候**不送摘要** —— 摘要本身有几百字符，
+                # 5 组直接送全量反而更短。分界取 12（即样本上限）：
+                # 组数 ≤ 12 全量送，> 12 才换成摘要。
+                if len(tickets) > AI_REVIEW_SAMPLE:
+                    payload = dict(payload)
+                    payload.update(_review_digest(code, play, tickets, mults))
                 txt, err = llm_mod.pool_review(payload)
             else:
                 txt, err = llm_mod.lottery_advice(payload)
@@ -721,8 +1010,8 @@ class Handler(BaseHTTPRequestHandler):
         if path == '/api/settings/llm':
             if u.get('role') != 'admin':
                 return self._json({'ok': False, 'error': '需要管理员权限'}, 403)
-            cfg = llm_mod.save_config(b.get('config') or {})
-            return self._json({'ok': True, 'llm': llm_mod.mask(cfg)})
+            cfg = llm_mod.save_config(b)
+            return self._json({'ok': True, 'llm': llm_mod.mask(llm_mod.raw_config())})
 
         if path == '/api/password':
             # 任何登录用户都可改自己的密码（需验原密码）

@@ -98,6 +98,11 @@ header{position:sticky;top:0;z-index:20;background:rgba(22,22,26,.92);backdrop-f
 .dgrp{display:flex;flex-direction:column;gap:7px}
 .dgrp .gl{font-size:11.5px;color:var(--text3);letter-spacing:.5px}
 .dgrp .gb{display:flex;gap:8px;flex-wrap:wrap}
+/* 最新一期（dhero）的球上色：主区红球走红色、蓝/后区/特别号走更亮的蓝。
+   只作用于 dhero —— 历史开奖表格保持统一的灰调，避免一屏全是红蓝色块。
+   颜色用「深色底+亮色字」而不是实心填充，38px 的大球也不会刺眼。 */
+.dhero .nb{background:rgba(239,68,68,.18);color:#fca5a5;border:1px solid rgba(239,68,68,.32)}
+.dhero .nb.bl{background:rgba(59,130,246,.24);color:#bfdbfe;border-color:rgba(59,130,246,.48)}
 .dpos{display:flex;flex-direction:column;align-items:center;gap:4px}
 .dpos i{font-style:normal;font-size:10.5px;color:var(--text3)}
 .dvsep{width:1px;align-self:stretch;background:var(--line2);margin:2px 0}
@@ -113,6 +118,15 @@ table.dt td.nums{padding-top:7px;padding-bottom:7px}
 table.dt .cell{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 table.dt .gap{width:12px;height:1px;background:var(--line2);flex:0 0 auto}
 table.dt tr.now{background:rgba(234,88,12,.07)}
+/* 账本趋势图 */
+.legend{display:flex;gap:18px;margin-bottom:12px;font-size:12.5px;color:var(--text2)}
+.legend .lg{display:flex;align-items:center;gap:7px}
+.legend .lg i{width:12px;height:12px;border-radius:3px;display:inline-block}
+.legend .lg-cost i{background:var(--accent)}
+.legend .lg-ret i{background:var(--ok)}
+.legend .lg-net i{background:var(--blue)}
+.chart-wrap{width:100%;height:320px;position:relative}
+.chart-wrap canvas{width:100%;height:100%;display:block}
 table.dt tr.now td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
 table.dt .wk{font-size:11px;color:var(--text3);margin-left:6px}
 .dim{color:var(--text3)}
@@ -122,6 +136,10 @@ table.dt .wk{font-size:11px;color:var(--text3);margin-left:6px}
 .kpi .v{font-size:20px;font-weight:700;margin-top:4px}
 .kpi .l{font-size:11.5px;color:var(--text3)}
 .pos{color:#ff4d4f}.neg{color:#10b981}
+tr.win{background:rgba(255,77,79,.07)}tr.win td:first-child{box-shadow:inset 3px 0 0 #ff4d4f}
+.kpi.hl{background:linear-gradient(180deg,rgba(255,77,79,.10),var(--bg2))}
+.hit{color:#ff4d4f;font-weight:600}
+.chk{font-size:12.5px;color:var(--text2);display:inline-flex;align-items:center;gap:4px;cursor:pointer}
 table{width:100%;border-collapse:collapse;font-size:13px}
 th,td{padding:9px 8px;text-align:left;border-bottom:1px solid var(--line)}
 th{color:var(--text3);font-weight:500;font-size:12px}
@@ -306,9 +324,11 @@ textarea:focus{border-color:var(--accent)}
         <div class="note" style="margin:0;flex:1">自选池为空时，用号码表里的选区直接记账，倍数取这里；号码一旦入池，每注在各自行上设倍数。</div>
       </div>
       <div class="row" style="margin-top:12px">
+        <span id="bet-issue" class="pill ok" style="align-self:center;margin-right:6px" title="本次投注将记入这一期（下一期开奖），可在明细里改期号"></span>
         <button class="btn pri" onclick="doBet()">✅ 确认投注并记账</button>
-        <button class="btn" onclick="askLLM()">🤖 AI 点评自选池</button>
+        <button class="btn" id="btn-llm" onclick="askLLM()">🤖 AI 点评自选池</button>
         <button class="btn" onclick="exportPoolTxt()" title="把自选池（或选区预览）导出为「日期-彩种名.txt」，含每注号码、注数、金额与概率">📄 导出文本文件</button>
+        <button class="btn" onclick="copyPoolTxt()" title="把与「导出文本文件」完全相同的内容复制到剪贴板，可直接粘贴到微信/备忘录">📋 复制到剪贴板</button>
       </div>
       <div id="p-llm" class="note hide"></div>
       <div class="note">复式说明：在一个区选超过规定个数即为复式，每注会按组合数自动展开注数与金额。<br>每注可单独设<b>倍投倍数</b>，该注金额 = 展开注数 × 单价 × 倍数，池底合计随之更新。<br>每注右侧 × 可单独删除；虚线框的那一行是<b>当前选区预览</b>，点「＋ 加入自选池」才会真正入池。</div>
@@ -327,6 +347,23 @@ textarea:focus{border-color:var(--accent)}
       <div class="note">结算口径：按你保存的每注号码对照该期开奖，命中奖级自动回款；浮动奖（一/二等、快乐8 高奖级）取当期官方奖级表金额。</div>
     </div>
     <div class="card">
+      <h2><span class="bar"></span>投入 / 中奖趋势
+        <div class="spacer"></div>
+        <span class="note" style="margin:0;white-space:nowrap">周期</span>
+        <select id="l-trend-by" style="width:auto;margin-left:6px" onchange="loadTrend()">
+          <option value="day">按日</option>
+          <option value="month">按月</option>
+        </select>
+      </h2>
+      <div class="legend">
+        <span class="lg lg-cost"><i></i>投入</span>
+        <span class="lg lg-ret"><i></i>中奖回款</span>
+        <span class="lg lg-net"><i></i>净盈亏</span>
+      </div>
+      <div class="chart-wrap"><canvas id="l-trend"></canvas></div>
+      <div class="note">纵轴金额（元）：橙柱=投入，绿柱=中奖回款，蓝线=净盈亏（回款−投入）。可与上方盈亏总览对照。</div>
+    </div>
+    <div class="card">
       <h2><span class="bar"></span>账本明细
         <div class="spacer"></div>
         <span class="note" style="margin:0;white-space:nowrap">排序</span>
@@ -336,6 +373,7 @@ textarea:focus{border-color:var(--accent)}
           <option value="cost">投入（多→少）</option>
           <option value="settled">待开奖优先</option>
         </select>
+        <label class="chk" style="margin-left:12px;white-space:nowrap"><input type="checkbox" id="l-win" onchange="loadLedger()"> 仅看中奖</label>
       </h2>
       <div id="l-table"><div class="loading">加载中…</div></div>
     </div>
@@ -439,10 +477,13 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;
 const fmt = n => (n === null || n === undefined) ? '—' : Number(n).toLocaleString('zh-CN');
 const yuan = n => n === null || n === undefined ? '—' : '¥' + Number(n).toFixed(2).replace(/\.00$/, '');
 
-async function api(path, data, method) {
+/* signal: 可选的 AbortSignal —— AI 请求这类可能长到几十秒的调用要能真正中断，
+   否则前端放弃等待后，服务端那次请求仍在烧大模型 token。 */
+async function api(path, data, method, signal) {
   const opt = { method: method || (data ? 'POST' : 'GET'), credentials: 'same-origin',
                 headers: { 'Content-Type': 'application/json' } };
   if (data) opt.body = JSON.stringify(data);
+  if (signal) opt.signal = signal;
   const r = await fetch(BASE + 'api/' + path, opt);
   let j = null;
   try { j = await r.json(); } catch (e) { j = { ok: false, error: 'HTTP ' + r.status }; }
@@ -467,6 +508,8 @@ async function doLogout() { await api('logout', {}); location.reload(); }
 
 /* ============ 启动 ============ */
 let GAMES = {}, STRATS = {}, CUR = null, PICKS = {}, TICKETS = [], IS_ADMIN = false;
+/* 各彩种「下一期」期号（来自 /api/options 的 next_issue），用于下注区展示与后端对齐 */
+let NEXT_ISSUE = {};
 /* 每组号码的分区个数（复式约束），默认 = 各分区单注规定个数（红球 6 / 蓝球 1）。
    三处「每组号码个数」各自独立、互不影响：
      gen  = 机选 / 按策略出号区
@@ -512,6 +555,16 @@ function onLotteryChange() {
   SIZES = { gen: defGenN(), fill: defGenN(), ai: defGenN() };
   aiClear();
   renderGenSizes(); renderZones(); recalc(); renderTickets();
+  showBetIssue();
+}
+
+/* 下注区显示「本期投注：第 X 期」，让用户确认投注的是下一期（修复此前错贴上一期号的 bug）。
+   期号以后端 next_issue 为准（后端 /api/bet 默认也是它），这里只做展示，不覆盖后端判定。 */
+function showBetIssue() {
+  const el = $('bet-issue');
+  if (!el) return;
+  const iss = NEXT_ISSUE[CUR];
+  el.textContent = iss ? ('投注期号：第 ' + iss + ' 期') : '投注期号：—';
 }
 
 /* 玩法变了：分区的选号规则/个数可能变，重建号码表并清掉上一轮的 AI 结果 */
@@ -835,19 +888,26 @@ async function doGenerate() {
     strategy: $('p-strategy').value, sets: parseInt($('p-sets').value || 5), sizes });
   if (seq !== GEN_SEQ) return;                 // 期间又点了一次出号，以最后一次为准
   if (!r.ok) return toast(r.error || '出号失败');
-  TICKETS = r.tickets; PICKS = {};
+  /* 追加而不是覆盖：池子是「累积暂存」，几个入口（自选加入 / 随机补全 / 机选出号 / AI 出号）
+     都往同一池里加，任何一个入口整体替换 TICKETS 都会把先前已加入的号冲掉。
+     concat 而非直接赋值，还顺带断了与响应对象的引用（池内号码不该跟着 r 一起被改）。 */
+  TICKETS = TICKETS.concat(r.tickets || []);
+  PICKS = {};
   document.querySelectorAll('.ball.on').forEach(b => b.classList.remove('on'));
   renderTickets();
   if ($('pc-keep')) $('pc-keep').innerHTML = keepTip();
   const per = groupCount('gen');
   const a = r.advice || {};
-  /* 出号结果已直接放进自选池，注数/金额/概率由池底统计呈现，这里只说明「生成了什么」+ 期望回报 */
-  if (advSeq === ADV_SEQ && $('p-advice')) $('p-advice').innerHTML = `已生成 <b>${fmt(r.groups || r.tickets.length)}</b> 组号码`
+  /* 出号结果已追加进自选池，注数/金额/概率由池底统计呈现，这里只说明「生成了什么」+ 期望回报 */
+  const added = r.groups || (r.tickets || []).length;
+  const tail = TICKETS.length > added ? `，自选池现有 <b>${fmt(TICKETS.length)}</b> 组` : '';
+  if (advSeq === ADV_SEQ && $('p-advice')) $('p-advice').innerHTML = `已生成 <b>${fmt(added)}</b> 组号码`
     + (per > 1 ? `（每组 ${zonesBrief('gen')} = ${per} 注复式）` : '')
-    + `，展开 <b>${fmt(r.bet_count)}</b> 注，金额 <b>${yuan(r.cost)}</b>，已放入下方自选池。`
+    + `，展开 <b>${fmt(r.bet_count)}</b> 注，金额 <b>${yuan(r.cost)}</b>，已加入下方自选池${tail}。`
     + (a.tips || []).map(t => '<br>· ' + esc(t)).join('')
     + `<br><span class="dim">期望回报 ${yuan(r.ev)} · 长期回报率 ${(r.roi_est * 100).toFixed(1)}%（倍投只放大中奖金额，不改变中奖概率）</span>`;
-  toast('已生成 ' + fmt(r.groups || r.tickets.length) + ' 组号码，共 ' + fmt(r.bet_count) + ' 注');
+  toast('已生成 ' + fmt(added) + ' 组号码，共 ' + fmt(r.bet_count) + ' 注'
+    + (TICKETS.length > added ? `，自选池现有 ${fmt(TICKETS.length)} 组` : ''));
 }
 
 /* 复式摘要，如「红球 8 / 蓝球 2」；scope 决定看哪一处的「每组号码个数」 */
@@ -1003,6 +1063,25 @@ function tkText(t, g) {
   return parts.join(' | ') || '—';
 }
 
+/* 数字型（3D/排列3/排列5/七星彩）的紧凑拷贝文本：
+   按位零补 2 位、位间用「 | 」分隔；组选则号码间用「 | 」分隔。
+   例：排列三 04 | 05 | 06 ×6 倍 （与剪贴板拷贝格式一致，显示/导出仍走 tkText） */
+function digitCopyBody(t, g) {
+  if (g.type === 'digit' && t.n) {
+    return '组选 ' + (t.n || []).map(n => String(n).padStart(2, '0')).join(' | ');
+  }
+  const zs = g.zones || [];
+  return zs.map(z => {
+    const v = t[z.key];
+    const a = Array.isArray(v) ? v : (v != null ? [v] : []);
+    return a.map(n => String(n).padStart(2, '0')).join(' ');
+  }).join(' | ');
+}
+function digitCopyLine(t, g) {
+  const m = Math.max(1, Math.min(parseInt(t.mult, 10) || 1, 99));
+  return g.name + '：' + digitCopyBody(t, g) + (m > 1 ? ' ×' + m + ' 倍' : '');
+}
+
 /* 文件名净化：Windows 不允许 \ / : * ? " < > | */
 function safeName(s) {
   return String(s || '').replace(/[\\/:*?"<>|]/g, '_').trim() || '未命名';
@@ -1051,15 +1130,16 @@ function ymd(d) {
   return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
 }
 
-/* 导出自选池为文本文件：文件名「日期-彩种名.txt」
-   注数/金额/概率**重新向服务端算一次**，不复用界面上的渲染结果 ——
-   用户可能刚改完倍数就点导出，界面上的数字还没回来（poolCalc 是异步的）。 */
-async function exportPoolTxt() {
-  const g = GAMES[CUR]; if (!g) return;
+/* 汇总自选池（或选区预览）并生成纯文本。
+   **导出文件与「复制到剪贴板」共用这一个函数** —— 两份口径各写一遍必然漂移
+   （重复组判定、注数、金额、概率任何一处改了另一边就对不上）。
+   返回 { text, fname, totalSets, totalAmount }；池空且无选区时返回 null；统计失败返回 { err }。 */
+async function buildPoolText() {
+  const g = GAMES[CUR]; if (!g) return null;
   const play = $('p-play').value;
   const hasPool = TICKETS.length > 0;
   const hasPicks = Object.values(PICKS).some(a => a && a.length);
-  if (!hasPool && !hasPicks) return toast('自选池是空的，先选号或出号再导出');
+  if (!hasPool && !hasPicks) return null;
 
   const tks = hasPool ? TICKETS.map(t => numOnly(t)) : [numOnly(PICKS)];
   const mults = hasPool ? TICKETS.map(t => Math.max(1, parseInt(t.mult, 10) || 1)) : [ovMult()];
@@ -1068,7 +1148,7 @@ async function exportPoolTxt() {
             : Promise.resolve({ ok: true, per: [], per_amount: [], total_sets: 0, total_amount: 0 }),
     api('probability', { lottery: CUR, play, picks: hasPool ? null : PICKS }),
   ]);
-  if (!r.ok) return toast(r.error || '统计失败，未导出');
+  if (!r.ok) return { err: r.error || '统计失败' };
 
   let per, multsL, totalSets, totalAmount, label;
   if (hasPool) {
@@ -1126,15 +1206,79 @@ async function exportPoolTxt() {
   L.push('本文件仅为投注记录。号码由策略或大模型生成，不改变中奖概率、也不是预测。');
   L.push('购彩有风险，投注需理性；未满 18 周岁不得购买彩票。');
 
-  const fname = ymd(now) + '-' + safeName(g.name) + '.txt';
+  return { text: L.join('\n'), fname: ymd(now) + '-' + safeName(g.name) + '.txt',
+           totalSets: totalSets, totalAmount: totalAmount };
+}
+
+/* 导出自选池为文本文件：文件名「日期-彩种名.txt」
+   注数/金额/概率**重新向服务端算一次**，不复用界面上的渲染结果 ——
+   用户可能刚改完倍数就点导出，界面上的数字还没回来（poolCalc 是异步的）。 */
+async function exportPoolTxt() {
+  const b = await buildPoolText();
+  if (!b) return toast('自选池是空的，先选号或出号再导出');
+  if (b.err) return toast(b.err + '，未导出');
   /* 前置 BOM：Windows 记事本按 UTF-8 打开，中文才不会变乱码 */
-  const blob = new Blob(['﻿' + L.join('\n')], { type: 'text/plain;charset=utf-8' });
+  const blob = new Blob(['﻿' + b.text], { type: 'text/plain;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = fname;
+  a.download = b.fname;
   document.body.appendChild(a); a.click();
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
-  toast('已导出 ' + fname + '（' + fmt(totalSets) + ' 注 · ' + yuan(totalAmount) + '）');
+  toast('已导出 ' + b.fname + '（' + fmt(b.totalSets) + ' 注 · ' + yuan(b.totalAmount) + '）');
+}
+
+/* 「复制到剪贴板」只取号码清单（不含统计与合规提示），与导出文件分工：
+   导出 = 完整记录，复制 = 方便直接粘贴到聊天/备忘录的纯号码。
+   navigator.clipboard 只在 HTTPS / localhost 下可用；nginx 已是 HTTPS，仍留 execCommand 兜底。
+   号码口径与下方【号码清单】完全一致（tkText 按 g.zones 渲染，组选彩种走「组选 n n n」）。 */
+async function copyPoolTxt() {
+  const g = GAMES[CUR]; if (!g) return toast('请先选择彩种');
+  const hasPool = TICKETS.length > 0;
+  const hasPicks = Object.values(PICKS).some(a => a && a.length);
+  if (!hasPool && !hasPicks) return toast('自选池是空的，先选号或出号再复制');
+
+  /* 只取号码：直接拼 tkText，不再经过 buildPoolText 的统计/合规段。
+     投注倍数：非默认 1 倍时，在号码后附「 ×N 倍」，方便直接粘贴到聊天/备忘录；
+     默认 1 倍则不附，保持纯号码。BOM 保留（与导出同口径），避免粘到 Windows 记事本乱码。 */
+  let text;
+  if (g.type === 'digit') {
+    /* 数字型：按位零补 +「 | 」分隔 + 彩种名前缀，例「排列三 04 | 05 | 06 ×6 倍」 */
+    if (hasPool) {
+      /* 传原始 t（含 mult），numOnly 会剥离 mult 导致倍投丢失 */
+      text = TICKETS.map(t => digitCopyLine(t, g)).join('\n');
+    } else {
+      const m = ovMult();
+      const body = digitCopyBody(numOnly(PICKS), g);
+      text = g.name + '：' + body + (m > 1 ? ' ×' + m + ' 倍' : '');
+    }
+  } else if (hasPool) {
+    text = TICKETS.map(t => {
+      const m = Math.max(1, Math.min(parseInt(t.mult, 10) || 1, 99));
+      const line = tkText(numOnly(t), g);
+      return m > 1 ? line + ' ×' + m + ' 倍' : line;
+    }).join('\n');
+  } else {
+    const m = ovMult();
+    const line = tkText(numOnly(PICKS), g);
+    text = m > 1 ? line + ' ×' + m + ' 倍' : line;
+  }
+  text = '﻿' + text;
+
+  let done = false;
+  if (navigator.clipboard && window.isSecureContext) {
+    try { await navigator.clipboard.writeText(text); done = true; } catch (e) { /* 落到兜底 */ }
+  }
+  if (!done) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+    document.body.appendChild(ta);
+    ta.select(); ta.setSelectionRange(0, text.length);
+    try { done = document.execCommand('copy'); } catch (e) { done = false; }
+    ta.remove();
+  }
+  if (done) toast('已复制 ' + (hasPool ? TICKETS.length : 1) + ' 组号码到剪贴板');
+  else toast('复制失败 —— 浏览器拒绝了剪贴板访问，请改用「📄 导出文本文件」');
 }
 
 
@@ -1169,21 +1313,67 @@ function llmHint(err) {
   return s || '未知原因';
 }
 
-/* AI 点评「自选池」：把池内实际号码与倍数发给大模型，做客观点评（成本/期望/风险） */
+/* AI 点评「自选池」：把池内实际号码与倍数发给大模型，做客观点评（成本/期望/风险）。
+
+   为什么号码一多就「卡住」——原来有三处让人以为死机：
+     1. **请求体随组数线性膨胀**：后端把池里**每一组**的号码文本都塞进 prompt
+        （`自选池号码_每组一组`）。100 组就是 100 行完整号码，prompt 几倍膨胀，
+        模型读完再生成，几十秒起步；复式（8红2蓝）每组还要占更多 token。
+        模型只需要**结构特征**，不需要逐组核对 —— 点评请求里只送前若干组做样本，
+        另附「号码覆盖区间/重复组数」等聚合值，耗时与组数基本脱钩。
+     2. **前端没有任何超时/进度反馈**：`el.textContent='正在请求大模型…'` 之后
+        就干等 60 秒（后端 timeout），按钮还能连点，多点几次就是几个并发请求一起排队，
+        体感更糟。现在显示已等待秒数、给按钮上锁、超时后明确说明。
+     3. **按钮不禁用**：连点会并发打多次大模型，既烧 token 又抢带宽。
+   超时取 90 秒：比后端 60 秒的 LLM timeout 略长，好让「后端超时」和「前端超时」可区分。 */
+const LLM_WAIT_MS = 90000;
+
+let _llmBusy = false, _llmTick = 0;
+let LLM_CFG = { providers: {} }, LLM_PRESETS = {};  // 设置页用：各家配置 + 预设默认值
 async function askLLM() {
-  const el = $('p-llm');
+  const el = $('p-llm'), btn = $('btn-llm');
   if (!TICKETS.length) {
     el.classList.remove('hide');
     el.innerHTML = '自选池是空的 —— 先选号入池（「＋ 加入自选池」「机选 / 按策略出号」「🎲 随机补全并加入自选池」），AI 才能针对池内投注点评。';
     return;
   }
-  el.classList.remove('hide'); el.textContent = '正在请求大模型…';
-  const r = await api('advice', { lottery: CUR, play: $('p-play').value,
-    strategy: $('p-strategy').value,
-    tickets: TICKETS.map(t => numOnly(t)),
-    mults: TICKETS.map(t => Math.max(1, parseInt(t.mult, 10) || 1)),
-    use_llm: true });
-  if (!r.ok) { el.textContent = r.error || '失败'; return; }
+  if (_llmBusy) return toast('上一轮点评还在跑，等它返回');
+
+  _llmBusy = true;
+  btn.disabled = true;
+  btn.textContent = '点评中…';
+  el.classList.remove('hide');
+  const t0 = Date.now();
+  const showWait = () => {
+    const s = Math.round((Date.now() - t0) / 1000);
+    el.textContent = `正在请求大模型…（已等待 ${s} 秒）`
+      + (TICKETS.length > 30 ? `　本池 ${TICKETS.length} 组，号码较多时通常要 20~60 秒` : '');
+  };
+  showWait();
+  _llmTick = setInterval(showWait, 1000);
+
+  /* 前端超时兜底：AbortController 比 fetch 内置超时更好用 —— 能真正中断，
+     否则即使前端放弃，服务端那次请求仍在烧 token。 */
+  const ctl = new AbortController();
+  const to = setTimeout(() => ctl.abort(), LLM_WAIT_MS);
+  let r;
+  try {
+    r = await api('advice', { lottery: CUR, play: $('p-play').value,
+      strategy: $('p-strategy').value,
+      tickets: TICKETS.map(t => numOnly(t)),
+      mults: TICKETS.map(t => Math.max(1, parseInt(t.mult, 10) || 1)),
+      use_llm: true }, 'POST', ctl.signal);
+  } catch (e) {
+    r = { ok: false, error: '请求中断：' + (e && e.name === 'AbortError'
+      ? `超过 ${LLM_WAIT_MS / 1000} 秒未返回` : (e && e.message) || '网络异常') };
+  } finally {
+    clearTimeout(_llmTick); clearTimeout(to);
+    _llmBusy = false;
+    btn.disabled = false; btn.textContent = '🤖 AI 点评自选池';
+  }
+
+  if (!r.ok) { el.innerHTML = '<span style="color:var(--bad)">' + esc(r.error || '失败') + '</span>'
+    + '<br><span class="dim">池内号码较多时点评会明显变慢；可先减少组数，或稍后重试。</span>'; return; }
   const a = r.advice || {};
   const sets = a['自选池注数_展开后'] != null ? a['自选池注数_展开后'] : (a['自选池注数'] || 0);
   const head = `本池 <b>${TICKETS.length}</b> 组号码 · 共 <b>${fmt(sets)}</b> 注`
@@ -1318,16 +1508,20 @@ async function loadLedger() {
     <div class="kpi"><div class="l">总投入</div><div class="v">${yuan(s.cost)}</div></div>
     <div class="kpi"><div class="l">总回款</div><div class="v">${yuan(s.ret)}</div></div>
     <div class="kpi"><div class="l">净盈亏</div><div class="v ${net>0?'pos':net<0?'neg':''}">${yuan(net)}</div></div>
-    <div class="kpi"><div class="l">回报率</div><div class="v ${net>0?'pos':'neg'}">${((s.roi||0)*100).toFixed(1)}%</div></div>`;
-  const rows = r.rows || [];
-  if (!rows.length) { $('l-table').innerHTML = '<div class="loading">暂无记账记录</div>'; return; }
+    <div class="kpi"><div class="l">回报率</div><div class="v ${net>0?'pos':'neg'}">${((s.roi||0)*100).toFixed(1)}%</div></div>
+    <div class="kpi hl"><div class="l">中奖期数</div><div class="v">${fmt(s.win_rounds||0)}</div></div>
+    <div class="kpi hl"><div class="l">中奖注数</div><div class="v">${fmt(s.win_tickets||0)}</div></div>`;
+  const onlyWin = $('l-win') && $('l-win').checked;
+  let rows = (r.rows || []).filter(x => !onlyWin || (x.return_amount || 0) > 0);
+  if (!rows.length) { $('l-table').innerHTML = '<div class="loading">' + (onlyWin ? '没有中奖记录' : '暂无记账记录') + '</div>'; return; }
   const needSec = dateCellsNeedSec(rows);
   $('l-table').innerHTML = `<table><thead><tr><th>投注日期</th><th>彩种</th><th>期号</th><th>注数</th><th>投入</th><th>回款</th><th>盈亏</th><th>状态</th><th>操作</th></tr></thead><tbody>`
     + rows.map(x => {
       const net2 = (x.return_amount || 0) - (x.cost || 0);
       const g = GAMES[x.lottery] || { name: x.lottery };
       const d = dateCell(x.bet_at, needSec);
-      return `<tr><td class="mono">${d}</td><td>${esc(g.name)}</td><td class="mono">${esc(x.issue)}</td><td>${fmt(x.sets)}</td>
+      const win = (x.return_amount || 0) > 0;
+      return `<tr class="${win ? 'win' : ''}"><td class="mono">${d}</td><td>${esc(g.name)}</td><td class="mono">${esc(x.issue)}</td><td>${fmt(x.sets)}</td>
         <td>${yuan(x.cost)}</td><td>${yuan(x.return_amount)}</td>
         <td class="${net2>0?'pos':net2<0?'neg':''}">${yuan(net2)}</td>
         <td>${x.settled ? '<span class="pill ok">已结算</span>' : '<span class="pill warn">待开奖</span>'}</td>
@@ -1338,6 +1532,7 @@ async function loadLedger() {
     + `<div class="note">「投注日期」是这一期<b>第一次下单</b>的时间（同一期多注只记最早那次），可在右上角切换排序。
       点「📋 复制号码」把该期所有号码按「红球 01 05 … | 蓝球 03　1 注」逐行复制，可直接粘到微信/备忘录；
       点「明细 / 修改」可查看该期每一注，并单独修改号码/期号/备注或删除单注；点「删除」则清掉该期全部投注记录。</div>`;
+  loadTrend();
 }
 
 /* 账本日期格：今天显示「今天 HH:MM」，往年带年份；有时间为空时明确写「—」而不是留白。
@@ -1362,6 +1557,108 @@ function dateCellsNeedSec(rows) {
   return dup;
 }
 
+/* ===== 账本趋势图 ===== */
+async function loadTrend() {
+  const by = ($('l-trend-by') && $('l-trend-by').value) || 'day';
+  const r = await api('ledger/trend?by=' + encodeURIComponent(by));
+  if (!r.ok) return;
+  drawTrendChart($('l-trend'), r.rows || [], by);
+}
+function _trendY(v, yMin, yMax, padT, plotH) {
+  const t = (v - yMin) / (yMax - yMin || 1);
+  return padT + plotH * (1 - t);
+}
+function niceCeil(v) {
+  if (v <= 0) return 1;
+  const e = Math.pow(10, Math.floor(Math.log10(v)));
+  const f = v / e;
+  const nf = f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10;
+  return nf * e;
+}
+function shortDate(d, by) {
+  if (!d || d === '未知') return '—';
+  return by === 'month' ? d : d.slice(5); /* 日：MM-DD */
+}
+function fmtMoney(v) {
+  const a = Math.abs(v);
+  if (a >= 10000) return (v / 10000).toFixed(a >= 100000 ? 0 : 1) + '万';
+  return Math.round(v).toString();
+}
+function drawTrendChart(canvas, rows, by) {
+  const wrap = canvas.parentElement;
+  const W = wrap.clientWidth, H = wrap.clientHeight;
+  if (!W || !H) return;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.round(W * dpr);
+  canvas.height = Math.round(H * dpr);
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  const css = getComputedStyle(document.documentElement);
+  const C = {
+    text: css.getPropertyValue('--text').trim() || '#f2f2f4',
+    text2: css.getPropertyValue('--text2').trim() || '#a8a8b4',
+    text3: css.getPropertyValue('--text3').trim() || '#6e6e7c',
+    line: 'rgba(255,255,255,.10)',
+    cost: css.getPropertyValue('--accent').trim() || '#ea580c',
+    ret: css.getPropertyValue('--ok').trim() || '#10b981',
+    net: css.getPropertyValue('--blue').trim() || '#3b82f6'
+  };
+  if (!rows.length) {
+    ctx.fillStyle = C.text3; ctx.font = '13px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('暂无记账数据', W / 2, H / 2);
+    return;
+  }
+  const padL = 56, padR = 16, padT = 16, padB = 36;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const maxV = Math.max(1, ...rows.map(r => Math.max(r.cost, r.ret)));
+  const minNet = Math.min(0, ...rows.map(r => r.net));
+  const yMax = niceCeil(maxV);
+  const yMin = minNet < 0 ? -niceCeil(-minNet) : 0;
+  const y0 = _trendY(0, yMin, yMax, padT, plotH);
+  ctx.font = '11px sans-serif'; ctx.textBaseline = 'middle';
+  const ticks = 4;
+  for (let i = 0; i <= ticks; i++) {
+    const v = yMin + (yMax - yMin) * i / ticks;
+    const y = _trendY(v, yMin, yMax, padT, plotH);
+    ctx.strokeStyle = C.line; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke();
+    ctx.fillStyle = C.text3; ctx.textAlign = 'right';
+    ctx.fillText(fmtMoney(v), padL - 8, y);
+  }
+  ctx.strokeStyle = 'rgba(255,255,255,.22)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(padL, y0); ctx.lineTo(W - padR, y0); ctx.stroke();
+  const n = rows.length;
+  const bw = plotW / n;
+  const barW = Math.min(bw * 0.34, 26);
+  const gap = Math.min(bw * 0.08, 4);
+  const showEvery = Math.max(1, Math.ceil(n / 12));
+  rows.forEach((r, i) => {
+    const cx = padL + bw * (i + 0.5);
+    const cH = y0 - _trendY(r.cost, yMin, yMax, padT, plotH);
+    const rH = y0 - _trendY(r.ret, yMin, yMax, padT, plotH);
+    const x1 = cx - barW - gap / 2, x2 = cx + gap / 2;
+    if (r.cost > 0) { ctx.fillStyle = C.cost; ctx.fillRect(x1, y0 - cH, barW, cH); }
+    if (r.ret > 0) { ctx.fillStyle = C.ret; ctx.fillRect(x2, y0 - rH, barW, rH); }
+    if (i % showEvery === 0 || i === n - 1) {
+      ctx.fillStyle = C.text2; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      ctx.fillText(shortDate(r.date, by), cx, H - padB + 8);
+    }
+  });
+  ctx.strokeStyle = C.net; ctx.lineWidth = 2; ctx.beginPath();
+  rows.forEach((r, i) => {
+    const cx = padL + bw * (i + 0.5);
+    const y = _trendY(r.net, yMin, yMax, padT, plotH);
+    if (i === 0) ctx.moveTo(cx, y); else ctx.lineTo(cx, y);
+  });
+  ctx.stroke();
+  rows.forEach((r, i) => {
+    const cx = padL + bw * (i + 0.5);
+    const y = _trendY(r.net, yMin, yMax, padT, plotH);
+    ctx.fillStyle = C.net; ctx.beginPath(); ctx.arc(cx, y, 2.5, 0, Math.PI * 2); ctx.fill();
+  });
+}
+
 /* 复制某一期的全部号码 */
 async function copyRound(lottery, issue) {
   const r = await api('tickets?lottery=' + encodeURIComponent(lottery)
@@ -1372,7 +1669,16 @@ async function copyRound(lottery, issue) {
   const g = GAMES[lottery] || { name: lottery };
   const head = g.name + ' 第 ' + issue + ' 期（' + rows.length + ' 注）';
   const body = rows.slice().sort((a, b) => (a.id || 0) - (b.id || 0))
-    .map((t, i) => '  ' + String(i + 1).padStart(2, ' ') + '. ' + tkLine(t, g)).join('\n');
+    .map((t, i) => {
+      let line;
+      if (g.type === 'digit') {
+        const m = Math.max(1, Math.min(parseInt(t.mult, 10) || 1, 99));
+        line = digitCopyBody(t, g) + (m > 1 ? ' ×' + m + ' 倍' : '');
+      } else {
+        line = tkLine(t, g);
+      }
+      return '  ' + String(i + 1).padStart(2, ' ') + '. ' + line;
+    }).join('\n');
   await copyText(head + '\n' + body, '已复制 ' + g.name + ' ' + issue + ' 期共 ' + rows.length + ' 注号码');
 }
 
@@ -1450,6 +1756,7 @@ async function openRound(lottery, issue) {
         <span class="pill">${esc(pn)}</span>${m > 1 ? `<span class="pill warn">${m} 倍</span>` : ''}
         <span class="amt">${t.sets} 注 · ${yuan(t.amount)} · ${t.settled
           ? '已结算 +' + yuan(t.prize_amount).slice(1) : '待开奖'}</span>
+        ${t.settled && (t.prize_amount||0) > 0 && t.hit_detail ? `<span class="amt hit" title="本注命中明细">中 ${esc(t.hit_detail)}</span>` : ''}
         <span class="amt dim" style="margin-left:6px">${dateCell(t.created_at, sec)}</span>
         <button class="btn sm" onclick="copyOne(${t.id})" title="复制这一注的号码">📋</button>
         <button class="btn sm" onclick="editTicket(${t.id})">修改</button>
@@ -1694,13 +2001,16 @@ async function loadSettings() {
   const r = await api('options');
   if (!r.ok) return;
   const cfg = r.llm || {};
+  LLM_CFG = cfg;
+  LLM_PRESETS = {};
+  (r.presets||[]).forEach(p => LLM_PRESETS[p.key] = p);
+  NEXT_ISSUE = r.next_issue || {};
+  showBetIssue();
   $('m-preset').innerHTML = (r.presets||[]).map(p => `<option value="${p.key}" data-url="${esc(p.base_url)}" data-model="${esc(p.model)}">${esc(p.name)}</option>`).join('');
+  const active = cfg.active || (r.presets && r.presets[0] && r.presets[0].key) || 'deepseek';
+  $('m-preset').value = active;
   $('m-enabled').value = cfg.enabled ? '1' : '0';
-  $('m-model').value = cfg.model || '';
-  $('m-url').value = cfg.base_url || '';
-  $('m-key').placeholder = cfg.has_key ? ('已配置 ' + (cfg.api_key_masked||'') + '（留空不修改）') : 'sk-...';
-  $('m-status').textContent = cfg.has_key ? '已配置 Key' : '未配置 Key';
-  $('m-status').className = 'pill ' + (cfg.has_key ? 'ok' : 'warn');
+  _fillProvider(active);   // 载入该服务商已存配置（含掩码 KEY），切换服务商时复用
   const d = r.db || {};
   $('db-info').innerHTML = `开奖记录 <b>${fmt(d.total)}</b> 期 · 用户 <b>${fmt(d.users)}</b> · 投注记录 <b>${fmt(d.tickets)}</b> 条<br>`
     + (d.per||[]).map(x => `${GAMES[x.lottery]?.name||x.lottery}: ${fmt(x.n)} 期（${x.a}~${x.b}）`).join('　|　');
@@ -1712,21 +2022,36 @@ async function loadSettings() {
       + '</tbody></table>';
   }
 }
+function _fillProvider(key) {
+  /* 把「选中服务商」自己已存的配置填进表单。切换服务商时调用 —— 每家 KEY 独立保留，
+     不会因切到别家而被清掉；没配过的就用预设默认值。 */
+  const prov = (LLM_CFG.providers && LLM_CFG.providers[key]) || {};
+  const preset = LLM_PRESETS[key] || {};
+  $('m-url').value = prov.base_url || preset.base_url || '';
+  $('m-model').value = prov.model || preset.model || '';
+  $('m-key').value = '';
+  const masked = prov.api_key_masked || '';
+  $('m-key').placeholder = prov.has_key ? ('已配置 ' + masked + '（留空不修改）') : 'sk-...';
+  $('m-status').textContent = prov.has_key ? '已配置 Key' : '未配置 Key';
+  $('m-status').className = 'pill ' + (prov.has_key ? 'ok' : 'warn');
+}
 function applyPreset() {
-  const o = $('m-preset').selectedOptions[0];
-  if (o && o.dataset.url) { $('m-url').value = o.dataset.url; $('m-model').value = o.dataset.model; }
+  /* 下拉一切就载入那家自己的配置（含已存 KEY），不用重填。 */
+  _fillProvider($('m-preset').value);
 }
 async function saveLLM() {
-  const cfg = { enabled: $('m-enabled').value === '1', model: $('m-model').value.trim(),
-                base_url: $('m-url').value.trim() };
-  if ($('m-key').value.trim()) cfg.api_key = $('m-key').value.trim();
-  const r = await api('settings/llm', { config: cfg });
+  const key = $('m-preset').value;
+  const config = { base_url: $('m-url').value.trim(), model: $('m-model').value.trim() };
+  if ($('m-key').value.trim()) config.api_key = $('m-key').value.trim();  // 留空 = 沿用已存 KEY
+  const r = await api('settings/llm', { active: key, enabled: $('m-enabled').value === '1', config });
   if (!r.ok) return toast(r.error || '保存失败');
   $('m-key').value = '';
   const c = r.llm || {};
-  if (!c.enabled) toast(c.has_key ? '已保存，但「启用」是关闭 —— AI 建议仍不可用' : '已保存，但未填 API Key —— AI 建议仍不可用');
-  else if (!c.has_key) toast('已保存并启用，但还缺 API Key —— AI 建议仍不可用');
-  else toast('配置已保存，大模型已就绪');
+  const p = (c.providers && c.providers[key]) || {};
+  /* 保存即「启用当前选中的这家、关掉其它家」：active 已指向它，enabled 由开关决定。 */
+  if (!c.enabled) toast(p.has_key ? '已保存，但「启用」是关闭 —— AI 建议仍不可用' : '已保存，但未填 API Key —— AI 建议仍不可用');
+  else if (!p.has_key) toast('已保存并启用，但「' + (LLM_PRESETS[key] ? LLM_PRESETS[key].name : key) + '」还缺 API Key —— AI 建议仍不可用');
+  else toast('已保存：当前启用「' + (LLM_PRESETS[key] ? LLM_PRESETS[key].name : key) + '」，大模型已就绪');
   loadSettings();
 }
 async function addUser() {
