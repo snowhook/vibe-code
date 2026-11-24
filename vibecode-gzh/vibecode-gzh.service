@@ -1,0 +1,18 @@
+[Unit]
+Description=vibecode-gzh standalone service (/api/gzh/* on 127.0.0.1:5102)
+After=network.target
+
+[Service]
+Type=simple
+User=admin
+Group=admin
+WorkingDirectory=/home/admin/apps/vibecode-gzh
+Environment=PYTHONUSERBASE=/home/admin/.local
+ExecStart=/usr/bin/python3 /home/admin/apps/vibecode-gzh/gzh_app.py
+Restart=always
+RestartSec=3
+StandardOutput=append:/var/log/vibecode-gzh.log
+StandardError=append:/var/log/vibecode-gzh.log
+
+[Install]
+WantedBy=multi-user.target

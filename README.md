@@ -111,21 +111,27 @@ python src/server.py
 
 ## 数据备份说明
 
-**`routing.db` 是整个系统最有价值的资产** —— 工艺路线记录、模板、工序/风险库全部存于此。
-该文件已被 `.gitignore` 排除，**不会进入本仓库**，需单独离线备份。
+运行时数据全部**不入库**，仅存服务器本地并由 OSS 备份覆盖：
 
-页面改动频率低，数据变化基本都集中在这个数据库中，因此增量备份只需更新该文件。
+- `routing.db` —— 全站通用 KV（门户卡片布局、股票收藏等；工艺路线功能已于 2026-11-24 下线，表数据保留）
+- `apps/vibecode-bazi/data/`（排盘记录+报告）、`apps/vibecode-gzh/data/`（关键词表）、`apps/vibecode-math/data/`（解题档案）
+- `aigen.db`、足迹照片 `footprint-images/`、漫展/联动缓存等
+
+备份脚本：`backup_vibe.sh`（每周全量→OSS，含 workspace + apps 源码 + nginx + systemd 单元）、`backup_math.sh`（每日 3:30，解题档案）、`aigen-backup.sh` / `aigen-image-backup.sh`（每日，生成库）。
 
 ---
 
-*最后更新：2026-09-14*
+*最后更新：2026-11-25*
 
 ## 模块化拆分（2026-11-25 起）
 
 按"每个软件独立"原则，各模块逐步拆为 `vibecode-<模块>/` 子目录（独立代码+部署单元，数据留服务器本地不入库）：
 
-- `vibecode-bazi/` — 八字分析独立服务（:5100，systemd unit `vibecode-bazi.service`，nginx `/api/bazi/` 分流）✅ 已拆分
-- 工艺路线模块已下线：删除 `src/`、`deployed/` 中 routing/process 页面（2026-11-24）
-- `vibe-code` 旧的单体快照（`src/`、`deployed/`）保留作历史参照，新改动一律进对应 vibecode-* 子目录
-
-- `vibecode-math/` — 动画化解题独立服务（:5101，systemd unit `vibecode-math.service`，nginx `/api/math/` 分流，依赖 ffmpeg + hyperframes@0.8.64 渲染）✅ 已拆分
+- `vibecode-bazi/` — 八字分析独立服务（:5100，nginx `/api/bazi/` 分流）✅
+- `vibecode-math/` — 动画化解题独立服务（:5101，nginx `/api/math/` 分流，依赖 ffmpeg + hyperframes@0.8.64）✅
+- `vibecode-gzh/` — 公众号热门文章（:5102，nginx `/api/gzh/` 分流）✅
+- `vibecode-collab/` — 联动速递（:5103，nginx `/api/collab/` 分流）✅
+- `vibecode-lockup/` — 解禁预警雷达（:5104，nginx `/api/lockup/` 分流）✅
+- `vibecode-sentiment/` — 市场情绪日报（:5105，nginx `/api/sentiment/` 分流）✅
+- 工艺路线模块已下线：删除 `src/`、`deployed/` 中 routing/process 页面（2026-11-24）；AI姿势参考图库已下线（2026-11-25）
+- 服务器端：单元文件在 `/etc/systemd/system/vibecode-*.service`，代码在 `/home/admin/apps/vibecode-*/`；`src/`、`deployed/` 保留作 10-15 单体快照，新改动一律进对应 vibecode-* 子目录
