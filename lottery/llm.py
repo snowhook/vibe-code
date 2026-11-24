@@ -26,17 +26,64 @@ PRESETS = [
 ]
 
 
+def name_of(key):
+    """服务商 key → 显示名（预设里查不到就用 key 本身）。"""
+    for p in PRESETS:
+        if p['key'] == key:
+            return p['name']
+    return key or '—'
+
+
+def _preset_defaults(key):
+    """某家服务商的「出厂默认」——用预设自己的 base_url/model，不要全抄 DEFAULT。
+
+    踩过：早先建 providers 时统一 `dict(DEFAULT)`，于是选「阿里百炼」也带着
+    DeepSeek 的地址和模型名，切预设看不出任何变化，用户以为切换没生效。
+    """
+    d = dict(DEFAULT)
+    for p in PRESETS:
+        if p['key'] == key:
+            if p['base_url']:
+                d['base_url'] = p['base_url']
+            if p['model']:
+                d['model'] = p['model']
+            break
+    return d
+
+
+def _normalize(raw):
+    """补齐 active/primary/backups，并剔除已失效的引用（就地修改并返回 raw）。
+
+    三者关系：`primary` 是主模型，`backups` 是备用模型（可多个，有序），
+    `active` 是**当前正在用**的那一家 —— 手工切换或超时切备用都只动 `active`，
+    主/备用的角色划分保持不变。
+    """
+    provs = raw.get('providers')
+    if not isinstance(provs, dict):
+        provs = {}
+        raw['providers'] = provs
+    if raw.get('active') not in provs:
+        raw['active'] = next(iter(provs), '')
+    if raw.get('primary') not in provs:
+        raw['primary'] = raw.get('active') or next(iter(provs), '')
+    bk = raw.get('backups')
+    if not isinstance(bk, list):
+        bk = []
+    # 只保留真实存在、且不是主模型的服务商
+    raw['backups'] = [k for k in bk if k in provs and k != raw.get('primary')]
+    raw['enabled'] = bool(raw.get('enabled', False))
+    return raw
+
+
 def _migrate(saved):
-    """把旧版「单份配置」兼容成「多家并存 + 一个 active」结构。
+    """把旧版「单份配置」兼容成「多家并存 + 主/备用」结构。
 
     旧版是扁平 dict（enabled/base_url/api_key/model/timeout/temperature）；
-    新版是 {active, enabled, providers:{key:{...}}}。每次读取都先归一，
-    这样老库（含当前线上那份）打开即自动迁移，无需手工跑迁移脚本。
+    新版是 {active, enabled, primary, backups, providers:{key:{...}}}。
+    每次读取都先归一，这样老库（含当前线上那份）打开即自动迁移，无需手工跑脚本。
     """
-    if isinstance(saved, dict) and 'providers' in saved and isinstance(saved.get('providers'), dict):
-        saved.setdefault('active', next(iter(saved['providers']), 'deepseek'))
-        saved.setdefault('enabled', False)
-        return saved
+    if isinstance(saved, dict) and isinstance(saved.get('providers'), dict):
+        return _normalize(saved)
     if not isinstance(saved, dict):
         saved = {}
     # 按 base_url 反查属于哪家预设；查不到归 custom；为空默认 deepseek
@@ -46,10 +93,11 @@ def _migrate(saved):
         for p in PRESETS:
             if p['base_url'].rstrip('/') == base:
                 key = p['key']; break
-    prov = {p['key']: dict(DEFAULT) for p in PRESETS}
+    prov = {p['key']: _preset_defaults(p['key']) for p in PRESETS}
     prov[key].update({kk: saved[kk] for kk in ('base_url', 'api_key', 'model', 'timeout', 'temperature')
                       if kk in saved})
-    return {'active': key, 'enabled': bool(saved.get('enabled', False)), 'providers': prov}
+    return _normalize({'active': key, 'enabled': bool(saved.get('enabled', False)),
+                       'primary': key, 'backups': [], 'providers': prov})
 
 
 def raw_config():
@@ -69,41 +117,129 @@ def get_config():
     return cfg
 
 
-def save_config(incoming):
-    """incoming: {active, enabled, config:{base_url,model,api_key?,timeout,temperature}}。
+def _next_primary(provs, backups, exclude, prefer=None):
+    """主模型被降级/移除时，另选一个顶上：优先当前使用中的，其次有 Key 的，最后任意一个。"""
+    def ok(k):
+        return k != exclude and k not in backups
+    if prefer and prefer in provs and ok(prefer):
+        return prefer
+    for k, p in provs.items():
+        if ok(k) and (p.get('api_key') or ''):
+            return k
+    for k in provs:
+        if ok(k):
+            return k
+    return ''
 
-    **只更新被选中的那一家**，其它服务商配置原样保留 —— 这就是「切换只需开关、
-    不用重填 KEY」的实现基础：每家的 base_url/model/key 在库里各自独立存着。
+
+def switch_to(key):
+    """把「当前使用」切到某个已配置服务商（主或备用）。成功返回 None，失败返回错误串。"""
+    raw = raw_config()
+    provs = raw.get('providers') or {}
+    key = (key or '').strip()
+    if key not in provs:
+        return '没有这个服务商'
+    if not (provs[key].get('api_key') or ''):
+        return '「%s」还没配置 API Key，无法切换' % name_of(key)
+    raw['active'] = key
+    store.set_setting('llm', raw)
+    return None
+
+
+def candidates():
+    """可切换的模型清单（已配 Key、且不是当前正在用的），备用排在前面。"""
+    raw = raw_config()
+    provs = raw.get('providers') or {}
+    act, pri = raw.get('active'), raw.get('primary')
+    bks = raw.get('backups') or []
+    order, out = [], []
+    for k in ([pri] + bks + [k for k in provs if k not in ([pri] + bks)]):
+        if not k or k in order:
+            continue
+        order.append(k)
+        if k == act:
+            continue
+        p = provs.get(k) or {}
+        if not (p.get('api_key') or ''):
+            continue
+        out.append({'key': k, 'name': name_of(k), 'model': p.get('model') or '',
+                    'role': 'primary' if k == pri else ('backup' if k in bks else 'other')})
+    return out
+
+
+def save_config(incoming):
+    """incoming 支持的字段（都给可，缺省即不改）：
+
+    key/active  要保存的那家服务商（`key` 优先；旧前端只给 `active` 时行为同以前）
+    config      {base_url, model, api_key?, timeout, temperature} —— **只更新这一家**，
+                其它服务商原样保留，这就是「切换不用重填 KEY」的基础
+    enabled     总开关
+    role        'primary' | 'backup' | 'none' —— 把这家设为主模型 / 备用模型 / 不参与切换
+    active      显式指定「当前使用」哪一家（切换）
     """
     raw = raw_config()
-    key = incoming.get('active') or raw.get('active') or 'deepseek'
-    if key not in (raw.get('providers') or {}):
-        raw.setdefault('providers', {})[key] = dict(DEFAULT)
-    pc = raw['providers'][key]
+    provs = raw.setdefault('providers', {})
+    key = (incoming.get('key') or incoming.get('active') or raw.get('active') or 'deepseek').strip()
+    if key not in provs:
+        provs[key] = _preset_defaults(key)
+    pc = provs[key]
     cfg = incoming.get('config') or {}
     for f in ('base_url', 'model', 'timeout', 'temperature'):
         if f in cfg and cfg[f] is not None:
             pc[f] = cfg[f]
     if cfg.get('api_key'):          # 留空 = 不修改，沿用已存 key
         pc['api_key'] = cfg['api_key']
-    raw['active'] = key
-    raw['enabled'] = bool(incoming.get('enabled'))
+
+    role = incoming.get('role')
+    bk = list(raw.get('backups') or [])
+    if role == 'primary':                       # 设为主模型 → 同时切到它
+        if key in bk:
+            bk.remove(key)
+        raw['primary'] = key
+        raw['active'] = key
+    elif role == 'backup':                      # 降为备用 → 若它原是主，另选一个顶上
+        if key not in bk:
+            bk.append(key)
+        if raw.get('primary') == key:
+            raw['primary'] = _next_primary(provs, bk, key, prefer=raw.get('active'))
+            if raw.get('active') == key and raw['primary']:
+                raw['active'] = raw['primary']
+    elif role == 'none':                        # 不参与自动/手动切换
+        if key in bk:
+            bk.remove(key)
+        if raw.get('primary') == key:
+            raw['primary'] = _next_primary(provs, bk, key, prefer=raw.get('active'))
+            if raw.get('active') == key and raw['primary']:
+                raw['active'] = raw['primary']
+    raw['backups'] = bk
+
+    if 'enabled' in incoming:
+        raw['enabled'] = bool(incoming.get('enabled'))
+    if incoming.get('active') and incoming['active'] in provs:
+        raw['active'] = incoming['active']
+    _normalize(raw)
     store.set_setting('llm', raw)
     return get_config()
 
 
 def mask(raw):
-    """给设置页用的脱敏结构：每家服务商各自回显 base_url/model/has_key/掩码。"""
-    out = {'active': raw.get('active'), 'enabled': raw.get('enabled', False), 'providers': {}}
+    """给设置页用的脱敏结构：主/备用 + 每家各自的 base_url/model/has_key/掩码。"""
+    raw = _migrate(dict(raw or {}))
+    primary, backups = raw.get('primary'), (raw.get('backups') or [])
+    out = {'active': raw.get('active'), 'enabled': bool(raw.get('enabled', False)),
+           'primary': primary, 'active_name': name_of(raw.get('active')),
+           'backups': backups, 'providers': {}}
     for k, p in (raw.get('providers') or {}).items():
         key = p.get('api_key') or ''
         out['providers'][k] = {
+            'name': name_of(k),
             'base_url': p.get('base_url', ''),
             'model': p.get('model', ''),
             'timeout': p.get('timeout', 60),
             'temperature': p.get('temperature', 0.7),
             'has_key': bool(key),
             'api_key_masked': (key[:4] + '****' + key[-4:]) if len(key) > 12 else ('****' if key else ''),
+            'role': 'primary' if k == primary else ('backup' if k in backups else 'none'),
         }
     return out
 
@@ -145,8 +281,19 @@ def _read_body(url, payload, api_key, total_timeout):
     return b''.join(chunks)
 
 
-def chat(messages, cfg=None, timeout=None):
+def chat(messages, cfg=None, timeout=None, meta=None):
+    """调用大模型。返回 (文本, 错误)。
+
+    meta: 可选 dict，出参 —— 会被写入本次调用的元信息：
+      `provider` 服务商 key、`model` 模型名、`timeout` 是否**因超时失败**。
+      前端就是靠 `timeout=True` 决定「要不要弹框问用户切备用模型」的，
+      不用去猜错误文案（文案随时会改，猜法很脆）。
+    """
     cfg = cfg or get_config()
+    if meta is not None:
+        meta['provider'] = cfg.get('active') or ''
+        meta['model'] = cfg.get('model') or ''
+        meta['timeout'] = False
     if not cfg.get('enabled'):
         return None, '大模型未启用'
     if not cfg.get('api_key'):
@@ -178,6 +325,10 @@ def chat(messages, cfg=None, timeout=None):
             return None, msg + '（上游繁忙，可稍后重试）'
         return None, msg
     except TimeoutError as e:
+        # 注：Python 3.10+ 里 socket.timeout 就是 TimeoutError，一个分支就够
+        #（别另写 `except socket.timeout`，没 import socket 会在报错时抛 NameError）
+        if meta is not None:
+            meta['timeout'] = True
         return None, '%s（已等待 %d 秒）' % (e, total)
     except Exception as e:
         return None, '%s: %s' % (type(e).__name__, e)
@@ -192,13 +343,13 @@ SYS_PROMPT = (
 )
 
 
-def lottery_advice(context, cfg=None):
-    """context: dict，含彩种/玩法/注数/概率等"""
+def lottery_advice(context, cfg=None, meta=None):
+    """context: dict，含彩种/玩法/注数/概率等。"""
     cfg = cfg or get_config()
     user = ('请基于以下客观数据，给出简短（200 字内）的投注视角说明：\n'
             + json.dumps(context, ensure_ascii=False, indent=2))
     return chat([{'role': 'system', 'content': SYS_PROMPT},
-                 {'role': 'user', 'content': user}], cfg)
+                 {'role': 'user', 'content': user}], cfg, meta=meta)
 
 
 SYS_REVIEW = (
@@ -220,19 +371,19 @@ SYS_REVIEW = (
 )
 
 
-def pool_review(context, cfg=None):
+def pool_review(context, cfg=None, meta=None):
     """对「自选池」里的实际号码做点评。context 含彩种/玩法/自选池号码/组数/注数/概率等。
 
     timeout 取 min(配置值, 45)：点评只是 250 字的三点式说明，45 秒足够；
     上游繁忙时早失败早提示，比让用户对着「正在请求…」干等要好。
-    前端另有90 秒的AbortController 兜底，这里是服务端这边的独立上限。
+    前端另有 90 秒的 AbortController 兜底，这里是服务端这边的独立上限。
     """
     cfg = cfg or get_config()
     to = min(int(cfg.get('timeout', 60) or 60), 45)
     user = ('以下是用户自选池里准备投注的号码，请做客观点评：\n'
             + json.dumps(context, ensure_ascii=False, indent=2))
     return chat([{'role': 'system', 'content': SYS_REVIEW},
-                 {'role': 'user', 'content': user}], cfg, timeout=to)
+                 {'role': 'user', 'content': user}], cfg, timeout=to, meta=meta)
 
 
 SYS_PICK = (
@@ -249,7 +400,7 @@ SYS_PICK = (
 
 
 def ai_pick(prompt, spec, game_name, play_name, sets=5, cfg=None, avoid=None,
-           extra=None, feedback=None):
+           extra=None, feedback=None, meta=None):
     """让大模型按用户提示词出号。返回 (原文, 错误)。
 
     avoid:    已给出的号码列表，补号时传入，要求模型给全新的组合。
@@ -271,4 +422,4 @@ def ai_pick(prompt, spec, game_name, play_name, sets=5, cfg=None, avoid=None,
                  + '\n'.join('- ' + f for f in feedback) + '\n')
     user += '\n请给出 %d 注，严格按上述 JSON 格式输出。' % sets
     return chat([{'role': 'system', 'content': SYS_PICK},
-                 {'role': 'user', 'content': user}], cfg)
+                 {'role': 'user', 'content': user}], cfg, meta=meta)

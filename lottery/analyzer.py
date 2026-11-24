@@ -46,8 +46,12 @@ class Stats:
         out = []
         for d in self.seq:
             v = d.get(zkey)
-            if v:
-                out.extend(v if isinstance(v, list) else [v])
+            # 必须判 `is None`，不能判真假：数字型彩种（3D/排列3/排列5/七星彩）
+            # 的开奖值按位存成**标量**，号码 0 是合法的 0 → `if v:` 会把它当空值丢掉，
+            # 于是「0」的出现次数恒为 0（历史 bug）。空列表/空串仍按「该期无此区」处理。
+            if v is None or v == [] or v == '':
+                continue
+            out.extend(v if isinstance(v, (list, tuple, set)) else [v])
         return out
 
     def freq(self, zkey=None):

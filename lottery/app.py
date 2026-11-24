@@ -454,13 +454,14 @@ def ai_pick_flow(code, play, prompt, sets, sizes=None):
     bad, dup, reasons, notes, fb = 0, 0, [], [], []
     llm_err, raw_txt = None, []
     seen = set()
+    meta = {}                       # chat() 回填：provider/model/是否超时
     for attempt in range(2):
         need = sets - len(tks)
         if need <= 0:
             break
         txt, e = llm_mod.ai_pick(prompt, spec, g['name'], play_name, need,
                                  avoid=(tks if attempt else None),
-                                 extra=extra, feedback=(fb if attempt else None))
+                                 extra=extra, feedback=(fb if attempt else None), meta=meta)
         if e:
             if not tks:
                 llm_err = e              # 一轮都没拿到 → 当致命错误报给前端
@@ -518,6 +519,11 @@ def ai_pick_flow(code, play, prompt, sets, sizes=None):
     tot = sum(per)
     return {'ok': True, 'llm': '\n\n---\n\n'.join(raw_txt) or None,
             'llm_error': llm_err,
+            'timeout': bool(meta.get('timeout')),        # 超时 → 前端弹框问是否切备用模型
+            'provider': meta.get('provider'),
+            'provider_name': llm_mod.name_of(meta.get('provider')),
+            'model': meta.get('model'),
+            'fallbacks': llm_mod.candidates(),
             'note': notes[-1] if notes else None,
             'tickets': tks, 'per': per, 'bad': bad, 'dup': dup,
             'bad_reason': reasons, 'got': len(tks), 'sets_wanted': sets,
@@ -707,19 +713,37 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({'ok': True, 'lottery': lt, 'draws': rows})
         if path == '/api/stats':
             lt = one('lottery', 'ssq')
-            draws = store.all_draws(lt)
+            draws = store.all_draws(lt)                      # 升序
+            lim = one('limit') or 'all'                      # 近 N 期 或 all
+            if lim != 'all':
+                try:
+                    k = int(lim)
+                except ValueError:
+                    k = 0
+                if k > 0:
+                    draws = draws[-k:]
+            order = one('order') or 'desc'                   # 排序：次数/遗漏 × 升/降
+            if order not in ('desc', 'asc', 'om_desc', 'om_asc'):
+                order = 'desc'
             st = analyzer.Stats(lt, draws)
-            zk = one('zone')
-            if not zk:
-                zk = G.GAMES[lt]['zones'][0]['key']
-            z = next(zz for zz in G.GAMES[lt]['zones'] if zz['key'] == zk)
-            fr = st.freq(zk)
-            om = st.omission(zk)
-            pool = list(range(z['min'], z['max'] + 1))
-            return self._json({'ok': True, 'lottery': lt, 'zone': zk, 'zone_name': z['name'],
-                               'total': st.n,
-                               'items': [dict(num=n, count=fr.get(n, 0), omission=om.get(n))
-                                         for n in pool]})
+            zones = []
+            for z in G.GAMES[lt]['zones']:                   # 逐区返回（双色球→红/蓝球各一张）
+                zk = z['key']
+                fr = st.freq(zk)
+                om = st.omission(zk)
+                pool = list(range(z['min'], z['max'] + 1))
+                items = [dict(num=n, count=fr.get(n, 0), omission=om.get(n)) for n in pool]
+                if order == 'desc':
+                    items.sort(key=lambda x: (-x['count'], x['num']))
+                elif order == 'asc':
+                    items.sort(key=lambda x: (x['count'], x['num']))
+                elif order == 'om_desc':                     # 遗漏从大到小（最久未出在前）
+                    items.sort(key=lambda x: (-(x['omission'] or 0), x['num']))
+                else:                                        # om_asc：遗漏从小到大（刚出过在前）
+                    items.sort(key=lambda x: (x['omission'] or 0, x['num']))
+                zones.append(dict(key=zk, name=z['name'], mn=z['min'], mx=z['max'], items=items))
+            return self._json({'ok': True, 'lottery': lt, 'total': st.n,
+                               'limit': lim, 'order': order, 'zones': zones})
         if path == '/api/probability':
             lt, play = one('lottery', 'ssq'), one('play', 'std')
             return self._json({'ok': True, 'report': analyzer.probability_report(lt, play),
@@ -757,6 +781,17 @@ class Handler(BaseHTTPRequestHandler):
                                'next_issue': {c: store.next_issue(c) for c in G.GAMES},
                                'users': store.list_users() if u.get('role') == 'admin' else None,
                                'db': store.stats()})
+        if path == '/api/llm/status':
+            # 轻量状态：给「主模型超时 → 切备用模型」弹框用（前端本地中断时响应体拿不到，
+            # 就靠这个接口现拉候选清单）。任何登录用户可读，不含任何 Key。
+            u = self._need()
+            if not u:
+                return
+            m = llm_mod.mask(llm_mod.raw_config())
+            return self._json({'ok': True, 'enabled': m.get('enabled'),
+                               'active': m.get('active'), 'active_name': m.get('active_name'),
+                               'primary': m.get('primary'), 'backups': m.get('backups'),
+                               'fallbacks': llm_mod.candidates()})
         return self._json({'ok': False, 'error': '未知接口'}, 404)
 
     def _static(self, name):
@@ -932,10 +967,17 @@ class Handler(BaseHTTPRequestHandler):
                 if len(tickets) > AI_REVIEW_SAMPLE:
                     payload = dict(payload)
                     payload.update(_review_digest(code, play, tickets, mults))
-                txt, err = llm_mod.pool_review(payload)
+                meta = {}
+                txt, err = llm_mod.pool_review(payload, meta=meta)
             else:
-                txt, err = llm_mod.lottery_advice(payload)
-            return self._json({'ok': True, 'advice': ctx, 'llm': txt, 'llm_error': err})
+                meta = {}
+                txt, err = llm_mod.lottery_advice(payload, meta=meta)
+            return self._json({'ok': True, 'advice': ctx, 'llm': txt, 'llm_error': err,
+                               'timeout': bool(meta.get('timeout')),
+                               'provider': meta.get('provider'),
+                               'provider_name': llm_mod.name_of(meta.get('provider')),
+                               'model': meta.get('model'),
+                               'fallbacks': llm_mod.candidates()})
 
         if path == '/api/ai/pick':
             code = b.get('lottery') or 'ssq'
@@ -1012,6 +1054,15 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({'ok': False, 'error': '需要管理员权限'}, 403)
             cfg = llm_mod.save_config(b)
             return self._json({'ok': True, 'llm': llm_mod.mask(llm_mod.raw_config())})
+
+        if path == '/api/llm/switch':
+            # 「主模型超时 → 切备用模型」用：任何登录用户都能切到**已配好 Key 的**
+            # 服务商（只改 active，不碰任何 Key、不新增配置），主/备用角色划分不变。
+            err = llm_mod.switch_to(b.get('key'))
+            if err:
+                return self._json({'ok': False, 'error': err})
+            return self._json({'ok': True, 'llm': llm_mod.mask(llm_mod.raw_config()),
+                               'fallbacks': llm_mod.candidates()})
 
         if path == '/api/password':
             # 任何登录用户都可改自己的密码（需验原密码）
