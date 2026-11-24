@@ -119,3 +119,11 @@ python src/server.py
 ---
 
 *最后更新：2026-09-14*
+
+## 模块化拆分（2026-11-25 起）
+
+按"每个软件独立"原则，各模块逐步拆为 `vibecode-<模块>/` 子目录（独立代码+部署单元，数据留服务器本地不入库）：
+
+- `vibecode-bazi/` — 八字分析独立服务（:5100，systemd unit `vibecode-bazi.service`，nginx `/api/bazi/` 分流）✅ 已拆分
+- 工艺路线模块已下线：删除 `src/`、`deployed/` 中 routing/process 页面（2026-11-24）
+- `vibe-code` 旧的单体快照（`src/`、`deployed/`）保留作历史参照，新改动一律进对应 vibecode-* 子目录
