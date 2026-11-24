@@ -133,5 +133,8 @@ python src/server.py
 - `vibecode-collab/` — 联动速递（:5103，nginx `/api/collab/` 分流）✅
 - `vibecode-lockup/` — 解禁预警雷达（:5104，nginx `/api/lockup/` 分流）✅
 - `vibecode-sentiment/` — 市场情绪日报（:5105，nginx `/api/sentiment/` 分流）✅
+- `vibecode-aigen/` — 生成库数据后端 + 生图同源代理 + aikit 工具箱（:5106，nginx `/api/aigen|proxy|aikit` 分流）✅
+- `vibecode-stockreports/` — AI 股票分析报告 + 东财快讯（:5107，nginx `/api/reports|news` 分流）✅
+- `vibecode-portal/` — 门户核心（:8765 server.py 瘦身至 568 行：KV/门户卡片/足迹照片/静态托管 + 4 个备份脚本）✅
 - 工艺路线模块已下线：删除 `src/`、`deployed/` 中 routing/process 页面（2026-11-24）；AI姿势参考图库已下线（2026-11-25）
 - 服务器端：单元文件在 `/etc/systemd/system/vibecode-*.service`，代码在 `/home/admin/apps/vibecode-*/`；`src/`、`deployed/` 保留作 10-15 单体快照，新改动一律进对应 vibecode-* 子目录
