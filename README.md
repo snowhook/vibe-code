@@ -127,3 +127,5 @@ python src/server.py
 - `vibecode-bazi/` — 八字分析独立服务（:5100，systemd unit `vibecode-bazi.service`，nginx `/api/bazi/` 分流）✅ 已拆分
 - 工艺路线模块已下线：删除 `src/`、`deployed/` 中 routing/process 页面（2026-11-24）
 - `vibe-code` 旧的单体快照（`src/`、`deployed/`）保留作历史参照，新改动一律进对应 vibecode-* 子目录
+
+- `vibecode-math/` — 动画化解题独立服务（:5101，systemd unit `vibecode-math.service`，nginx `/api/math/` 分流，依赖 ffmpeg + hyperframes@0.8.64 渲染）✅ 已拆分
