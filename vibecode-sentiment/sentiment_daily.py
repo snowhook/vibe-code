@@ -2,10 +2,13 @@
 """A股市场情绪日报 —— 服务端取数模块（含自动修复）
 数据源:
   ① 龙虎榜   东财数据中心 RPT_DAILYBILLBOARD_DETAILSNEW（支持历史日期）
-  ② 行业板块  东财 push2delay 行业板块指数（实时，多host自动切换）
-  ③ 题材热度  东财概念板块排行（实时；同花顺 getharden 已失效，此为自动修复替代源）
+  ② 行业板块  东财 push2 行业板块指数（实时，多host自动切换）→ 新浪 newSinaHy.php 兜底
+  ③ 题材热度  东财概念板块排行 → 新浪 newFLJK.php 兜底
+     （同花顺 getharden 已失效；2026-11-25 实测东财 push2 全系对本机 IP 直接
+      RST 断连 RemoteDisconnected，新浪 gbk 接口可用作板块兜底源）
 """
 import json
+import re
 import urllib.request
 import urllib.parse
 from datetime import datetime, timedelta
@@ -74,9 +77,50 @@ def _fetch_board(fs, pz=600):
     raise err or RuntimeError('所有板块接口均不可用')
 
 
+SINA_UA = ('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+           '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
+SINA_INDUSTRY = 'http://money.finance.sina.com.cn/q/view/newSinaHy.php'
+SINA_CONCEPT = 'http://money.finance.sina.com.cn/q/view/newFLJK.php?param=class'
+
+
+def _fetch_sina(url, top=None):
+    """新浪板块接口（gbk，var X = {...} 包裹）。值格式:
+    代码,名称,家数,均价,涨跌额,涨跌幅,成交量,成交额,领涨股码,领涨股涨幅,
+    领涨股价,领涨股涨额,领涨股名 —— 返回按涨跌幅降序 [{name,pct,code,leader,...}]"""
+    req = urllib.request.Request(url, headers={
+        'User-Agent': SINA_UA, 'Referer': 'https://finance.sina.com.cn/'})
+    with urllib.request.urlopen(req, timeout=15) as r:
+        txt = r.read().decode('gbk', 'ignore')
+    m = re.search(r'=\s*(\{.*\})', txt, re.S)
+    if not m:
+        raise RuntimeError('新浪板块接口返回解析失败')
+    out = []
+    for k, v in json.loads(m.group(1)).items():
+        p = str(v).split(',')
+        if len(p) < 6:
+            continue
+        try:
+            pct = float(p[5])
+        except ValueError:
+            continue
+        out.append({
+            'name': p[1], 'pct': pct, 'code': k,
+            'count': int(float(p[2])) if len(p) > 2 and p[2] else 0,
+            'leader': p[12] if len(p) > 12 else '',
+            'leaderPct': float(p[9]) if len(p) > 9 and p[9] else 0.0,
+        })
+    out.sort(key=lambda r: -r['pct'])
+    return out[:top] if top else out
+
+
 def fetch_industries():
-    """东财行业板块（申万口径 一级+二级），按涨跌幅降序"""
-    diff, host = _fetch_board('m:90+t:2')
+    """行业板块，按涨跌幅降序。东财优先，push2 被 RST 时自动切新浪"""
+    try:
+        diff, host = _fetch_board('m:90+t:2')
+    except Exception:
+        out = _fetch_sina(SINA_INDUSTRY)
+        return out, 'sina(兜底)'
+    old_impl_tail = True  # noqa: F841
     out = []
     for x in diff:
         if not isinstance(x.get('f3'), (int, float)):
@@ -87,8 +131,17 @@ def fetch_industries():
 
 
 def fetch_concepts(top=20):
-    """东财概念板块涨幅榜（题材热度，替代同花顺 getharden）"""
-    diff, host = _fetch_board('m:90+t:3')
+    """概念板块涨幅榜（题材热度）。东财优先，失败自动切新浪概念（无涨跌家数，
+    upCount/downCount 置 0）"""
+    try:
+        diff, host = _fetch_board('m:90+t:3')
+    except Exception:
+        out = []
+        for x in _fetch_sina(SINA_CONCEPT, top=top):
+            out.append({'name': x['name'], 'pct': x['pct'], 'code': x['code'],
+                        'upCount': 0, 'downCount': 0})
+        return out, 'sina(兜底)'
+    old_impl_tail = True  # noqa: F841
     out = []
     for x in diff:
         if not isinstance(x.get('f3'), (int, float)):
