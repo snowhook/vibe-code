@@ -200,12 +200,16 @@ def build_data(date_str):
     industries, ind_host = [], ''
     try:
         industries, ind_host = fetch_industries()
+        if 'sina' in ind_host:
+            warnings.append('行业板块已自动切换新浪兜底源（东财 push2 接口不可达）')
     except Exception as e:
         warnings.append(f'行业板块数据暂不可用（{e}），已跳过')
 
     concepts = []
     try:
-        concepts, _ = fetch_concepts(20)
+        concepts, con_host = fetch_concepts(20)
+        if 'sina' in con_host:
+            warnings.append('题材热度已自动切换新浪兜底源（板块上涨家数暂缺）')
     except Exception as e:
         warnings.append(f'概念板块数据暂不可用（{e}），已跳过')
 

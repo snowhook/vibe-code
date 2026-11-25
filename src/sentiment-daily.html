@@ -120,7 +120,7 @@ footer b{color:#aab6c8}
 </div>
 
 <footer>
- <b>数据来源</b>：① 龙虎榜 — 东方财富数据中心（RPT_DAILYBILLBOARD_DETAILSNEW，支持按交易日回查）；② 题材热度 — 东方财富概念板块涨幅榜（原同花顺 getharden 接口已失效，已自动切换替代源）；③ 行业板块 — 东方财富行业板块指数（实时，多host自动容错）。
+ <b>数据来源</b>：① 龙虎榜 — 东方财富数据中心（RPT_DAILYBILLBOARD_DETAILSNEW，支持按交易日回查）；② 题材热度 — 东方财富概念板块涨幅榜（原同花顺 getharden 接口已失效，已自动切换替代源）；③ 行业板块 — 东方财富行业板块指数（实时，多host自动容错）。注：东财 push2 行情接口对服务器 IP 间歇拒连时，②③ 自动降级到新浪板块接口（此时不显示板块上涨家数）。
  <br><b>口径说明</b>：龙虎榜净买入为 BILLBOARD_NET_AMT（买卖前五席位净额）；题材热度为概念板块当日涨幅（括号内为板块上涨家数）。
  <br><b>免责声明</b>：本页面数据来自公开接口，仅供复盘研究参考，不构成任何投资建议。涨跌颜色遵循 A 股惯例（红涨绿跌）。
  <br><b>自动修复</b>：选择非交易日/数据未出时，系统自动回退至最近交易日并提示；接口多host容错，单点故障自动切换。
@@ -192,7 +192,7 @@ function renderAll(){
   $('kpis').innerHTML=
     '<div class="kpi"><div class="t">龙虎榜上榜条数</div><div class="v" style="color:#f5a623">'+bb.length+'</div><div class="d">涨 '+upN+' / 跌 '+downN+' / 平 '+flatN+'</div></div>'+
     '<div class="kpi"><div class="t">龙虎榜净买入合计</div><div class="v" style="color:'+(netSum>=0?'#ff5257':'#26c281')+'">'+money(netSum)+'</div><div class="d">买方 vs 卖方席位对决</div></div>'+
-    '<div class="kpi"><div class="t">当日最热题材</div><div class="v" style="font-size:19px">'+(hotConcept?esc(hotConcept.name):'—')+'</div><div class="d">'+(hotConcept?fmtPct(hotConcept.pct)+' · 上涨 '+hotConcept.upCount+' 家':'')+'</div></div>'+
+    '<div class="kpi"><div class="t">当日最热题材</div><div class="v" style="font-size:19px">'+(hotConcept?esc(hotConcept.name):'—')+'</div><div class="d">'+(hotConcept?fmtPct(hotConcept.pct)+(hotConcept.upCount>0?' · 上涨 '+hotConcept.upCount+' 家':''):'')+'</div></div>'+
     '<div class="kpi"><div class="t">领涨行业</div><div class="v" style="font-size:19px;color:#ff5257">'+(leadInd?esc(leadInd.name):'—')+'</div><div class="d">'+(leadInd?fmtPct(leadInd.pct):'')+(lagInd?' · 领跌 '+esc(lagInd.name)+' '+fmtPct(lagInd.pct):'')+'</div></div>';
 
   renderNetChart();renderConceptChart();renderIndChart();renderTable();
@@ -231,7 +231,7 @@ function renderConceptChart(){
   $('conceptChart').innerHTML=top.length?barSvg(top,
     function(x){return x.name},
     function(x){return x.pct},
-    function(x){return fmtPct(x.pct)+' ('+x.upCount+'家)'},
+    function(x){return fmtPct(x.pct)+(x.upCount>0?' ('+x.upCount+'家)':'')},
     '#f5a623'):'<div class="legend">概念板块数据暂不可用</div>';
 }
 function renderIndChart(){
