@@ -63,6 +63,9 @@ class Handler(BaseHTTPRequestHandler):
             elif path == '/api/collab/expo':
                 import expo_fetch
                 self._send(expo_fetch.get_expo())
+            elif path == '/api/collab/technews':
+                import technews_fetch
+                self._send(technews_fetch.get_technews())
             elif path == '/api/collab/health':
                 self._send({'ok': True, 'service': 'vibecode-collab', 'ts': time.time()})
             else:

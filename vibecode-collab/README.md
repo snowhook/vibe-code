@@ -14,3 +14,8 @@
   实测台账：nyato.com 已死(404)、moxnews.com 是2018年博客、bilibili show API 需签名——
   勿再试；360search/sogou 批量连查会软限流（返回0、10~40分钟自恢复），已加 0.8s 限速+20min 冷却。
   动态查询词同时反哺联动流（collab_fetch._dynamic_queries，只读缓存）。
+- **科技新闻日报（2026-11-25 新增）**：`/api/collab/technews`（technews_fetch.py）——
+  服务端直连 8 个 RSS 源（量子位/雷锋网/IT之家/爱范儿/钛媒体/少数派/Solidot/arXiv cs.AI），
+  按标题关键词分五栏目（AI前沿/硬件数码/产业商业/开源极客/论文前沿），30min 缓存、
+  请求路径零阻塞；前端 tech-news.html（替代旧 ai-news.html，后者仅留跳转壳）。
+  源台账：36氪 feed 已废(0条)、虎嗅 405、量子位/Solidot 必须带 Chrome UA 否则 403。

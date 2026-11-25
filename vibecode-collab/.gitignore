@@ -8,3 +8,4 @@ __pycache__/
 *.pyc
 .expo-cache.json
 .collab-queries.json
+.technews-cache.json

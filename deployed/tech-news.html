@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>科技新闻日报 · Tech Pulse</title>
+<style>
+:root, html[data-theme="dark"]{
+  --bg:#0b0e17; --bg2:#0f1424; --surface:rgba(255,255,255,.03);
+  --card:#141a2c; --card-hover:#182036; --line:rgba(255,255,255,.08);
+  --text:#e8ecf7; --text-strong:#fff; --muted:#8a93ab; --faint:#5b6478;
+  --accent:#6d8dff; --accent2:#a78bfa; --shadow:0 14px 34px -16px rgba(0,0,0,.65);
+  --chip-bg:rgba(255,255,255,.05); --hero:linear-gradient(135deg,#6d8dff,#a78bfa);
+}
+html[data-theme="light"]{
+  --bg:#f2f4fa; --bg2:#e9edf7; --surface:rgba(20,30,60,.03);
+  --card:#ffffff; --card-hover:#f7f9ff; --line:#dfe5f0;
+  --text:#222a3d; --text-strong:#0d1322; --muted:#5b6478; --faint:#98a1b3;
+  --accent:#4f6ef7; --accent2:#8b5cf6; --shadow:0 12px 28px -14px rgba(60,80,140,.25);
+  --chip-bg:rgba(70,90,160,.07); --hero:linear-gradient(135deg,#4f6ef7,#8b5cf6);
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{transition:background .35s}
+body{font-family:'PingFang SC','Microsoft YaHei','Segoe UI',system-ui,sans-serif;
+  background:radial-gradient(1200px 500px at 80% -10%,var(--bg2),var(--bg)) fixed;
+  color:var(--text);min-height:100vh;transition:color .35s}
+a{color:inherit;text-decoration:none}
+
+/* ── 顶栏 ── */
+.hd{position:sticky;top:0;z-index:20;backdrop-filter:blur(14px);
+  background:color-mix(in srgb,var(--bg) 78%,transparent);
+  border-bottom:1px solid var(--line);padding:14px 26px;
+  display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.logo{display:flex;align-items:center;gap:12px;margin-right:auto}
+.logo .mark{width:40px;height:40px;border-radius:13px;background:var(--hero);
+  display:flex;align-items:center;justify-content:center;font-size:20px;
+  box-shadow:0 6px 18px -6px rgba(109,141,255,.5)}
+.logo h1{font-size:19px;font-weight:800;color:var(--text-strong);letter-spacing:.5px}
+.logo h1 b{background:var(--hero);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.logo p{font-size:11px;color:var(--faint);margin-top:1px;letter-spacing:2px}
+.hd-right{display:flex;align-items:center;gap:10px}
+.upd{font-size:11.5px;color:var(--muted)}
+.upd b{color:var(--text);font-weight:600}
+.btn{background:var(--chip-bg);border:1px solid var(--line);color:var(--text);
+  padding:8px 16px;border-radius:11px;cursor:pointer;font-size:13px;
+  font-family:inherit;transition:all .2s;display:flex;align-items:center;gap:6px}
+.btn:hover{border-color:var(--accent);color:var(--text-strong);transform:translateY(-1px)}
+.btn.spin .ic{animation:sp 1s linear infinite;display:inline-block}
+@keyframes sp{to{transform:rotate(360deg)}}
+#themeBtn{width:40px;padding:8px 0;justify-content:center;font-size:16px}
+
+/* ── 栏目 tab ── */
+.wrap{max-width:1080px;margin:0 auto;padding:22px 22px 70px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.tab{padding:9px 18px;border-radius:99px;border:1px solid var(--line);
+  background:var(--surface);color:var(--muted);font-size:13.5px;cursor:pointer;
+  font-family:inherit;transition:all .22s;display:flex;align-items:center;gap:7px}
+.tab .ct{font-size:11px;opacity:.65}
+.tab:hover{color:var(--text-strong);transform:translateY(-1px)}
+.tab.on{background:var(--hero);color:#fff;border-color:transparent;font-weight:700;
+  box-shadow:0 8px 20px -8px rgba(109,141,255,.55)}
+.tab.on .ct{opacity:.85}
+.note{font-size:12px;color:var(--faint);margin:8px 2px 16px;min-height:16px}
+.note .warn{color:#f59e0b}
+
+/* ── 卡片网格 ── */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;
+  padding:18px 20px;display:flex;flex-direction:column;gap:9px;position:relative;
+  overflow:hidden;transition:all .22s;animation:fadeUp .4s both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;
+  background:var(--cc,var(--accent));opacity:.85}
+.card:hover{background:var(--card-hover);border-color:color-mix(in srgb,var(--cc,var(--accent)) 45%,var(--line));
+  transform:translateY(-3px);box-shadow:var(--shadow)}
+.meta{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--faint);flex-wrap:wrap}
+.meta .src{color:var(--cc,var(--accent));font-weight:700;letter-spacing:.3px}
+.meta .dot{width:3px;height:3px;border-radius:50%;background:var(--faint)}
+.colchip{margin-left:auto;font-size:10px;padding:2px 9px;border-radius:99px;
+  background:color-mix(in srgb,var(--cc,var(--accent)) 14%,transparent);
+  color:var(--cc,var(--accent));font-weight:700;white-space:nowrap}
+.tt{font-size:15px;font-weight:700;line-height:1.5;color:var(--text-strong);
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.ds{font-size:12.5px;line-height:1.65;color:var(--muted);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.rank{font-size:11px;color:var(--faint);font-weight:800;margin-right:2px}
+
+/* ── 状态 ── */
+.state{text-align:center;padding:90px 20px;color:var(--muted)}
+.spinner{width:42px;height:42px;border:2.5px solid var(--line);border-top-color:var(--accent);
+  border-radius:50%;animation:sp .8s linear infinite;margin:0 auto 18px}
+.state .big{font-size:40px;margin-bottom:14px}
+
+/* ── 页脚 ── */
+.ft{max-width:1080px;margin:0 auto;padding:26px 22px 40px;border-top:1px solid var(--line);
+  font-size:11.5px;color:var(--faint);line-height:2;text-align:center}
+.ft a{color:var(--muted);border-bottom:1px dashed var(--line)}
+.ft .srcs b{color:var(--text);font-weight:600}
+
+@media (max-width:640px){
+  .hd{padding:12px 16px}.logo h1{font-size:16px}.wrap{padding:16px 14px 50px}
+  .grid{grid-template-columns:1fr}.tab{padding:8px 13px;font-size:12.5px}
+}
+</style>
+</head>
+<body>
+
+<div class="hd">
+  <div class="logo">
+    <div class="mark">📡</div>
+    <div>
+      <h1><b>科技新闻日报</b> · Tech Pulse</h1>
+      <p>DAILY TECH, FIVE FRONTIERS</p>
+    </div>
+  </div>
+  <div class="hd-right">
+    <div class="upd">更新于 <b id="updTime">--</b></div>
+    <button class="btn" id="refreshBtn" onclick="refresh()"><span class="ic">↻</span>刷新</button>
+    <button class="btn" id="themeBtn" onclick="toggleTheme()" title="切换深浅配色">🌙</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="tabs" id="tabs"></div>
+  <div class="note" id="note"></div>
+  <div id="content">
+    <div class="state"><div class="spinner"></div><div>正在聚合全网科技新闻…</div></div>
+  </div>
+</div>
+
+<div class="ft">
+  <div class="srcs">数据源：<b>量子位 · 雷锋网 · IT之家 · 爱范儿 · 钛媒体 · 少数派 · Solidot · arXiv cs.AI</b>（服务端直连 RSS，30 分钟自动更新）</div>
+  <div>新闻版权归原媒体所有，本页仅聚合标题与摘要 · 个人 VIBE CODE 模块 · <a href="/">返回门户</a></div>
+</div>
+
+<script>
+var COLC={ai:'#6d8dff',hardware:'#f59e0b',biz:'#10b981',geek:'#a78bfa',paper:'#ec4899'};
+var COLNAME={ai:'🤖 AI前沿',hardware:'📱 硬件数码',biz:'💰 产业商业',geek:'🛠 开源极客',paper:'🔬 论文前沿'};
+var TABS=[['hot','🌅 今日要闻']].concat(Object.keys(COLNAME).map(function(k){return [k,COLNAME[k]]}));
+var DATA=null, CUR='hot', themeTimer=null;
+
+/* ── 主题 ── */
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme',t);
+  document.getElementById('themeBtn').textContent=(t==='dark')?'🌙':'☀️';
+}
+function toggleTheme(){
+  var t=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';
+  try{localStorage.setItem('technews-theme',t)}catch(e){}
+  applyTheme(t);
+}
+(function(){
+  var saved=null;
+  try{saved=localStorage.getItem('technews-theme')}catch(e){}
+  var t=saved||((window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark');
+  applyTheme(t);
+})();
+
+/* ── 取数 ── */
+function load(){
+  var btn=document.getElementById('refreshBtn');
+  btn.classList.add('spin');
+  fetch('/api/collab/technews',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:'{}',signal:AbortSignal.timeout(20000)})
+    .then(function(r){return r.json()})
+    .then(function(d){
+      btn.classList.remove('spin');
+      if(!d||!d.ok){errState('接口异常',JSON.stringify(d||{}).slice(0,120));return}
+      if(d.building){
+        document.getElementById('note').innerHTML='⏳ '+esc(d.note||'加载中…');
+        clearTimeout(themeTimer);themeTimer=setTimeout(load,8000);
+        return;
+      }
+      DATA=d;
+      document.getElementById('updTime').textContent=(d.generated_at||'').slice(5,16);
+      var n=document.getElementById('note');
+      var bits=[];
+      if(d.stale)bits.push('⏳ 情报后台更新中（当前为上一轮数据）');
+      if(d.errors&&d.errors.length)bits.push('<span class="warn">⚠ 部分源失败：'+esc(d.errors.join('、'))+'</span>');
+      n.innerHTML=bits.join(' · ');
+      renderTabs();render();
+    })
+    .catch(function(e){btn.classList.remove('spin');errState('获取失败',String(e&&e.message||e))});
+}
+function refresh(){load()}
+function errState(t,detail){
+  document.getElementById('content').innerHTML=
+    '<div class="state"><div class="big">😕</div><div>'+esc(t)+'</div>'+
+    '<div style="font-size:11px;margin-top:8px;color:var(--faint)">'+esc(detail||'')+'</div></div>';
+}
+
+/* ── Tab ── */
+function renderTabs(){
+  var counts={};
+  DATA.columns.forEach(function(c){counts[c.key]=c.items.length});
+  counts.hot=DATA.total;
+  document.getElementById('tabs').innerHTML=TABS.map(function(tb){
+    return '<button class="tab'+(CUR===tb[0]?' on':'')+'" onclick="setTab(\''+tb[0]+'\')">'+
+      tb[1]+'<span class="ct">'+(counts[tb[0]]||0)+'</span></button>';
+  }).join('');
+}
+function setTab(k){CUR=k;renderTabs();render()}
+
+/* ── 渲染 ── */
+function relTime(ts){
+  if(!ts)return '';
+  var diff=(Date.now()/1000-ts);
+  if(diff<600)return '刚刚';
+  if(diff<3600)return Math.floor(diff/60)+' 分钟前';
+  if(diff<86400)return Math.floor(diff/3600)+' 小时前';
+  if(diff<172800)return '昨天';
+  var d=new Date(ts*1000);
+  return (d.getMonth()+1)+'月'+d.getDate()+'日';
+}
+function cardHtml(x,i,showCol){
+  var cc=COLC[x.col]||'var(--accent)';
+  return '<a class="card" style="--cc:'+cc+';animation-delay:'+(i*30)+'ms" href="'+esc(x.url)+'" target="_blank" rel="noopener">'+
+    '<div class="meta"><span class="rank">'+(i+1)+'</span><span class="src">'+esc(x.source)+'</span>'+
+    '<span class="dot"></span><span>'+relTime(x.date)+'</span>'+
+    (showCol?'<span class="colchip">'+COLNAME[x.col]+'</span>':'<span class="colchip" style="visibility:hidden">·</span>')+
+    '</div>'+
+    '<div class="tt">'+esc(x.title)+'</div>'+
+    (x.desc?'<div class="ds">'+esc(x.desc)+'</div>':'')+
+    '</a>';
+}
+function render(){
+  if(!DATA)return;
+  var list;
+  if(CUR==='hot'){
+    var all=[];DATA.columns.forEach(function(c){all=all.concat(c.items)});
+    all.sort(function(a,b){return b.date-a.date});
+    list=all.slice(0,15);
+  }else{
+    var c=DATA.columns.find(function(v){return v.key===CUR});
+    list=c?c.items:[];
+  }
+  var el=document.getElementById('content');
+  if(!list.length){
+    el.innerHTML='<div class="state"><div class="big">🛰️</div><div>该栏目暂无近期新闻<br><span style="font-size:12px;color:var(--faint)">每 30 分钟自动重新聚合</span></div></div>';
+    return;
+  }
+  el.innerHTML='<div class="grid">'+list.map(function(x,i){return cardHtml(x,i,CUR==='hot')}).join('')+'</div>';
+}
+function esc(s){var d=document.createElement('div');d.textContent=String(s==null?'':s);return d.innerHTML}
+
+load();
+setInterval(load,10*60*1000);
+</script>
+</body>
+</html>
