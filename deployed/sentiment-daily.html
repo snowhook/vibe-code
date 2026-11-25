@@ -37,6 +37,10 @@ tr:hover td{background:#1a2233}
 .mono{font-family:Consolas,'Courier New',monospace}
 .dim{color:#8b95a7}
 .reason{color:#aab6c8;font-size:11px;white-space:normal;min-width:220px;max-width:320px;line-height:1.35}
+.wtag{display:inline-block;font-size:10px;padding:1px 7px;border-radius:99px;margin-right:6px;font-weight:700}
+.wtag.d{background:rgba(255,82,87,.15);color:#ff8a8e}
+.wtag.w{background:rgba(245,166,35,.15);color:#f5a623}
+.dupmark{color:#f5a623;font-weight:800;margin-left:4px;font-size:10px}
 .scroll{overflow-y:auto;max-height:560px}
 .scroll-sm{overflow-y:auto;max-height:520px}
 .up{color:#ff5257} .down{color:#26c281}
@@ -79,7 +83,7 @@ footer b{color:#aab6c8}
 <div class="grid3">
  <div class="card">
  <h2><span class="dot" style="background:#ff5257"></span>龙虎榜净买入 TOP12</h2>
- <div class="legend">按净买入额降序 · 单位 ¥ 亿/万</div>
+ <div class="legend">按净买入额降序（同一股票多榜合并取最大）· 单位 ¥ 亿/万</div>
  <div id="netChart"></div>
  </div>
  <div class="card">
@@ -121,7 +125,7 @@ footer b{color:#aab6c8}
 
 <footer>
  <b>数据来源</b>：① 龙虎榜 — 东方财富数据中心（RPT_DAILYBILLBOARD_DETAILSNEW，支持按交易日回查）；② 题材热度 — 东方财富概念板块涨幅榜（原同花顺 getharden 接口已失效，已自动切换替代源）；③ 行业板块 — 东方财富行业板块指数（实时，多host自动容错）。注：东财 push2 行情接口对服务器 IP 间歇拒连时，②③ 自动降级到新浪板块接口（此时不显示板块上涨家数）。
- <br><b>口径说明</b>：龙虎榜净买入为 BILLBOARD_NET_AMT（买卖前五席位净额）；题材热度为概念板块当日涨幅（括号内为板块上涨家数）。
+ <br><b>口径说明</b>：龙虎榜净买入为 BILLBOARD_NET_AMT（该上榜理由窗口内买卖前五席位净额）；同一股票可因多个上榜理由同日重复上榜（如日涨幅偏离与三日累计偏离各一条），金额口径随理由窗口不同而不同，属正常现象，明细中已用徽标标注；题材热度为概念板块当日涨幅（括号内为板块上涨家数）。
  <br><b>免责声明</b>：本页面数据来自公开接口，仅供复盘研究参考，不构成任何投资建议。涨跌颜色遵循 A 股惯例（红涨绿跌）。
  <br><b>自动修复</b>：选择非交易日/数据未出时，系统自动回退至最近交易日并提示；接口多host容错，单点故障自动切换。
 </footer>
@@ -219,7 +223,11 @@ function barSvg(items,nameFn,valFn,labelFn,color){
 }
 
 function renderNetChart(){
-  var top=DATA.billboard.slice(0,12);
+  // billboard 后端已按 net 降序，首次出现即该股最大值（同股多榜理由合并）
+  var best={};
+  DATA.billboard.forEach(function(x){if(!best[x.code])best[x.code]=x});
+  var ded=Object.keys(best).map(function(c){return best[c]}).sort(function(a,b){return b.net-a.net});
+  var top=ded.slice(0,12);
   $('netChart').innerHTML=top.length?barSvg(top,
     function(x){return x.name+' '+x.code},
     function(x){return x.net},
@@ -246,9 +254,12 @@ function renderIndChart(){
     function(x){return fmtPct(x.pct)},
     '#4f8ef7');
 }
+function win3(r){return /连续|累计/.test(r||'')}
 function renderTable(){
   var bb=DATA.billboard;
-  $('bbTitle').textContent='全市场龙虎榜明细（'+bb.length+' 条 · 按净买入降序）';
+  var dupn={};bb.forEach(function(x){dupn[x.code]=(dupn[x.code]||0)+1});
+  var uq={};bb.forEach(function(x){uq[x.code]=1});
+  $('bbTitle').textContent='全市场龙虎榜明细（'+bb.length+' 条 · '+Object.keys(uq).length+' 只 · 按净买入降序）';
   $('bbBody').innerHTML=bb.map(function(x,i){
     var cc=pctColor(x.chg);
     var nc=x.net>=0?'#ff5257':'#26c281';
@@ -260,7 +271,7 @@ function renderTable(){
       '<td class="mono dim">'+money(x.buy)+'</td>'+
       '<td class="mono dim">'+money(x.sell)+'</td>'+
       '<td class="mono">'+(x.turnover!=null?x.turnover.toFixed(2)+'%':'—')+'</td>'+
-      '<td class="reason">'+esc(x.reason)+'</td></tr>';
+      '<td class="reason">'+(win3(x.reason)?'<span class="wtag w">3日累计</span>':'<span class="wtag d">当日</span>')+esc(x.reason)+(dupn[x.code]>1?'<span class="dupmark">×'+dupn[x.code]+'榜</span>':'')+'</td></tr>';
   }).join('');
 
   var inds=DATA.industries;
