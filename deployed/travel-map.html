@@ -1,0 +1,2418 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>我的中国足迹 · 地级市点亮地图</title>
+<!-- d3 v7（含 d3-geo）由 build.mjs 内联注入，保证单文件离线可用；预览时若未注入会走下面的 CDN 兜底 -->
+<script src="travel-map-assets.js"></script>
+<script>
+  if (typeof d3 === "undefined") {
+    document.write('<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"><\/script>');
+  }
+</script>
+<style>
+  :root{
+    --ink:#0f172a; --ink2:#334155; --muted:#64748b; --muted2:#94a3b8;
+    --line:#dfe5ee; --line2:#eef2f7;
+    --unvisited:#eaeef3; --unvisited-stroke:#ffffff;
+    --p-stroke:#c2ccda;
+    --accent:#ea580c;
+    --fill-1:#ffe2bd; --fill-2:#fbb862; --fill-3:#f58a1f; --fill-4:#e2620a; --fill-5:#b8460a;
+    --shadow-sm:0 1px 2px rgba(15,23,42,.06);
+    --shadow:0 6px 22px -8px rgba(15,23,42,.22);
+    --shadow-lg:0 18px 48px -12px rgba(15,23,42,.28);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; color:var(--ink);
+    font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans SC",sans-serif;
+    background:radial-gradient(1400px 800px at 12% -10%,#f4f7fc 0%,#eaeef6 45%,#e3e9f2 100%);
+    -webkit-font-smoothing:antialiased;
+  }
+  .app{display:flex;flex-direction:column;height:100%}
+
+  /* ---------- header ---------- */
+  .topbar{
+    display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+    padding:10px 16px;background:#fff;border-bottom:1px solid var(--line);
+    box-shadow:var(--shadow-sm);z-index:20;
+  }
+  .brand{display:flex;align-items:baseline;gap:10px;min-width:0}
+  .brand h1{margin:0;font-size:17px;letter-spacing:.5px;white-space:nowrap}
+  .brand .sub{font-size:12px;color:var(--muted);white-space:nowrap}
+  .spacer{flex:1 1 auto}
+
+  .stat{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .stat .item{display:flex;align-items:baseline;gap:5px;transition:opacity .2s}
+  .stat .item.dim{opacity:.42}
+  .stat b{font-size:22px;font-weight:800;letter-spacing:-.5px;font-variant-numeric:tabular-nums;color:var(--accent)}
+  .stat .of{font-size:12px;color:var(--muted2)}
+  .stat .lab{font-size:12px;color:var(--muted)}
+
+  .searchwrap{position:relative}
+  .searchwrap input{
+    width:210px;padding:7px 11px;border:1px solid var(--line);border-radius:9px;
+    background:#fff;font:inherit;font-size:13px;outline:none;transition:.15s;
+  }
+  .searchwrap input:focus{border-color:#f89b3c;box-shadow:0 0 0 3px rgba(248,155,60,.18)}
+  .sugg{
+    position:absolute;top:calc(100% + 5px);left:0;right:0;max-height:290px;overflow:auto;
+    background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);
+    display:none;z-index:30;
+  }
+  .sugg.on{display:block}
+  .sugg .it{display:flex;align-items:center;gap:8px;padding:7px 10px;cursor:pointer;font-size:13px}
+  .sugg .it:hover,.sugg .it.hi{background:#fff7ed}
+  .sugg .it .p{color:var(--muted2);font-size:11px;margin-left:auto}
+  .sugg .it .tick{color:var(--accent);font-weight:700}
+  .sugg .hd{padding:6px 10px;font-size:11px;color:var(--muted2);border-bottom:1px solid var(--line2);background:#fafcff;position:sticky;top:0}
+
+  .btn{
+    border:1px solid var(--line);background:#fff;color:var(--ink2);
+    padding:6px 11px;border-radius:9px;font:inherit;font-size:12.5px;cursor:pointer;
+    transition:.14s;white-space:nowrap;
+  }
+  .btn:hover{border-color:#f89b3c;color:var(--accent);background:#fffaf4}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.primary:hover{background:#c2410c;border-color:#c2410c;color:#fff}
+  .toggles{display:flex;gap:6px;align-items:center}
+  .tg{
+    display:inline-flex;align-items:center;gap:5px;font-size:12.5px;color:var(--ink2);
+    padding:6px 10px;border:1px solid var(--line);border-radius:9px;cursor:pointer;user-select:none;background:#fff;
+  }
+  .tg input{margin:0;accent-color:var(--accent)}
+  .tg:hover{border-color:#f89b3c}
+
+  /* 模式切换：地级市 / 省级。两幅地图共用同一投影，切换只改可见图层 */
+  .sync{border-color:#cfe3ff;background:#f2f7ff;color:#2563eb;font-weight:600;white-space:nowrap}
+  .sync.on{border-color:#c7ecd3;background:#f1fbf4;color:#15803d}
+  .sync.off{border-color:var(--line);background:#f8fafc;color:#64748b;font-weight:500}
+  .sync.err{border-color:#fcd9d3;background:#fff5f3;color:#c2410c;font-weight:600}
+  .sync.lock{border-color:#fadfb8;background:#fff8ef;color:#b45309;font-weight:600}
+  .seg{display:inline-flex;background:#f1f5f9;border:1px solid var(--line);border-radius:10px;padding:2px;gap:2px}
+  .seg button{
+    border:none;background:transparent;color:var(--ink2);font:inherit;font-size:12.5px;
+    padding:5px 11px;border-radius:8px;cursor:pointer;transition:.14s;white-space:nowrap;
+  }
+  .seg button:hover{color:var(--accent)}
+  .seg button.on{background:#fff;color:var(--accent);font-weight:700;box-shadow:var(--shadow-sm)}
+
+  .progress{height:3px;background:var(--line2);position:relative;overflow:hidden}
+  .progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,#fbb862,#ea580c);transition:width .5s cubic-bezier(.22,1,.36,1)}
+
+  /* ---------- body ---------- */
+  .body{flex:1;display:flex;min-height:0;position:relative}
+
+  .panel{
+    width:290px;flex:0 0 290px;background:#fff;border-right:1px solid var(--line);
+    display:flex;flex-direction:column;min-height:0;
+  }
+  .panel .ph{
+    padding:11px 14px;border-bottom:1px solid var(--line2);display:flex;align-items:center;gap:8px;
+  }
+  .panel .ph h2{margin:0;font-size:13px;font-weight:700;letter-spacing:.3px}
+  .panel .ph .n{font-size:11px;color:var(--muted2);margin-left:auto}
+  .list{overflow:auto;padding:6px 8px 14px;flex:1}
+  .prov{margin:4px 0 8px}
+  .prov .ptitle{
+    display:flex;align-items:center;gap:6px;padding:5px 6px;font-size:12px;font-weight:700;color:var(--ink2);
+    cursor:pointer;border-radius:7px;
+  }
+  .prov .ptitle:hover{background:#f6f9fd}
+  .prov .ptitle .cnt{
+    margin-left:auto;font-size:11px;color:var(--muted2);font-weight:600;font-variant-numeric:tabular-nums;
+  }
+  .prov .ptitle .caret{color:var(--muted2);font-size:9px;transition:.15s}
+  .prov.fold .caret{transform:rotate(-90deg)}
+  .prov.fold .chips{display:none}
+  .chips{display:flex;flex-wrap:wrap;gap:5px;padding:2px 4px 6px 12px}
+  .chip{
+    display:inline-flex;align-items:center;gap:5px;padding:3px 7px;border-radius:999px;
+    background:linear-gradient(180deg,#fff5e9,#ffe7c9);border:1px solid #fbd6a8;
+    color:#8a3c06;font-size:12px;cursor:default;
+  }
+  .chip.x{cursor:pointer}
+  .chip.x:hover{background:#fde3d0;border-color:#f3a95e}
+  .chip .no{font-size:10px;opacity:.55}
+  .chip .del{opacity:.45;font-size:13px;line-height:1;cursor:pointer;padding:0 1px}
+  .chip .del:hover{opacity:1;color:#b91c1c}
+  .empty{padding:26px 16px;text-align:center;color:var(--muted2);font-size:12.5px;line-height:1.9}
+
+  .panel .foot{border-top:1px solid var(--line2);padding:10px 12px;display:flex;flex-wrap:wrap;gap:6px;background:#fcfdff}
+  .panel .foot .btn{flex:1 1 auto;justify-content:center;text-align:center}
+
+  .picker{border-bottom:1px solid var(--line2);padding:10px 12px 11px;background:#fcfdff;display:flex;flex-direction:column;gap:7px}
+  .picker .plab{font-size:11px;font-weight:700;color:var(--muted2);letter-spacing:.4px}
+  .picker select{
+    width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:9px;background:#fff;
+    font:inherit;font-size:12.5px;color:var(--ink);outline:none;cursor:pointer;
+  }
+  .picker select:focus{border-color:#f89b3c;box-shadow:0 0 0 3px rgba(248,155,60,.16)}
+  .picker select:disabled{background:#f4f7fb;color:var(--muted2);cursor:not-allowed}
+  .picker .btn{width:100%;text-align:center;font-weight:600}
+  .picker .btn:disabled,.picker .btn.primary:disabled{
+    background:#eef2f7;border-color:var(--line);color:#98a6b8;opacity:1;cursor:not-allowed;
+  }
+
+  /* ---------- map ---------- */
+  .stage{flex:1;position:relative;min-width:0;overflow:hidden}
+  #svg{width:100%;height:100%;display:block;cursor:grab}
+  #svg.dragging{cursor:grabbing}
+
+  .city{fill:var(--unvisited);stroke:var(--unvisited-stroke);stroke-width:.5;vector-effect:non-scaling-stroke;transition:fill .18s}
+  .city.v{stroke:#fff;stroke-width:.6}
+  .city:hover{stroke:#39424f;stroke-width:1.4}
+  .city.sel{stroke:#0f172a;stroke-width:1.8}
+  /* 省级模式的省份填色面（默认整层隐藏） */
+  .prov{fill:var(--unvisited);stroke:#fff;stroke-width:.6;vector-effect:non-scaling-stroke;transition:fill .18s;cursor:pointer}
+  .prov:hover{stroke:#39424f;stroke-width:1.6}
+  .lbl.plbl{font-size:11px;fill:#7c2d12}
+  .prov-line{fill:none;stroke:var(--p-stroke);stroke-width:1.05;vector-effect:non-scaling-stroke;pointer-events:none}
+  .dot{fill:#7f1d1d;stroke:#fff;stroke-width:1;vector-effect:non-scaling-stroke;pointer-events:none}
+  .dot.off{display:none}
+  .lbl{
+    font-size:10px;font-weight:600;fill:#7c2d12;text-anchor:middle;pointer-events:none;
+    paint-order:stroke;stroke:#fff;stroke-width:2.4px;stroke-linejoin:round;
+  }
+  .lbl.off{display:none}
+  .no-cdn{
+    position:absolute;inset:auto 16px 16px 16px;background:#fff7ed;border:1px solid #fdba74;color:#9a3412;
+    padding:10px 12px;border-radius:10px;font-size:12.5px;display:none;box-shadow:var(--shadow);
+  }
+  .notice{
+    position:absolute;left:16px;top:16px;right:16px;max-width:640px;
+    display:flex;align-items:flex-start;gap:8px;
+    background:#fffbeb;border:1px solid #fcd34d;color:#854d0e;
+    padding:10px 12px;border-radius:10px;font-size:12.5px;box-shadow:var(--shadow);z-index:5;
+  }
+  .notice[hidden]{display:none}
+  .notice .nx{
+    flex:none;margin-left:auto;border:1px solid #fcd34d;background:#fff;color:#854d0e;
+    border-radius:7px;padding:2px 8px;font-size:12px;cursor:pointer;font-family:inherit;
+  }
+  .notice .nx:hover{background:#fef3c7}
+  .notice .nx + .nx{margin-left:6px}
+
+  .mapctl{position:absolute;top:12px;right:12px;display:flex;flex-direction:column;gap:6px;z-index:10}
+  .icb{
+    width:32px;height:32px;border:1px solid var(--line);background:#fff;border-radius:9px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;font-size:15px;color:var(--ink2);
+    box-shadow:var(--shadow-sm);transition:.14s;font-family:inherit;
+  }
+  .icb:hover{border-color:#f89b3c;color:var(--accent);background:#fffaf4}
+
+  .tip{
+    position:fixed;z-index:60;pointer-events:none;opacity:0;transform:translateY(4px);transition:opacity .12s;
+    background:rgba(15,23,42,.94);color:#fff;padding:6px 10px;border-radius:8px;font-size:12.5px;
+    box-shadow:var(--shadow);white-space:nowrap;backdrop-filter:blur(4px);
+  }
+  .tip.on{opacity:1;transform:translateY(0)}
+  .tip .pn{color:#fcd9a8;font-size:11px;margin-left:6px}
+  .tip .add{color:#86efac;font-size:11px;margin-left:6px}
+  .tip .rm{color:#fca5a5;font-size:11px;margin-left:6px}
+
+  .legend{
+    position:absolute;left:12px;bottom:12px;background:rgba(255,255,255,.96);border:1px solid var(--line);
+    border-radius:11px;padding:9px 12px;box-shadow:var(--shadow-sm);font-size:11.5px;color:var(--ink2);
+    display:flex;gap:14px;align-items:center;backdrop-filter:blur(6px);max-width:calc(100% - 24px);flex-wrap:wrap;
+  }
+  .legend .row{display:flex;align-items:center;gap:5px}
+  .legend .sw{width:15px;height:11px;border-radius:3px;border:1px solid rgba(15,23,42,.14)}
+  .legend .hint{color:var(--muted2);font-size:11px}
+
+  /* ---------- 行程 / 年份 ---------- */
+  .yearbar{display:flex;align-items:center;gap:6px}
+  .yearbar select{
+    padding:6px 9px;border:1px solid var(--line);border-radius:9px;background:#fff;
+    font:inherit;font-size:12.5px;color:var(--ink);outline:none;cursor:pointer;max-width:190px;
+  }
+  .yearbar select:focus{border-color:#f89b3c;box-shadow:0 0 0 3px rgba(248,155,60,.16)}
+  .yearbar select.hot{border-color:#f3b26a;background:#fff8ef;color:#b45309;font-weight:700}
+  .btn.trip{border-color:#fbd6a8;background:linear-gradient(180deg,#fff6ea,#ffe9cd);color:#8a3c06;font-weight:700}
+  .btn.trip:hover{border-color:#f3a95e;background:#ffe3c2;color:#7c2d12}
+
+  .yearnote{
+    padding:9px 12px;border-bottom:1px solid var(--line2);background:#fff8ef;
+    font-size:11.5px;line-height:1.75;color:#92400e;
+  }
+  .yearnote[hidden]{display:none}
+  .yearnote b{font-weight:700}
+
+  dialog.data.wide{width:min(880px,96vw)}
+  .dg .row2{display:grid;grid-template-columns:1.1fr 1fr 1.3fr;gap:8px;margin:10px 0 8px}
+  .dg .row2 label{display:flex;flex-direction:column;gap:4px;font-size:11.5px;color:var(--muted);font-weight:600}
+  .dg .row2 input,.dg .row2 select{
+    width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:#fff;
+    font:inherit;font-size:13px;color:var(--ink);outline:none;
+  }
+  .dg .row2 input:focus,.dg .row2 select:focus{border-color:#f89b3c;box-shadow:0 0 0 3px rgba(248,155,60,.16)}
+  .dg input.note{
+    width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:10px;
+    font:inherit;font-size:13px;outline:none;
+  }
+  .dg input.note:focus{border-color:#f89b3c;box-shadow:0 0 0 3px rgba(248,155,60,.16)}
+  .dg textarea.note{
+    width:100%;height:66px;padding:9px 11px;border:1px solid var(--line);border-radius:10px;
+    font:inherit;font-size:13px;outline:none;resize:vertical;min-height:46px;line-height:1.6;
+  }
+  .dg textarea.note:focus{border-color:#f89b3c;box-shadow:0 0 0 3px rgba(248,155,60,.16)}
+  .upwrap{display:flex;align-items:center;gap:10px;margin:11px 0 4px}
+  .upbtn{
+    display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border:1px dashed #f0b273;
+    border-radius:9px;background:#fffaf4;color:#b45309;font-size:12.5px;font-weight:600;cursor:pointer;
+  }
+  .upbtn:hover{background:#fff3e2;border-color:#e8954a}
+  .uphint{font-size:11.5px;color:var(--muted2)}
+  .thumbs{display:flex;flex-wrap:wrap;gap:9px;margin-top:6px;min-height:2px}
+  .thumbs .thw{width:106px}
+  .thumbs .thc{
+    width:106px;margin-top:4px;padding:3px 6px;border:1px solid var(--line);border-radius:7px;
+    font:inherit;font-size:11px;outline:none;color:var(--ink);background:#fff;
+  }
+  .thumbs .thc:focus{border-color:#f89b3c;box-shadow:0 0 0 2px rgba(248,155,60,.16)}
+  .thumbs .th{position:relative;width:106px;height:78px;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:#f6f8fb}
+  .thumbs .th img{width:100%;height:100%;object-fit:cover;display:block}
+  .thumbs .th .x{
+    position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;border:none;
+    background:rgba(15,23,42,.62);color:#fff;font-size:12px;line-height:1;cursor:pointer;font-family:inherit;padding:0;
+  }
+  .thumbs .th .x:hover{background:#b91c1c}
+  .thumbs .th .lb{position:absolute;left:0;right:0;bottom:0;background:rgba(15,23,42,.55);color:#fff;
+    font-size:9.5px;padding:1px 3px;text-align:center}
+
+  .tlist{max-height:56vh;overflow:auto;margin:8px -4px 0;padding:0 4px}
+  .tlist .yhd{position:sticky;top:0;background:#fff;padding:7px 2px 5px;font-size:12px;font-weight:800;color:var(--ink2);
+    display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line2);z-index:1}
+  .tlist .yhd .cnt{margin-left:auto;font-weight:600;color:var(--muted2);font-size:11px}
+  .trow{display:flex;align-items:center;gap:9px;padding:8px 4px;border-bottom:1px dashed var(--line2)}
+  .trow .td{font-size:12px;color:#b45309;font-weight:700;font-variant-numeric:tabular-nums;flex:none;width:46px}
+  .trow .tp{font-size:13px;font-weight:700;flex:none}
+  .trow .tprov{font-size:11px;color:var(--muted2);flex:none}
+  .trow .tn{font-size:12px;color:var(--muted);flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .trow .ti{font-size:11.5px;color:var(--muted2);flex:none}
+  .trow .ta{display:flex;gap:4px;flex:none}
+  .trow .ta button{border:none;background:none;color:#b45309;font-size:12px;cursor:pointer;padding:2px 5px;font-family:inherit;border-radius:5px}
+  .trow .ta button:hover{background:#fff3e2}
+  .trow .ta button.del{color:#b91c1c}
+  .trow .ta button.del:hover{background:#fdecea}
+
+  .ptrip{border:1px solid var(--line2);border-radius:11px;padding:10px 12px;margin:0 0 10px;background:#fff}
+  .ptrip .ph2{display:flex;align-items:baseline;gap:8px;margin-bottom:6px;flex-wrap:wrap}
+  .ptrip .ph2 b{font-size:13.5px}
+  .ptrip .ph2 .d{font-size:12px;color:#b45309;font-weight:700;font-variant-numeric:tabular-nums}
+  .ptrip .ph2 .n{font-size:11.5px;color:var(--muted2);margin-left:auto}
+  .ptrip .tn2{font-size:12.5px;color:var(--ink2);margin:0 0 7px;line-height:1.6}
+  .pimgs{display:flex;flex-wrap:wrap;gap:10px}
+  .pimgs .pcell{width:106px}
+  .pimgs .pc2{
+    font-size:11px;color:#64748b;line-height:1.45;margin-top:3px;word-break:break-word;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+  }
+  .pimgs img{width:106px;height:80px;object-fit:cover;border-radius:8px;border:1px solid var(--line);cursor:zoom-in;transition:.15s}
+  .pimgs img:hover{transform:scale(1.03);box-shadow:var(--shadow)}
+  .pimgs .pi{position:relative;display:block;line-height:0}
+  .pimgs .pi .px{
+    position:absolute;top:3px;right:3px;width:19px;height:19px;border-radius:50%;border:none;
+    background:rgba(15,23,42,.55);color:#fff;font-size:12px;line-height:1;cursor:pointer;
+    font-family:inherit;padding:0;opacity:.55;transition:.12s;
+  }
+  .pimgs .pi:hover .px{opacity:1}
+  .pimgs .pi .px:hover{background:#b91c1c}
+  .ptrip .ph2 .pe{
+    border:1px solid #f2d6b4;background:#fffaf4;color:#b45309;font-size:12px;font-weight:600;cursor:pointer;
+    padding:1px 8px;border-radius:6px;font-family:inherit;flex:none;outline:none;
+  }
+  .ptrip .ph2 .pe:hover{background:#fff3e2;border-color:#e8954a}
+  .ptrip .ph2 .pe:focus-visible{box-shadow:0 0 0 3px rgba(248,155,60,.25)}
+  .pempty{color:var(--muted2);font-size:12.5px;padding:16px 4px;text-align:center;line-height:1.9}
+  .pgrid{max-height:54vh;overflow:auto;padding-right:4px}
+
+  /* 大图：必须是 <dialog> 才能盖在 showModal 出来的照片框之上（普通 div 永远在 top layer 之下） */
+  #lb{border:none;padding:0;margin:0;width:100vw;max-width:100vw;height:100vh;max-height:100vh;
+    background:rgba(8,12,20,.9);color:#e2e8f0;cursor:zoom-out;touch-action:pan-y}
+  #lb[open]{display:flex;align-items:center;justify-content:center;padding:24px}
+  #lb::backdrop{background:rgba(8,12,20,.9)}
+  #lb img{max-width:100%;max-height:100%;border-radius:8px;box-shadow:0 20px 60px rgba(0,0,0,.5);
+    cursor:grab;user-select:none;-webkit-user-drag:none}
+  #lb .cap{position:fixed;left:0;right:0;bottom:14px;text-align:center;color:#e2e8f0;font-size:12.5px;
+    padding:0 64px;line-height:1.6}
+  #lb .nav{
+    position:fixed;top:50%;transform:translateY(-50%);width:46px;height:46px;border-radius:50%;border:none;
+    background:rgba(255,255,255,.14);color:#fff;font-size:22px;line-height:1;cursor:pointer;
+    font-family:inherit;padding:0;display:flex;align-items:center;justify-content:center;transition:.15s;
+  }
+  #lb .nav:hover{background:rgba(255,255,255,.3)}
+  #lb .nav[hidden]{display:none}
+  #lbPrev{left:16px}
+  #lbNext{right:16px}
+  #lb .cnt{position:fixed;top:16px;left:50%;transform:translateX(-50%);color:#cbd5e1;font-size:12.5px;
+    background:rgba(255,255,255,.1);padding:3px 11px;border-radius:20px;font-variant-numeric:tabular-nums}
+  #lb .cl{position:fixed;top:12px;right:16px;width:36px;height:36px;border-radius:50%;border:none;
+    background:rgba(255,255,255,.14);color:#fff;font-size:17px;cursor:pointer;font-family:inherit;padding:0}
+  #lb .cl:hover{background:rgba(255,255,255,.3)}
+  @media (max-width:640px){ #lb .nav{width:40px;height:40px} #lbPrev{left:6px} #lbNext{right:6px} #lb .cap{padding:0 44px} }
+
+  /* ---------- modal ---------- */
+  dialog.data{
+    border:none;border-radius:16px;padding:0;width:min(620px,94vw);box-shadow:var(--shadow-lg);
+    background:#fff;color:var(--ink);
+  }
+  dialog.data::backdrop{background:rgba(15,23,42,.42);backdrop-filter:blur(2px)}
+  .dg{padding:18px 20px 16px}
+  .dg h3{margin:0 0 4px;font-size:16px}
+  .dg p.hint{margin:0 0 10px;font-size:12.5px;color:var(--muted);line-height:1.7}
+  .dg textarea{
+    width:100%;height:190px;padding:11px 12px;border:1px solid var(--line);border-radius:11px;resize:vertical;
+    font:13px/1.65 ui-monospace,SFMono-Regular,Menlo,Consolas,"Microsoft YaHei",monospace;outline:none;
+  }
+  .dg textarea:focus{border-color:#f89b3c;box-shadow:0 0 0 3px rgba(248,155,60,.16)}
+  .dg input[type=password]{
+    width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:11px;
+    font:15px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,"Microsoft YaHei",monospace;
+    outline:none;letter-spacing:.12em;
+  }
+  .dg input[type=password]:focus{border-color:#f89b3c;box-shadow:0 0 0 3px rgba(248,155,60,.16)}
+  .dg .msg{margin-top:9px;font-size:12.5px;min-height:19px;line-height:1.7}
+  .dg .msg .ok{color:#15803d}
+  .dg .msg .warn{color:#b45309}
+  .dg .msg .err{color:#b91c1c}
+  .dg .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
+  .dg .msg code{background:#f1f5f9;padding:1px 5px;border-radius:5px;font-size:12px}
+
+  .toast{
+    position:fixed;left:50%;bottom:28px;transform:translate(-50%,14px);z-index:80;
+    background:rgba(15,23,42,.93);color:#fff;padding:9px 16px;border-radius:999px;font-size:13px;
+    opacity:0;pointer-events:none;transition:.24s;box-shadow:var(--shadow-lg);
+  }
+  .toast.on{opacity:1;transform:translate(-50%,0)}
+
+  .loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#f2f5fa;color:var(--muted);font-size:13px}
+
+  @media (max-width:860px){
+    .panel{position:absolute;left:0;top:0;bottom:0;z-index:15;box-shadow:var(--shadow-lg);transform:translateX(-100%);transition:.2s}
+    .panel.open{transform:none}
+    .brand .sub{display:none}
+    .searchwrap input{width:150px}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <h1>我的中国足迹</h1>
+      <span class="sub">地级行政区口径 · 点击城市点亮 / 取消</span>
+    </div>
+    <div class="seg" id="segMode" role="tablist" aria-label="地图口径">
+      <button type="button" data-mode="city" class="on" title="按地级市看（370 个单元）">地级市</button>
+      <button type="button" data-mode="prov" title="按省份看（34 个省级单元）">省级</button>
+    </div>
+    <div class="yearbar">
+      <select id="selYear" title="只看某一年的行程"><option value="all">全部年份</option></select>
+      <button class="btn trip" id="btnAddTrip" title="记一笔：日期 + 地点 + 照片">＋ 记行程</button>
+    </div>
+    <div class="stat">
+      <div class="item" id="itemUnits"><b id="statUnits">0</b><span class="of">/ <span id="statTotal">0</span></span><span class="lab">地级单元</span></div>
+      <div class="item dim" id="itemProv"><b id="statProv">0</b><span class="of">/ <span id="statProvTotal">0</span></span><span class="lab">省级</span></div>
+      <div class="item" id="itemPct"><b id="statPct">0%</b><span class="lab" id="statPctLab">地级点亮率</span></div>
+    </div>
+    <div class="searchwrap">
+      <input id="search" type="text" placeholder="搜索城市，如 杭州 / 大理" autocomplete="off">
+      <div class="sugg" id="sugg"></div>
+    </div>
+    <div class="spacer"></div>
+    <div class="toggles">
+      <label class="tg"><input type="checkbox" id="tgProv" checked>省界</label>
+      <label class="tg"><input type="checkbox" id="tgLbl" checked><span id="tgLblTx">城市名</span></label>
+      <label class="tg" id="tgDotLab"><input type="checkbox" id="tgDot" checked>中心点</label>
+    </div>
+    <button class="btn" id="btnData" title="批量粘贴 / 编辑文字清单">批量粘贴</button>
+    <button class="btn sync" id="syncPill" hidden title="清单保存在服务器上；点一下可手动上传当前清单">☁️ 同步</button>
+  </header>
+  <div class="progress"><i id="bar"></i></div>
+
+  <div class="body">
+    <aside class="panel" id="panel">
+      <div class="picker">
+        <div class="plab">选省份 → 选城市 → 点亮</div>
+        <select id="selProv"><option value="">请选择省 / 直辖市 / 港澳台…</option></select>
+        <select id="selCity" disabled><option value="">请先选择省份</option></select>
+        <button class="btn primary" id="btnPick" disabled>点亮</button>
+      </div>
+      <div class="yearnote" id="yearNote" hidden></div>
+      <div class="ph"><h2 id="listTitle">已点亮</h2><span class="n" id="listCount"></span></div>
+      <div class="list" id="list"></div>
+      <div class="foot">
+        <button class="btn" id="btnExpandAll">补全省级</button>
+        <button class="btn" id="btnTrips">行程清单</button>
+        <button class="btn" id="btnPng">导出 PNG</button>
+        <button class="btn" id="btnCopy">复制清单</button>
+        <button class="btn" id="btnReset">还原初始</button>
+      </div>
+    </aside>
+
+    <main class="stage" id="stage">
+      <div class="loading" id="loading">正在渲染地图…</div>
+      <svg id="svg"></svg>
+      <div class="mapctl">
+        <button class="icb" id="btnIn" title="放大">+</button>
+        <button class="icb" id="btnOut" title="缩小">−</button>
+        <button class="icb" id="btnFit" title="复位">⤢</button>
+        <button class="icb" id="btnPanel" title="清单面板">☰</button>
+      </div>
+      <div class="legend" id="legend">
+        <div class="row"><span>点亮密度</span></div>
+        <div class="row"><span class="sw" style="background:var(--fill-1)"></span><span class="hint">1</span></div>
+        <div class="row"><span class="sw" style="background:var(--fill-3)"></span><span class="hint">2-3</span></div>
+        <div class="row"><span class="sw" style="background:var(--fill-5)"></span><span class="hint">4+</span></div>
+        <div class="row"><span class="sw" style="background:var(--unvisited)"></span><span class="hint">未去过</span></div>
+        <div class="row"><span class="hint">滚轮缩放 · 拖动平移 · 单击点亮</span></div>
+      </div>
+      <div class="no-cdn" id="noCdn">地图库未能从 CDN 加载，请联网后刷新页面（或把 d3 放到同目录并改用本地引用）。</div>
+      <div class="notice" id="notice" hidden>
+        <span id="noticeText"></span>
+        <button class="nx" id="noticeFix" hidden>补全省级</button>
+        <button class="nx" id="noticeClose" title="知道了">✕</button>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div class="tip" id="tip"></div>
+<div class="toast" id="toast"></div>
+
+<dialog class="data" id="dlg">
+  <div class="dg">
+    <h3>编辑去过的地点</h3>
+    <p class="hint">
+      一行一个，或用「、，,;；/|空格」分隔。支持全名与简称：<code>杭州市</code> / <code>杭州</code> /
+      <code>延边</code> / <code>大理</code> / <code>西双版纳</code> / <code>香港</code> / <code>330100</code>。
+      只写省名（如 <code>浙江</code>）默认标为待确认，不自动点亮全省；确需整省时点「补全省级」或写 <code>浙江全省</code>。
+    </p>
+    <textarea id="ta" spellcheck="false" placeholder="北京、上海、杭州、宁波、舟山&#10;成都 大理 丽江 西双版纳&#10;深圳、珠海、广州"></textarea>
+    <div class="msg" id="msg"></div>
+    <div class="acts">
+      <button class="btn" id="dlgCancel">取消</button>
+      <button class="btn primary" id="dlgApply">解析并应用</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog class="data" id="tokenDlg">
+  <div class="dg">
+    <h3>输入口令</h3>
+    <p class="hint">
+      清单存在服务器上，<b>改动需要口令</b>（只看不需要）。口令只保存在这台浏览器里，不会写进页面文件。
+      输入一次后，点选会自动同步；换设备或清了浏览器数据需要重新输入。
+    </p>
+    <input type="password" id="tokenIn" autocomplete="current-password" placeholder="口令">
+    <div class="msg" id="tokenMsg"></div>
+    <div class="acts">
+      <button class="btn" id="tokenCancel">取消</button>
+      <button class="btn primary" id="tokenOk">确定并上传</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog class="data" id="tripDlg">
+  <div class="dg">
+    <h3 id="tripTitle">记一笔行程</h3>
+    <p class="hint" id="tripHint">选日期和地点，可以附几张照片（上传前自动压到长边 1600px，一张约 200–400 KB）。
+      保存后该地点会在「全部年份」里点亮；照片存在服务器上，只有带口令才能上传。</p>
+    <div class="row2">
+      <label>日期<input type="date" id="tripDate"></label>
+      <label>省份<select id="tripProv"></select></label>
+      <label>城市／地区<select id="tripCity"></select></label>
+    </div>
+    <textarea class="note" id="tripNote" rows="2" maxlength="300" placeholder="描述（选填，最多 300 字）：和谁去的、吃了什么、当时的心情…"></textarea>
+    <div class="upwrap">
+      <label class="upbtn">＋ 选照片<input type="file" id="tripFiles" accept="image/*" multiple hidden></label>
+      <span class="uphint" id="tripUpHint">未选照片</span>
+    </div>
+    <div class="thumbs" id="tripThumbs"></div>
+    <div class="msg" id="tripMsg"></div>
+    <div class="acts">
+      <button class="btn" id="tripCancel">取消</button>
+      <button class="btn primary" id="tripSave">保存</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog class="data wide" id="tripsDlg">
+  <div class="dg">
+    <h3>行程清单</h3>
+    <p class="hint">按年份分组，最新的在上面。删除一条行程会连它的照片一起删（不可撤销），但不会取消该地点的点亮。</p>
+    <div class="tlist" id="tripList"></div>
+    <div class="acts">
+      <button class="btn" id="tripsClose">关闭</button>
+      <button class="btn primary" id="tripsAdd">＋ 记一笔</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog class="data wide" id="photoDlg">
+  <div class="dg">
+    <h3 id="photoTitle">地点</h3>
+    <p class="hint" id="photoSub"></p>
+    <div class="pgrid" id="photoBody"></div>
+    <div class="acts">
+      <button class="btn" id="photoEdit">＋ 补一条</button>
+      <button class="btn" id="photoOff">取消点亮</button>
+      <button class="btn primary" id="photoClose">关闭</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="lb">
+  <img id="lbImg" alt="" draggable="false">
+  <button class="nav" id="lbPrev" title="上一张（←）">‹</button>
+  <button class="nav" id="lbNext" title="下一张（→）">›</button>
+  <span class="cnt" id="lbCnt"></span>
+  <button class="cl" id="lbClose" title="关闭（Esc）">×</button>
+  <div class="cap" id="lbCap"></div>
+</dialog>
+
+<script>
+/* ============================================================
+   我的中国足迹 · 地级市点亮地图
+   数据：阿里云 DataV 行政区划（bound/{adcode}_full.json）
+   口径：地级行政区（地级市 / 自治州 / 地区 / 盟），
+         北京·天津·上海·重庆·香港·澳门·台湾 各作为一个单元
+   ============================================================ */
+const INITIAL_VISITED = window.__TRAVEL_ASSETS__.visited;
+
+const CITY_GEO    = window.__TRAVEL_ASSETS__.cityGeo;
+const PROVINCE_GEO = window.__TRAVEL_ASSETS__.provinceGeo;
+
+/* ---------------- 行政区划工具 ---------------- */
+const UNITS = CITY_GEO.features.map(f => ({
+  adcode: f.properties.adcode,
+  name: f.properties.name,
+  shortName: f.properties.shortName,
+  level: f.properties.level,
+  province: f.properties.province,
+  provinceAdcode: f.properties.provinceAdcode,
+  center: f.properties.center,
+}));
+const BY_ADCODE = new Map(UNITS.map(u => [u.adcode, u]));
+const BY_NAME = new Map(UNITS.map(u => [u.name, u]));
+const UNITS_BY_PROVINCE = new Map();
+for (const u of UNITS) {
+  if (!UNITS_BY_PROVINCE.has(u.provinceAdcode)) UNITS_BY_PROVINCE.set(u.provinceAdcode, []);
+  UNITS_BY_PROVINCE.get(u.provinceAdcode).push(u);
+}
+const PROV_NAME
+ = new Map(UNITS.map(u => [u.provinceAdcode, u.province]));
+
+// 去掉行政区后缀，便于「杭州」→「杭州市」
+const strip = s => s.replace(/(市|地区|盟|自治州|特别行政区|省|维吾尔自治区|回族自治区|壮族自治区|自治区)$/g, "");
+
+const PREFIX_INDEX = new Map();
+for (const u of UNITS) {
+  for (const key of new Set([u.name, u.shortName, strip(u.name)])) {
+    if (!key) continue;
+    if (!PREFIX_INDEX.has(key)) PREFIX_INDEX.set(key, []);
+    PREFIX_INDEX.get(key).push(u);
+  }
+}
+// 省名 → 省级 adcode
+const PROV_INDEX = new Map();
+for (const u of UNITS) {
+  PROV_INDEX.set(u.province, u.provinceAdcode);
+  PROV_INDEX.set(strip(u.province), u.provinceAdcode);
+}
+PROV_INDEX.set("内蒙古", "150000");
+PROV_INDEX.set("广西", "450000");
+PROV_INDEX.set("宁夏", "640000");
+PROV_INDEX.set("新疆", "650000");
+PROV_INDEX.set("西藏", "540000");
+
+// 手工别名（历史名 / 俗称 / 易混简称）
+const ALIAS = {
+  北京:"110000", 天津:"120000", 上海:"310000", 重庆:"500000",
+  香港:"810000", 港:"810000", 澳门:"820000", 濠:"820000",
+  台湾:"710000", 台北:"710000",
+  恩施:"422800", 湘西:"433100", 阿坝:"513200", 甘孜:"513300", 凉山:"513400",
+  黔东南:"522600", 黔南:"522700", 黔西南:"522300",
+  大理:"532900", 德宏:"533100", 怒江:"533300", 迪庆:"533400",
+  红河:"532500", 文山:"532600", 西双版纳:"532800", 楚雄:"532300",
+  临夏:"622900", 甘南:"623000", 海北:"632200", 黄南:"632300",
+  果洛:"632600", 玉树:"632700", 海西:"632800",
+  昌吉:"652300", 博尔塔拉:"652700", 巴音郭楞:"652800", 克孜勒苏:"653000",
+  伊犁:"654000", 阿勒泰:"654300", 塔城:"654200",
+  兴安盟:"152200", 锡林郭勒:"152500", 阿拉善:"152900", 延边:"222400",
+  呼伦贝尔:"150700", 那曲:"540600", 山南:"540500", 林芝:"540400",
+  昌都:"540300", 日喀则:"540200", 阿里:"542500", 大兴安岭:"232700",
+  西双版纳州:"532800", 海西州:"632800", 海南州:"632500"
+};
+
+/**
+ * 解析一个 token
+ * 返回 {kind:'unit'|'province'|'ambiguous'|'unknown'|'provinceAll', ...}
+ */
+function resolveToken(rawInput) {
+  const raw = String(rawInput).trim();
+  const token = raw.replace(/[\s\u3000]+/g, "");
+  if (!token) return null;
+
+  if (/^\d{6}$/.test(token)) {
+    return BY_ADCODE.has(token) ? { kind:"unit", unit:BY_ADCODE.get(token) } : { kind:"unknown", input:raw, reason:"无此 adcode" };
+  }
+
+  // 「浙江省全省」/「浙江全省」/「浙江全部」
+  const allMatch = token.match(/^(.+?)(全省|全境|全部|所有城市|各地级市)$/);
+  if (allMatch) {
+    const pc = PROV_INDEX.get(allMatch[1]) || PROV_INDEX.get(strip(allMatch[1]));
+    if (pc) return { kind:"provinceAll", input:raw, provinceAdcode:pc, province:PROV_NAME.get(pc) };
+    return { kind:"unknown", input:raw, reason:"无此省名" };
+  }
+
+  if (ALIAS[token] && BY_ADCODE.has(ALIAS[token])) return { kind:"unit", unit:BY_ADCODE.get(ALIAS[token]) };
+  if (BY_NAME.has(token)) return { kind:"unit", unit:BY_NAME.get(token) };
+
+  const st = strip(token);
+
+  // 用户写的是带后缀的省全名（吉林省 / 内蒙古自治区 / 香港特别行政区）→ 直接按省处理
+  if (token !== st) {
+    const pcFull = PROV_INDEX.get(token) || PROV_INDEX.get(st);
+    if (pcFull && !PREFIX_INDEX.has(token)) {
+      return { kind:"province", input:raw, provinceAdcode:pcFull, province:PROV_NAME.get(pcFull) };
+    }
+  }
+
+  const cands = PREFIX_INDEX.get(token) || PREFIX_INDEX.get(st);
+  const pc = PROV_INDEX.get(token) || PROV_INDEX.get(st);
+
+  // 省与地级市同名（吉林 → 吉林省 / 吉林市）→ 报歧义，让用户确认
+  if (pc && cands && cands.length) {
+    const conflict = cands.filter(u => u.level === "city" && u.adcode !== pc);
+    if (conflict.length) {
+      const list = [...new Set([...conflict.map(u => `${u.name}(${u.adcode})`), `${PROV_NAME.get(pc)}全境`])];
+      return { kind:"ambiguous", input:raw, candidates:list };
+    }
+  }
+
+  if (cands && cands.length === 1) return { kind:"unit", unit:cands[0] };
+  if (cands && cands.length > 1) {
+    return { kind:"ambiguous", input:raw, candidates:cands.map(u => `${u.name}(${u.adcode})`) };
+  }
+  if (pc) return { kind:"province", input:raw, provinceAdcode:pc, province:PROV_NAME.get(pc) };
+
+  const fuzzy = UNITS.filter(u => u.name.includes(token));
+  if (fuzzy.length === 1) return { kind:"unit", unit:fuzzy[0] };
+  if (fuzzy.length > 1 && fuzzy.length <= 8) {
+    return { kind:"ambiguous", input:raw, candidates:fuzzy.map(u => `${u.name}(${u.adcode})`) };
+  }
+  return { kind:"unknown", input:raw, reason:fuzzy.length > 8 ? `匹配过多(${fuzzy.length})` : "无匹配" };
+}
+
+function tokenize(text) {
+  return String(text)
+    .split(/\r?\n/)
+    .map(l => l.replace(/#.*$/, ""))
+    // 「浙江省：杭州市、宁波市」这种按省分组的写法（正是「复制清单」导出的格式）：
+    // 行首的省名 + 冒号只是分组标题，不是要点的项，先摘掉，
+    // 否则会被当成「只写了省名」而弹确认提示，还会误触「补全省级」。
+    .map(l => {
+      const m = l.match(/^\s*([^\s：:]{2,12})\s*[：:]\s*(\S.*)$/);
+      if (!m) return l;
+      return (PROV_INDEX.has(m[1]) || PROV_INDEX.has(strip(m[1]))) ? m[2] : l;
+    })
+    .flatMap(l => l.split(/[、,，;；/|]+/))
+    .flatMap(s => s.split(/[\s\u3000]+/))
+    .map(s => s.trim())
+    .filter(Boolean);
+}
+
+/** 解析整份清单，返回 {visited:Map<adcode,count>, problems:[], pendingProvinces:[]} */
+function resolveList(text) {
+  const visited = new Map();
+  const problems = [];
+  const pendingProvinces = [];
+  const tokens = tokenize(text);
+  for (const t of tokens) {
+    const r = resolveToken(t);
+    if (!r) continue;
+    if (r.kind === "unit") {
+      visited.set(r.unit.adcode, (visited.get(r.unit.adcode) || 0) + 1);
+    } else if (r.kind === "provinceAll") {
+      for (const u of UNITS_BY_PROVINCE.get(r.provinceAdcode) || []) visited.set(u.adcode, (visited.get(u.adcode) || 0) + 1);
+    } else if (r.kind === "province") {
+      pendingProvinces.push({ input:t, province:r.province, provinceAdcode:r.provinceAdcode });
+    } else {
+      problems.push(r);
+    }
+  }
+  return { visited, problems, pendingProvinces, tokenCount: tokens.length };
+}
+
+/* ---------------- 状态 ---------------- */
+let VISITED = new Map();           // adcode -> 计数
+let INITIAL = new Map();           // 初始清单
+let labelOn = true, dotOn = true;
+
+const PROVINCE_SET = new Set(UNITS.filter(u => u.level !== "city").map(u => u.adcode));
+
+function loadInitial(list) {
+  const { visited, problems, pendingProvinces } = resolveList(list.join("\n"));
+  return { visited, problems, pendingProvinces };
+}
+
+/* ---------------- 渲染 ---------------- */
+if (typeof d3 === "undefined") {
+  document.getElementById("loading").style.display = "none";
+  document.getElementById("noCdn").style.display = "block";
+} else {
+  boot();
+}
+
+function boot() {
+  const svg = d3.select("#svg");
+  let mode = "city";   // "city" = 地级市口径（370 单元）｜"prov" = 省级口径（34 省）
+  const W = () => document.getElementById("stage").clientWidth;
+  const H = () => document.getElementById("stage").clientHeight;
+
+  // 只保留有几何的面
+  const feats = CITY_GEO.features.filter(f => f.geometry && f.geometry.coordinates && f.geometry.coordinates.length);
+  const featByCode = new Map(feats.map(f => [f.properties.adcode, f]));
+
+  const projection = d3.geoMercator().fitExtent(
+    [[18, 18], [W() - 18, H() - 18]],
+    { type:"FeatureCollection", features:feats }
+  );
+  const pathGen = d3.geoPath(projection);
+
+  const zoomLayer = svg.append("g");
+
+  // --- 城市面 ---
+  const gCity = zoomLayer.append("g").attr("class", "gCity");
+  const cityPaths = new Map();
+  for (const f of feats) {
+    const p = gCity.append("path")
+      .attr("class", "city")
+      .attr("d", pathGen(f))
+      .attr("data-code", f.properties.adcode);
+    cityPaths.set(f.properties.adcode, p.node());
+    p.on("click", (ev) => { ev.stopPropagation(); onCityClick(f.properties.adcode); })
+     .on("pointerenter", (ev) => showTip(ev, f.properties.adcode))
+     .on("pointermove", (ev) => moveTip(ev))
+     .on("pointerleave", hideTip);
+  }
+
+  // --- 省份填色面（省级模式；默认整层隐藏）---
+  const gProvFill = zoomLayer.append("g").attr("class", "gProvFill").style("display", "none");
+  const provPaths = new Map();    // 省 adcode -> path 节点
+  const provCenter = new Map();   // 省 adcode -> {x, y, short}
+  let provCount = new Map();      // 省 adcode -> 已点亮的地级单元数
+  for (const f of PROVINCE_GEO.features) {
+    // 注意：china-provinces.json 里的 adcode 是**数字**，而城市数据里的 provinceAdcode 是字符串，
+    // 必须先 String() 再查表，否则一个都匹配不上（省级图层会全灰）。
+    const code = (f.properties && f.properties.adcode != null) ? String(f.properties.adcode) : null;
+    if (!f.geometry || !code || !UNITS_BY_PROVINCE.has(code)) continue;   // 跳过 100000_JD 南海诸岛辅助面
+    const p = gProvFill.append("path")
+      .attr("class", "prov").attr("d", pathGen(f)).attr("data-code", code);
+    provPaths.set(code, p.node());
+    p.on("click", (ev) => { ev.stopPropagation(); onProvClick(code); })
+     .on("pointerenter", (ev) => showTipProv(ev, code))
+     .on("pointermove", (ev) => moveTip(ev))
+     .on("pointerleave", hideTip);
+    // 标签锚点：优先几何质心，其次省会点（河北 / 甘肃 无质心），最后退回路径质心
+    const c0 = f.properties.centroid || f.properties.center;
+    let xy = c0 ? projection(c0) : null;
+    if (!xy || !isFinite(xy[0]) || !isFinite(xy[1])) xy = pathGen.centroid(f);
+    provCenter.set(code, {
+      x: xy[0], y: xy[1],
+      short: strip(PROV_NAME.get(code) || f.properties.name || "")
+    });
+  }
+
+  // --- 省界 ---
+  const gProv = zoomLayer.append("g").attr("class", "gProv");
+  for (const f of PROVINCE_GEO.features) {
+    if (!f.geometry) continue;
+    gProv.append("path").attr("class", "prov-line").attr("d", pathGen(f));
+  }
+
+  // --- 中心点 + 标签 ---
+  const gDot = zoomLayer.append("g").attr("class", "gDot");
+  const gLbl = zoomLayer.append("g").attr("class", "gLbl");
+  const dots = new Map(), labels = new Map(), labelMeta = new Map();
+  for (const u of UNITS) {
+    const c = u.center || u.centroid;
+    if (!c) continue;
+    const xy = projection(c);
+    if (!xy) continue;
+    dots.set(u.adcode, gDot.append("circle").attr("class", "dot").attr("cx", xy[0]).attr("cy", xy[1]).attr("r", 1.7).node());
+    labels.set(u.adcode, gLbl.append("text").attr("class", "lbl").attr("x", xy[0]).attr("y", xy[1] - 4).text(u.shortName).node());
+    labelMeta.set(u.adcode, { x: xy[0], y: xy[1] });
+  }
+
+  // 省级标签节点（文本每次 refresh 时按「省名 + 去过城市数」写入）
+  const provLabels = new Map();
+  for (const [code, m] of provCenter) {
+    provLabels.set(code, gLbl.append("text")
+      .attr("class", "lbl plbl off").attr("x", m.x).attr("y", m.y).node());
+  }
+
+  // 标签防重叠：贪心布点 + 反缩放（缩放时字号/点径保持屏幕尺寸恒定）
+  let zk = 1;
+  function plabelText(code) {
+    const c = provCount.get(code) || 0;
+    return (provCenter.get(code) || {}).short + " " + c;
+  }
+  function layoutLabels() {
+    const provMode = (mode === "prov");
+    // 反缩放
+    const fs = 10 / zk, sw = 2.4 / zk, r = 1.7 / zk;
+    for (const [code, meta] of labelMeta) {
+      const node = labels.get(code);
+      if (!node) continue;
+      node.setAttribute("x", meta.x);
+      node.setAttribute("y", meta.y - 4 / zk);
+      node.style.fontSize = fs + "px";
+      node.style.strokeWidth = sw + "px";
+    }
+    for (const node of dots.values()) node.setAttribute("r", r);
+    for (const [code, node] of provLabels) {
+      const m = provCenter.get(code);
+      const txt = plabelText(code);
+      if (node.textContent !== txt) node.textContent = txt;
+      node.setAttribute("x", m.x);
+      node.setAttribute("y", m.y - 4 / zk);
+      node.style.fontSize = fs + "px";
+      node.style.strokeWidth = sw + "px";
+    }
+
+    // 贪心：按访问次数降序（次数多的更值得显示），框重叠则让位
+    const cands = [];
+    if (provMode) {
+      for (const [code, m] of provCenter) {
+        const cnt = provCount.get(code) || 0;
+        if (!cnt) continue;
+        const txt = plabelText(code);
+        cands.push({ code, cnt, meta: { x: m.x, y: m.y - 4 / zk }, w: txt.length * fs * 0.95 + 4, h: fs * 1.25 });
+      }
+    } else {
+      for (const [code, cnt] of VIEW) {
+        const meta = labelMeta.get(code);
+        if (!meta) continue;
+        cands.push({ code, cnt, meta, w: (meta.text || labels.get(code).textContent).length * fs * 0.95 + 4, h: fs * 1.25 });
+      }
+    }
+    cands.sort((a, b) => (b.cnt - a.cnt) || a.code.localeCompare(b.code));
+    const placed = [];
+    const shown = new Set();
+    for (const c of cands) {
+      const x0 = c.meta.x - c.w / 2, x1 = c.meta.x + c.w / 2;
+      const y0 = c.meta.y - c.h, y1 = c.meta.y + c.h * 0.25;
+      const hit = placed.some(p => !(x1 < p.x0 || x0 > p.x1 || y1 < p.y0 || y0 > p.y1));
+      if (!hit) { placed.push({ x0, x1, y0, y1 }); shown.add(c.code); }
+    }
+    for (const [code, node] of labels) {
+      node.classList.toggle("off", provMode || !(labelOn && shown.has(code)));
+    }
+    for (const [code, node] of dots) {
+      node.classList.toggle("off", provMode || !(dotOn && VIEW.has(code)));
+    }
+    for (const [code, node] of provLabels) {
+      node.classList.toggle("off", !(provMode && labelOn && shown.has(code)));
+    }
+  }
+
+  /* ---------------- 交互 ---------------- */
+  let dragMoved = false;
+  let lr = null;
+  const scheduleLabels = () => { if (lr) return; lr = requestAnimationFrame(() => { lr = null; layoutLabels(); }); };
+  const zoom = d3.zoom().scaleExtent([1, 14]).on("zoom", ev => {
+    zoomLayer.attr("transform", ev.transform);
+    zk = ev.transform.k;
+    scheduleLabels(); // 坐标随缩放变化，需重排标签并反缩放字号
+  });
+  svg.call(zoom);
+  svg.on("pointerdown", () => { dragMoved = false; svg.classed("dragging", true); });
+  svg.on("pointermove", () => { dragMoved = true; });
+  svg.on("pointerup", () => svg.classed("dragging", false));
+  svg.on("pointerleave", () => svg.classed("dragging", false));
+  // 拖动后抑制 click
+  svg.node().addEventListener("click", (ev) => { if (dragMoved) { ev.stopPropagation(); } }, true);
+
+  function toggleCity(adcode) {
+    if (VISITED.has(adcode)) VISITED.delete(adcode);
+    else VISITED.set(adcode, 1);
+    refresh();
+    persist();
+  }
+  window.__toggleCity = toggleCity;
+
+  /* ---------------- 着色与统计 ---------------- */
+  const FILLS = ["#fbd2a0", "#f7ac5c", "#ef801c", "#d5540a", "#a83c06"];
+  function fillFor(code) {
+    if (!VIEW.has(code)) return "#eaeef3";
+    const n = VIEW.get(code) || 1;
+    return FILLS[Math.min(n, 5) - 1];
+  }
+  function strokeFor(code) {
+    if (!VIEW.has(code)) return "#ffffff";
+    const n = VIEW.get(code) || 1;
+    return n >= 4 ? "#7c2d12" : "#e8a45c";
+  }
+
+  // 省级模式：按「该省去过的城市数」分档（1 / 2-3 / 4-6 / 7+）
+  function provFillFor(c) {
+    if (!c) return "#eaeef3";
+    if (c === 1) return "#ffe2bd";
+    if (c <= 3) return "#fbb862";
+    if (c <= 6) return "#f58a1f";
+    return "#b8460a";
+  }
+
+  // 省级模式点击省份：整省点亮 / 取消（与「补全省级」同一语义）
+  function toggleProvince(code) {
+    const units = UNITS_BY_PROVINCE.get(code) || [];
+    if (!units.length) return;
+    const name = PROV_NAME.get(code) || code;
+    const all = units.every(u => VISITED.has(u.adcode));
+    if (all) {
+      for (const u of units) VISITED.delete(u.adcode);
+      toast(`已取消 ${name} 整省（${units.length} 个）`);
+    } else {
+      for (const u of units) if (!VISITED.has(u.adcode)) VISITED.set(u.adcode, 1);
+      toast(`已点亮 ${name} 整省（${units.length} 个）`);
+    }
+    refresh();
+    persist();
+  }
+  window.__toggleProvince = toggleProvince;
+
+  function refresh() {
+    computeView();
+    // 地级市面着色
+    for (const [code, node] of cityPaths) {
+      const v = VIEW.has(code);
+      node.classList.toggle("v", v);
+      node.style.fill = fillFor(code);
+      node.style.stroke = strokeFor(code);
+    }
+
+    // 每省去过多少个地级单元 → 省级模式的填色与标签
+    provCount = new Map();
+    for (const code of VIEW.keys()) {
+      const u = BY_ADCODE.get(code);
+      if (u) provCount.set(u.provinceAdcode, (provCount.get(u.provinceAdcode) || 0) + 1);
+    }
+    for (const [code, node] of provPaths) {
+      const c = provCount.get(code) || 0;
+      node.classList.toggle("v", c > 0);
+      node.style.fill = provFillFor(c);
+      node.style.stroke = c > 0 ? "#e8a45c" : "#ffffff";
+    }
+
+    // 中心点 / 标签（含防重叠与反缩放）
+    layoutLabels();
+
+    // 统计：以当前模式的主口径为准
+    const total = UNITS.length, n = VIEW.size;
+    const provTotal = UNITS_BY_PROVINCE.size, provN = provCount.size;
+    document.getElementById("statUnits").textContent = n;
+    document.getElementById("statTotal").textContent = total;
+    document.getElementById("statProv").textContent = provN;
+    document.getElementById("statProvTotal").textContent = provTotal;
+    const pct = (mode === "prov" ? provN / provTotal : n / total) * 100;
+    document.getElementById("statPct").textContent = pct.toFixed(1) + "%";
+    document.getElementById("bar").style.width = pct + "%";
+    document.getElementById("statPctLab").textContent = YEAR !== "all"
+      ? `${YEAR} 年占比`
+      : (mode === "prov" ? "省级点亮率" : "地级点亮率");
+    document.getElementById("listTitle").textContent = YEAR === "all" ? "已点亮" : `${YEAR} 年去过`;
+
+    renderList();
+    document.getElementById("listCount").textContent = YEAR !== "all"
+      ? `${n} 个地点 · ${TRIPS.filter(inYear).length} 条行程`
+      : (mode === "prov" ? `${provN} 省 · ${n} 市` : `${n} 个`);
+    renderCitySelect();
+  }
+
+  function renderList() {
+    const host = document.getElementById("list");
+    host.innerHTML = "";
+    const yearMode = (YEAR !== "all");
+    if (!VIEW.size) {
+      host.innerHTML = yearMode
+        ? `<div class="empty">${YEAR} 年还没有记录去过的地方。<br>点右上角「＋ 记行程」记一笔，<br>写上日期、地点和照片。</div>`
+        : '<div class="empty">还没有点亮任何城市。<br>用左侧下拉菜单选城市点亮，<br>或直接点地图上的城市。</div>';
+      return;
+    }
+    const groups = new Map();
+    for (const [code, cnt] of VIEW) {
+      const u = BY_ADCODE.get(code);
+      if (!u) continue;
+      if (!groups.has(u.province)) groups.set(u.province, []);
+      groups.get(u.province).push({ u, cnt });
+    }
+    const sorted = [...groups.entries()].sort((a, b) => b[1].length - a[1].length);
+    for (const [prov, items] of sorted) {
+      const d = document.createElement("div");
+      d.className = "prov";
+      const head = document.createElement("div");
+      head.className = "ptitle";
+      head.innerHTML = `<span class="caret">▼</span><span>${prov}</span><span class="cnt">${
+        mode === "prov"
+          ? items.length + "/" + ((UNITS_BY_PROVINCE.get(items[0].u.provinceAdcode) || []).length)
+          : items.length}</span>`;
+      head.onclick = () => d.classList.toggle("fold");
+      d.appendChild(head);
+      const chips = document.createElement("div");
+      chips.className = "chips";
+      items.sort((a, b) => a.u.adcode.localeCompare(b.u.adcode));
+      for (const { u, cnt } of items) {
+        const c = document.createElement("span");
+        const mine = tripsOf(u.adcode);
+        const shown = mine.filter(inYear).slice().sort((a, b) => (a.date < b.date ? 1 : -1));
+        const photos = shown.reduce((s, t) => s + (t.images || []).length, 0);
+        if (yearMode) {
+          c.className = "chip x";
+          c.title = shown.map(t => `${t.date}${t.note ? "　" + t.note : ""}`).join("\n") + "（点击看照片）";
+          c.innerHTML = `${u.shortName}<span class="no">${shown[0].date.slice(5).replace("-", "·")}`
+            + `${shown.length > 1 ? " +" + (shown.length - 1) : ""}</span>`
+            + `${photos ? `<span class="no">📷${photos}</span>` : ""}`;
+          c.onclick = () => openPhotos(u.adcode);
+        } else {
+          c.className = "chip x";
+          c.title = u.name + " · " + u.province
+            + (photos ? `（${photos} 张照片，点地图看）` : "") + "（点击移除）";
+          c.innerHTML = `${u.shortName}${cnt > 1 ? `<span class="no">×${cnt}</span>` : ""}`
+            + `${photos ? `<span class="no">📷</span>` : ""}<span class="del">×</span>`;
+          c.onclick = () => { VISITED.delete(u.adcode); refresh(); persist(); };
+        }
+        chips.appendChild(c);
+      }
+      d.appendChild(chips);
+      host.appendChild(d);
+    }
+  }
+
+  /* ---------------- 持久化 ---------------- */
+  const LS_KEY = "china-travel-map/v1";
+  function persistLocal() {
+    try { localStorage.setItem(LS_KEY, JSON.stringify([...VISITED.entries()])); } catch (e) {}
+  }
+  function persist() {
+    persistLocal();
+    scheduleSave();
+  }
+  function restore() {
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (!raw) return false;
+      const arr = JSON.parse(raw);
+      if (!Array.isArray(arr) || !arr.length) return false;
+      VISITED = new Map(arr.filter(([c]) => BY_ADCODE.has(c)));
+      return VISITED.size > 0;
+    } catch (e) { return false; }
+  }
+
+  /* ---------------- 服务器同步 ----------------
+     部署到门户（gr.czyuma.com）时，清单存服务器的 SQLite（KV 接口 /api/save、/api/load）。
+     读是开放的（任何设备都能看清单），写需要口令 —— 口令由用户在「🔒 点此输入口令」里输入一次，
+     只存在这台浏览器的 localStorage，不写进页面文件、不发给第三方。
+     本地用 file:// 打开时自动退化为「只存浏览器」。 */
+  const API_KEY = window.__KV_KEY__ || "footprint_v1";
+  const TOKEN_LS = "footprint-token";       // 口令（localStorage，按来源隔离）
+  const PENDING_LS = "footprint-pending";   // 有改动还没成功上传的标记
+  const CAN_API = location.protocol !== "file:" && typeof fetch === "function";
+  const syncPill = document.getElementById("syncPill");
+  let serverLive = false;    // 服务器可达
+  let savedOnce = false;     // 本次打开后是否已经成功存过服务器（避免启动流程覆盖「已存服务器」药丸）
+  let saveTimer = null;
+  let AUTH_TOKEN = "";
+  try { AUTH_TOKEN = localStorage.getItem(TOKEN_LS) || ""; } catch (e) {}
+  function getPending() {
+    try { return localStorage.getItem(PENDING_LS) === "1"; } catch (e) { return false; }
+  }
+  function setPending(v) {
+    try { v ? localStorage.setItem(PENDING_LS, "1") : localStorage.removeItem(PENDING_LS); } catch (e) {}
+  }
+  function setSync(state, text) {
+    if (!syncPill) return;
+    syncPill.hidden = false;
+    syncPill.classList.remove("on", "off", "err", "lock");
+    syncPill.classList.add(state);
+    syncPill.textContent = text;
+  }
+  async function apiLoad() {
+    try {
+      const r = await fetch("/api/load", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: API_KEY }) });
+      if (!r.ok) return { ok: false };
+      const j = await r.json();
+      if (!j || !j.ok) return { ok: false };
+      if (!Array.isArray(j.value)) return { ok: true, list: null };
+      return { ok: true, list: new Map(j.value.filter(([c]) => BY_ADCODE.has(c))) };
+    } catch (e) { return { ok: false }; }
+  }
+  let lockHinted = false;
+  async function apiSave(quiet) {
+    if (!CAN_API) return false;
+    try {
+      const r = await fetch("/api/save", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: API_KEY, value: [...VISITED.entries()], token: AUTH_TOKEN }) });
+      if (r.status === 401 || r.status === 403) {          // 口令不对 / 没提供
+        setPending(true);
+        setSync("lock", "🔒 未上传，点此输入口令");
+        // 第一次被拒就主动弹出对话框，别让人以为「点了就存上了」
+        if (!lockHinted) {
+          lockHinted = true;
+          openTokenDlg("刚才的改动只存在这台浏览器里，输入口令后才会存到服务器。");
+        }
+        return false;
+      }
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      const j = await r.json();
+      if (!j || !j.ok) throw new Error(j && j.error ? j.error : "接口返回失败");
+      setPending(false);
+      savedOnce = true;
+      setSync("on", "☁️ 已存服务器");
+      return true;
+    } catch (e) {
+      setPending(true);
+      setSync("err", "☁️ 同步失败，点此重试");
+      if (!quiet) toast("存服务器失败：" + (e.message || e));
+      return false;
+    }
+  }
+  function scheduleSave() {
+    if (!CAN_API || !serverLive) return;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => apiSave(true), 700);
+  }
+
+  /* ---------------- 口令对话框 ---------------- */
+  const tokenDlg = document.getElementById("tokenDlg");
+  const tokenIn = document.getElementById("tokenIn");
+  const tokenMsg = document.getElementById("tokenMsg");
+  function openTokenDlg(msg) {
+    if (!tokenDlg) return;
+    tokenMsg.className = "msg";
+    tokenMsg.textContent = msg || "";
+    tokenIn.value = "";
+    if (tokenDlg.open) return;
+    if (typeof tokenDlg.showModal === "function") tokenDlg.showModal();
+    else tokenDlg.setAttribute("open", "");
+    setTimeout(() => tokenIn.focus(), 30);
+  }
+  function closeTokenDlg() { if (tokenDlg && tokenDlg.open) tokenDlg.close(); }
+  // 供自动化自检设置/清空口令用（正常使用走对话框）
+  window.__setToken = (v) => {
+    AUTH_TOKEN = String(v || "");
+    try { v ? localStorage.setItem(TOKEN_LS, v) : localStorage.removeItem(TOKEN_LS); } catch (e) {}
+  };
+  async function applyToken() {
+    const v = (tokenIn.value || "").trim();
+    if (!v) { tokenMsg.className = "msg err"; tokenMsg.textContent = "口令不能为空"; return; }
+    AUTH_TOKEN = v;
+    try { localStorage.setItem(TOKEN_LS, v); } catch (e) {}
+    tokenMsg.className = "msg";
+    tokenMsg.textContent = "正在验证…";
+    const ok = await apiSave(true);
+    if (ok) {
+      await saveTrips(true);
+      closeTokenDlg();
+      toast(`口令正确，已上传 ${VIEW.size} 个地点`);
+    } else {
+      tokenMsg.className = "msg err";
+      tokenMsg.textContent = "口令不对，请再试一次（若确认无误，可能是服务器还没配好口令）";
+      setSync("lock", "🔒 未上传，点此输入口令");
+    }
+  }
+  if (tokenDlg) {
+    document.getElementById("tokenOk").onclick = applyToken;
+    document.getElementById("tokenCancel").onclick = closeTokenDlg;
+    tokenIn.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter") { ev.preventDefault(); applyToken(); }
+      else if (ev.key === "Escape") { ev.preventDefault(); closeTokenDlg(); }
+    });
+  }
+  if (syncPill) {
+    syncPill.onclick = async () => {
+      if (!CAN_API) { toast("这是本地文件，数据只存在浏览器里"); return; }
+      if (syncPill.classList.contains("lock")) { openTokenDlg("输入口令后才能把清单存到服务器。"); return; }
+      setSync("off", "☁️ 上传中…");
+      if (await apiSave()) toast(`已上传到服务器（${VISITED.size} 个单元）`);
+    };
+  }
+
+  /* ============================================================
+     行程：日期 + 地点 + 照片，按年份查看
+     - 清单本身存 KV `footprint_trips_v1`（受口令保护），图片单独上传到
+       /api/footprint/upload → nginx 静态目录 /footprint-images/
+     - 「全部年份」= 老的点亮视图（来源 VISITED）；选某一年 = 只显示该年有行程的地点
+     ============================================================ */
+  const TRIPS_KEY = window.__TRIPS_KEY__ || "footprint_trips_v1";
+  const TRIPS_LS  = "china-travel-map/trips/v1";
+  const YEAR_LS   = "china-travel-map/year";
+  let TRIPS = [];          // [{id,date,code,note,images:[{u,n}],ts}]
+  let YEAR = "all";
+  let VIEW = new Map();    // 当前视图：全部年份 = VISITED；某一年 = 该年行程数
+  let EDIT_ID = null;      // 正在编辑的行程 id（null = 新增）
+  let RETURN_CODE = null;  // 从「地点照片」进来编辑的，保存后回到那个地点的照片框
+  let RETURN_KIND = "city"; // 回去时按城市还是按省份展示
+  let FORM_IMGS = [];      // 表单里已上传/已存在的图片
+  let FORM_FILES = [];     // 表单里新选、等保存时上传的文件
+  let PHOTO_CODE = null;
+  let PHOTO_KIND = "city";   // "city" | "prov"（省级模式下点省份看本省记录）
+
+  const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c =>
+    ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+  const yearOf = t => String(t.date || "").slice(0, 4);
+  const inYear = t => YEAR === "all" || yearOf(t) === YEAR;
+  const tripsOf = code => TRIPS.filter(t => t.code === code);
+  const tripsInProv = provCode => TRIPS.filter(t => {
+    const u = BY_ADCODE.get(t.code);
+    return u && u.provinceAdcode === provCode;
+  });
+  const yearList = () => [...new Set(TRIPS.map(yearOf).filter(Boolean))].sort().reverse();
+  const todayStr = () => { const d = new Date();
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
+
+  function computeView() {
+    const m = new Map();
+    if (YEAR === "all") { for (const [c, n] of VISITED) m.set(c, n); }
+    else { for (const t of TRIPS) { if (!inYear(t)) continue; m.set(t.code, (m.get(t.code) || 0) + 1); } }
+    VIEW = m;
+  }
+
+  const selYear = document.getElementById("selYear");
+  function renderYearSelect() {
+    const ys = yearList();
+    if (YEAR !== "all" && !ys.includes(YEAR)) YEAR = "all";
+    selYear.innerHTML = "";
+    const all = document.createElement("option");
+    all.value = "all";
+    all.textContent = TRIPS.length ? `全部年份（${TRIPS.length} 条）` : "全部年份";
+    selYear.appendChild(all);
+    for (const y of ys) {
+      const o = document.createElement("option");
+      o.value = y;
+      o.textContent = `${y} 年（${TRIPS.filter(t => yearOf(t) === y).length}）`;
+      selYear.appendChild(o);
+    }
+    selYear.value = YEAR;
+    selYear.classList.toggle("hot", YEAR !== "all");
+  }
+
+  function setYear(y, save) {
+    YEAR = (y && y !== "all") ? String(y) : "all";
+    if (save) {
+      try { YEAR === "all" ? localStorage.removeItem(YEAR_LS) : localStorage.setItem(YEAR_LS, YEAR); } catch (e) {}
+    }
+    selYear.value = YEAR;
+    selYear.classList.toggle("hot", YEAR !== "all");
+    const picker = document.querySelector(".picker");
+    const note = document.getElementById("yearNote");
+    if (picker) picker.style.display = YEAR === "all" ? "" : "none";
+    if (YEAR === "all") {
+      note.hidden = true;
+    } else {
+      computeView();
+      const nTrip = TRIPS.filter(inYear).length;
+      const undated = [...VISITED.keys()].filter(c => !tripsOf(c).length).length;
+      note.hidden = false;
+      note.innerHTML = `正在看 <b>${YEAR} 年</b>：亮着的是这一年记下的 <b>${nTrip}</b> 条行程`
+        + `（${VIEW.size} 个地点）。`
+        + (undated ? `另有 <b>${undated}</b> 个地点没有日期记录，切回「全部年份」才看得到。` : "");
+    }
+    refresh();
+  }
+
+  /* ---------------- 图片：压缩 → 上传 ---------------- */
+  function blobToDataURL(blob) {
+    return new Promise((res, rej) => {
+      const fr = new FileReader();
+      fr.onload = () => res(fr.result);
+      fr.onerror = () => rej(new Error("图片读不出来"));
+      fr.readAsDataURL(blob);
+    });
+  }
+  async function compressToJpeg(file) {
+    const max = 1600;
+    let bmp = null, src = null;
+    try { bmp = await createImageBitmap(file, { imageOrientation: "from-image" }); } catch (e) {}
+    if (bmp) {
+      const k = Math.min(1, max / Math.max(bmp.width, bmp.height));
+      const cw = Math.max(1, Math.round(bmp.width * k)), ch = Math.max(1, Math.round(bmp.height * k));
+      const cv = document.createElement("canvas"); cv.width = cw; cv.height = ch;
+      const ctx = cv.getContext("2d");
+      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, cw, ch);
+      ctx.drawImage(bmp, 0, 0, cw, ch);
+      if (bmp.close) bmp.close();
+      const blob = await new Promise(r => cv.toBlob(r, "image/jpeg", 0.82));
+      if (!blob) throw new Error("压缩失败");
+      return blob;
+    }
+    src = await new Promise((res, rej) => {
+      const img = new Image(); const u = URL.createObjectURL(file);
+      img.onload = () => res(img);
+      img.onerror = () => rej(new Error("无法解码这张图片"));
+      img.src = u;
+    });
+    const k = Math.min(1, max / Math.max(src.naturalWidth, src.naturalHeight));
+    const cw = Math.max(1, Math.round(src.naturalWidth * k)), ch = Math.max(1, Math.round(src.naturalHeight * k));
+    const cv = document.createElement("canvas"); cv.width = cw; cv.height = ch;
+    const ctx = cv.getContext("2d");
+    ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, cw, ch);
+    ctx.drawImage(src, 0, 0, cw, ch);
+    URL.revokeObjectURL(src.src);
+    const blob = await new Promise(r => cv.toBlob(r, "image/jpeg", 0.82));
+    if (!blob) throw new Error("压缩失败");
+    return blob;
+  }
+  async function uploadBlob(file) {
+    if (!CAN_API) throw new Error("本地文件（file://）模式不能上传照片，请用线上页面");
+    if (!AUTH_TOKEN) { openTokenDlg("上传照片需要口令，输入一次这台浏览器就记住了。"); throw new Error("需要口令"); }
+    const blob = await compressToJpeg(file);
+    const data = await blobToDataURL(blob);
+    const r = await fetch("/api/footprint/upload", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: AUTH_TOKEN, name: file.name || "photo.jpg", data }),
+    });
+    if (r.status === 401 || r.status === 403) {
+      openTokenDlg("口令不对或已失效，重新输入后才能上传照片。");
+      throw new Error("口令不对");
+    }
+    if (!r.ok) {
+      let m = "HTTP " + r.status;
+      try { const j = await r.json(); if (j && j.error) m = j.error; } catch (e) {}
+      throw new Error(m);
+    }
+    const j = await r.json();
+    if (!j || !j.ok) throw new Error((j && j.error) || "上传失败");
+    return { u: j.url, n: j.name || file.name || "" };
+  }
+
+  /* ---------------- 行程清单：存取 ---------------- */
+  async function saveTrips(quiet) {
+    try { localStorage.setItem(TRIPS_LS, JSON.stringify(TRIPS)); } catch (e) {}
+    if (!CAN_API || !serverLive) return false;
+    try {
+      const r = await fetch("/api/save", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: TRIPS_KEY, value: TRIPS, token: AUTH_TOKEN }),
+      });
+      if (r.status === 401 || r.status === 403) {
+        setPending(true);
+        setSync("lock", "🔒 行程未上传，点此输入口令");
+        if (!lockHinted) {
+          lockHinted = true;
+          openTokenDlg("行程和照片的记录还没存到服务器，输入口令后自动补传。");
+        }
+        return false;
+      }
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      const j = await r.json();
+      if (!j || !j.ok) throw new Error(j && j.error ? j.error : "接口返回失败");
+      savedOnce = true;
+      setSync("on", "☁️ 已存服务器");
+      flushImgDel();
+      return true;
+    } catch (e) {
+      setPending(true);
+      setSync("err", "☁️ 行程同步失败，点此重试");
+      if (!quiet) toast("行程存服务器失败：" + (e.message || e));
+      return false;
+    }
+  }
+  /* 删照片：先排队再尽力删服务器文件；网络/口令不通时留在队列里，等下次保存成功再清 */
+  const IMGDEL_LS = "china-travel-map/imgdel/v1";
+  function pendingDel() {
+    try { const a = JSON.parse(localStorage.getItem(IMGDEL_LS) || "[]"); return Array.isArray(a) ? a : []; }
+    catch (e) { return []; }
+  }
+  function savePendingDel(a) { try { localStorage.setItem(IMGDEL_LS, JSON.stringify(a)); } catch (e) {} }
+  function imgDel(u) {
+    if (!u || !CAN_API) return;
+    const q = pendingDel();
+    if (!q.includes(u)) { q.push(u); savePendingDel(q); }
+    flushImgDel();
+  }
+  async function flushImgDel() {
+    let q = pendingDel();
+    if (!q.length) return 0;
+    if (!CAN_API || !AUTH_TOKEN) return 0;
+    const left = [];
+    for (const u of q) {
+      try {
+        const r = await fetch("/api/footprint/imgdel", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: AUTH_TOKEN, url: u }),
+        });
+        if (!r.ok) left.push(u);
+      } catch (e) { left.push(u); }
+    }
+    savePendingDel(left);
+    return q.length - left.length;
+  }
+  async function apiLoadTrips() {
+    try {
+      const r = await fetch("/api/load", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: TRIPS_KEY }),
+      });
+      if (!r.ok) return { ok: false };
+      const j = await r.json();
+      if (!j || !j.ok) return { ok: false };
+      if (!Array.isArray(j.value)) return { ok: true, list: null };
+      const list = j.value.filter(t => t && t.date && t.code).map(t => ({
+        id: String(t.id || ("t" + Math.random().toString(36).slice(2, 9))),
+        date: String(t.date).slice(0, 10),
+        code: String(t.code),
+        note: String(t.note || "").slice(0, 300),
+        images: Array.isArray(t.images)
+          ? t.images.filter(im => im && im.u).map(im => ({
+              u: String(im.u), n: String(im.n || ""), c: String(im.c || "").slice(0, 80),
+            })) : [],
+        ts: Number(t.ts) || 0,
+      }));
+      return { ok: true, list };
+    } catch (e) { return { ok: false }; }
+  }
+
+  /* ---------------- 记一笔 / 编辑 ---------------- */
+  const tripDlg = document.getElementById("tripDlg");
+  const tripProv = document.getElementById("tripProv");
+  const tripCity = document.getElementById("tripCity");
+  const tripDate = document.getElementById("tripDate");
+  const tripNote = document.getElementById("tripNote");
+  const tripFiles = document.getElementById("tripFiles");
+  const tripThumbs = document.getElementById("tripThumbs");
+  const tripMsg = document.getElementById("tripMsg");
+
+  function fillTripCities(keep) {
+    const pc = tripProv.value;
+    tripCity.innerHTML = "";
+    const ph = document.createElement("option");
+    ph.value = ""; ph.textContent = pc ? "请选择城市／地区…" : "请先选择省份";
+    tripCity.appendChild(ph);
+    tripCity.disabled = !pc;
+    if (!pc) return;
+    for (const u of (UNITS_BY_PROVINCE.get(pc) || []).slice().sort((a, b) => a.adcode.localeCompare(b.adcode))) {
+      const o = document.createElement("option");
+      o.value = u.adcode;
+      o.textContent = u.name;
+      tripCity.appendChild(o);
+    }
+    if (keep && [...tripCity.options].some(o => o.value === keep)) tripCity.value = keep;
+  }
+
+  function renderTripThumbs() {
+    tripThumbs.innerHTML = "";
+    const add = (src, cap, badge, onDel, onCap) => {
+      const w = document.createElement("div");
+      w.className = "thw";
+      w.innerHTML = `<div class="th"><img src="${esc(src)}" alt=""><button class="x" title="移除">×</button>`
+        + (badge ? `<span class="lb">${esc(badge)}</span>` : "") + `</div>`
+        + `<input class="thc" maxlength="80" placeholder="图说（选填）" value="${esc(cap || "")}">`;
+      w.querySelector(".x").onclick = onDel;
+      const inp = w.querySelector(".thc");
+      inp.oninput = () => onCap(inp.value.slice(0, 80));
+      tripThumbs.appendChild(w);
+    };
+    FORM_IMGS.forEach((im, i) => {
+      add(im.u, im.c, "", () => { FORM_IMGS.splice(i, 1); renderTripThumbs(); },
+        (v) => { FORM_IMGS[i].c = v; });
+    });
+    FORM_FILES.forEach((f, i) => {
+      add(f.url, f.c, "待上传",
+        () => { try { URL.revokeObjectURL(f.url); } catch (e) {} FORM_FILES.splice(i, 1); renderTripThumbs(); },
+        (v) => { FORM_FILES[i].c = v; });
+    });
+    const n = FORM_IMGS.length + FORM_FILES.length;
+    document.getElementById("tripUpHint").textContent = n
+      ? `共 ${n} 张${FORM_FILES.length ? `（新的 ${FORM_FILES.length} 张保存时上传）` : ""}`
+      : "未选照片";
+  }
+
+  function openTripForm(code, editId, fromPhoto, presetProv) {
+    EDIT_ID = editId || null;
+    RETURN_CODE = fromPhoto || null;
+    RETURN_KIND = presetProv ? "prov" : "city";
+    FORM_IMGS = []; FORM_FILES = [];
+    const t = editId ? TRIPS.find(x => x.id === editId) : null;
+    document.getElementById("tripTitle").textContent = t ? "编辑行程" : "记一笔行程";
+    document.getElementById("tripHint").textContent = t
+      ? "改成对的日期、地点或描述；照片可以点右上角 × 去掉，也可以再加几张。点「保存」才会生效。"
+      : "选日期和地点，可以附几张照片（上传前自动压到长边 1600px，一张约 200–400 KB）。"
+        + "保存后该地点会在「全部年份」里点亮；照片存在服务器上，只有带口令才能上传。";
+    if (!tripProv.options.length) {
+      const o0 = document.createElement("option");
+      o0.value = ""; o0.textContent = "请选择省份…";
+      tripProv.appendChild(o0);
+      for (const p of PROV_LIST) {
+        const o = document.createElement("option");
+        o.value = p.code; o.textContent = p.name;
+        tripProv.appendChild(o);
+      }
+    }
+    const c0 = t ? t.code : (code || "");
+    const u0 = c0 ? BY_ADCODE.get(c0) : null;
+    if (u0) { tripProv.value = u0.provinceAdcode; fillTripCities(u0.adcode); }
+    else if (presetProv) { tripProv.value = presetProv; fillTripCities(""); }
+    else { tripProv.value = ""; fillTripCities(""); }
+    tripDate.value = t ? t.date : todayStr();
+    tripNote.value = t ? (t.note || "") : "";
+    FORM_IMGS = t ? (t.images || []).map(x => ({ u: x.u, n: x.n, c: x.c || "" })) : [];
+    renderTripThumbs();
+    tripMsg.className = "msg"; tripMsg.textContent = "";
+    if (!tripDlg.open) {
+      if (typeof tripDlg.showModal === "function") tripDlg.showModal();
+      else tripDlg.setAttribute("open", "");
+    }
+    setTimeout(() => { try { tripDate.focus(); } catch (e) {} }, 40);
+  }
+
+  tripProv.onchange = () => fillTripCities("");
+  tripFiles.onchange = () => {
+    for (const f of tripFiles.files) {
+      if (!/^image\//.test(f.type || "")) { toast(`${f.name} 不是图片，已跳过`); continue; }
+      if (FORM_IMGS.length + FORM_FILES.length >= 12) { toast("一次最多 12 张照片"); break; }
+      FORM_FILES.push({ file: f, url: URL.createObjectURL(f) });
+    }
+    tripFiles.value = "";
+    renderTripThumbs();
+  };
+  document.getElementById("tripCancel").onclick = () => {
+    FORM_FILES.forEach(f => { try { URL.revokeObjectURL(f.url); } catch (e) {} });
+    FORM_FILES = [];
+    const back = RETURN_CODE, bk = RETURN_KIND;
+    RETURN_CODE = null; EDIT_ID = null;
+    tripDlg.close();
+    if (back) { PHOTO_CODE = back; openPhotos(back, bk); }
+  };
+
+  async function saveTrip() {
+    const date = tripDate.value;
+    const code = tripCity.value;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) { tripMsg.className = "msg err"; tripMsg.textContent = "请选择日期"; return; }
+    if (!code || !BY_ADCODE.has(code)) { tripMsg.className = "msg err"; tripMsg.textContent = "请选择城市／地区"; return; }
+    const note = (tripNote.value || "").trim().slice(0, 300);
+    const btn = document.getElementById("tripSave");
+    btn.disabled = true;
+    const oldRec = EDIT_ID ? TRIPS.find(x => x.id === EDIT_ID) : null;
+    const oldImgs = oldRec ? (oldRec.images || []).map(x => x.u) : [];
+    const backCode = RETURN_CODE, backKind = RETURN_KIND;
+    try {
+      const imgs = FORM_IMGS.map(x => ({ u: x.u, n: x.n, c: (x.c || "").slice(0, 80) }));
+      for (let i = 0; i < FORM_FILES.length; i++) {
+        tripMsg.className = "msg";
+        tripMsg.textContent = `正在上传照片 ${i + 1}/${FORM_FILES.length}…`;
+        const up = await uploadBlob(FORM_FILES[i].file);
+        up.c = (FORM_FILES[i].c || "").slice(0, 80);
+        imgs.push(up);
+      }
+      if (EDIT_ID) {
+        const t = TRIPS.find(x => x.id === EDIT_ID);
+        if (t) { t.date = date; t.code = code; t.note = note; t.images = imgs; }
+      } else {
+        TRIPS.push({
+          id: "t" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+          date, code, note, images: imgs, ts: Date.now(),
+        });
+      }
+      TRIPS.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+      if (!VISITED.has(code)) VISITED.set(code, 1);
+      FORM_FILES.forEach(f => { try { URL.revokeObjectURL(f.url); } catch (e) {} });
+      FORM_FILES = []; FORM_IMGS = [];
+      tripDlg.close();
+      EDIT_ID = null;
+      renderYearSelect();
+      refresh();
+      persist();
+      const ok = await saveTrips(true);
+      // 服务器已经存下新版本，才去删被去掉的旧照片（否则服务器上那条记录会指向已被删的图）
+      if (ok) {
+        const gone = oldImgs.filter(u => !imgs.some(x => x.u === u));
+        gone.forEach(u => imgDel(u));
+      }
+      toast(ok ? (oldRec ? "行程已更新" : "行程已保存到服务器") : "行程已记下（还没存到服务器）");
+      RETURN_CODE = null;
+      if (tripsDlg.open) renderTripsList();
+      if (backCode) { PHOTO_CODE = backCode; openPhotos(backCode, backKind); }
+      else if (PHOTO_CODE === code && photoDlg.open) openPhotos(code, PHOTO_KIND);
+    } catch (e) {
+      tripMsg.className = "msg err";
+      tripMsg.textContent = "保存失败：" + (e.message || e);
+    } finally { btn.disabled = false; }
+  }
+  document.getElementById("tripSave").onclick = saveTrip;
+
+  /* ---------------- 地点照片 ---------------- */
+  const photoDlg = document.getElementById("photoDlg");
+  // 地图上点地点：**已点亮**或有行程 → 打开记录框（框里有「＋ 补一条」「取消点亮」）；
+  // 未点亮 → 直接点亮。年份视图下一律只看不动。
+  function onCityClick(code) {
+    if (YEAR !== "all" || tripsOf(code).length || VISITED.has(code)) { openPhotos(code, "city"); return; }
+    toggleCity(code);
+  }
+  function onProvClick(code) {
+    const lit = (provCount.get(code) || 0) > 0;
+    if (YEAR !== "all" || tripsInProv(code).length || lit) { openPhotos(code, "prov"); return; }
+    toggleProvince(code);
+  }
+  window.__openUnit = openPhotos;
+  window.__clickCity = onCityClick;
+  window.__clickProv = onProvClick;
+  window.__visited = (c) => (VISITED.has(c) ? 1 : 0);
+  window.__provCount = (c) => provCount.get(c) || 0;
+  // 自检 / 调试钩子（不动服务器，只在页内改状态）
+  window.__tripCount = () => TRIPS.length;
+  window.__tripList = () => TRIPS.map((t) => t.date + "|" + t.code);
+  window.__getYear = () => YEAR;
+  window.__setYear = (y) => setYear(y, false);
+  window.__photoImgs = (code) => {
+    const t = tripsOf(code);
+    return t.reduce((s, r) => s + (r.images || []).length, 0);
+  };
+  window.__editTrip = (id) => { openTripForm(null, id); };
+  window.__tripNote = (id) => { const t = TRIPS.find(x => x.id === id); return t ? t.note : null; };
+  window.__uploadTestFile = (f) => uploadBlob(f);
+  window.__addTrip = (rec) => {
+    const id = "t" + Math.random().toString(16).slice(2, 10);
+    TRIPS.push(Object.assign({ id, date: todayStr(), code: "", note: "", images: [], t: Date.now() }, rec));
+    TRIPS.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+    if (rec.code && !VISITED.has(rec.code)) VISITED.set(rec.code, 1);
+    persistLocal();
+    renderYearSelect();
+    refresh();
+    return id;
+  };
+  function openPhotos(code, kind) {
+    const isProv = kind === "prov";
+    const u = isProv ? null : BY_ADCODE.get(code);
+    if (!isProv && !u) return;
+    const pname = isProv ? (PROV_NAME.get(code) || code) : "";
+    PHOTO_CODE = code; PHOTO_KIND = isProv ? "prov" : "city";
+    const all = (isProv ? tripsInProv(code) : tripsOf(code)).slice().sort((a, b) => (a.date < b.date ? 1 : -1));
+    const list = all.filter(inYear);
+    const yrs = [...new Set(all.map(yearOf).filter(Boolean))].sort().reverse();
+    document.getElementById("photoTitle").textContent = isProv ? pname : u.name;
+    document.getElementById("photoSub").textContent = (isProv
+      ? `共 ${all.length} 条行程 · 本省已点亮 ${provCount.get(code) || 0} 个地级单元`
+      : `${u.province} · 共 ${all.length} 条行程`)
+      + (yrs.length ? `（${yrs.join(" / ")}）` : "")
+      + (YEAR !== "all" ? ` · 当前只看 ${YEAR} 年` : "");
+    const body = document.getElementById("photoBody");
+    if (!list.length) {
+      body.innerHTML = `<div class="pempty">${YEAR === "all" ? "这里还没有行程记录。" : `${YEAR} 年没有记录这里。`}
+        <br>点下面「＋ 补一条」就能记上日期和照片。</div>`;
+    } else {
+      const gal = [];   // 灯箱图集：按当前展示顺序，支持左右翻
+      const rows = list.map(t => {
+        const imgs = t.images || [];
+        const tu = BY_ADCODE.get(t.code);
+        const who = isProv ? (tu ? tu.shortName : t.code) : (u.shortName || u.name);
+        const cells = imgs.map(im => {
+          const gi = gal.length;
+          gal.push({ u: im.u, c: im.c || "", t: t.date + " · " + who });
+          return `<div class="pcell"><span class="pi">`
+            + `<img src="${esc(im.u)}" alt="${esc(im.c || im.n || "")}" loading="lazy" data-gi="${gi}">`
+            + `<button class="px" title="删掉这张照片" data-id="${esc(t.id)}" data-u="${esc(im.u)}">×</button></span>`
+            + (im.c ? `<div class="pc2">${esc(im.c)}</div>` : "")
+            + `</div>`;
+        }).join("");
+        return `<div class="ptrip" data-id="${esc(t.id)}">
+            <div class="ph2"><b>${esc(who)}</b><span class="d">${esc(t.date)}</span>
+              <span class="n">${imgs.length ? imgs.length + " 张照片" : "没有照片"}</span>
+              <button class="pe" data-id="${esc(t.id)}">编辑</button></div>
+            ${t.note ? `<div class="tn2">${esc(t.note)}</div>` : ""}
+            ${imgs.length ? `<div class="pimgs">${cells}</div>` : ""}
+          </div>`;
+      }).join("");
+      const nImg = gal.length;
+      body.innerHTML = `<div class="pempty" style="padding:2px 4px 10px;text-align:left;color:#64748b">共 ${list.length} 条 · ${nImg} 张照片，点照片看大图（可左右翻）；每条右侧「编辑」可以改描述、加照片、删照片、加图说</div>`
+        + rows;
+      body.querySelectorAll(".pimgs img").forEach(el => {
+        el.onclick = () => openLB(gal, Number(el.dataset.gi) || 0);
+      });
+      body.querySelectorAll(".ptrip .pe").forEach(btn => {
+        btn.onclick = () => {
+          const id = btn.dataset.id;
+          photoDlg.close();
+          openTripForm(null, id, PHOTO_CODE, isProv ? code : null);
+        };
+      });
+      body.querySelectorAll(".pimgs .px").forEach(btn => {
+        btn.onclick = async (ev) => {
+          ev.stopPropagation();
+          const id = btn.dataset.id, url = btn.dataset.u;
+          if (!confirm("删掉这张照片？\n这条行程会保留，只是把这张图去掉（不可撤销）。")) return;
+          const t = TRIPS.find(x => x.id === id);
+          if (!t) return;
+          t.images = (t.images || []).filter(im => im.u !== url);
+          renderYearSelect(); refresh();
+          const ok = await saveTrips(true);
+          if (ok) imgDel(url);
+          toast(ok ? "照片已删除" : "已从这条记录里去掉（服务器还没同步）");
+          openPhotos(code, PHOTO_KIND);
+        };
+      });
+    }
+    const off = document.getElementById("photoOff");
+    off.hidden = isProv ? !(provCount.get(code) > 0) : !VISITED.has(code);
+    off.textContent = isProv ? "取消整省" : "取消点亮";
+    if (!photoDlg.open) {
+      if (typeof photoDlg.showModal === "function") photoDlg.showModal();
+      else photoDlg.setAttribute("open", "");
+    }
+  }
+  document.getElementById("photoClose").onclick = () => photoDlg.close();
+  document.getElementById("photoEdit").onclick = () => {
+    const c = PHOTO_CODE, k = PHOTO_KIND;
+    photoDlg.close();
+    if (k === "prov") { openTripForm(null, null, null, c); return; }
+    openTripForm(c, null, c);
+  };
+  document.getElementById("photoOff").onclick = () => {
+    if (!PHOTO_CODE) return;
+    const code = PHOTO_CODE, k = PHOTO_KIND;
+    if (k === "prov") {
+      const units = UNITS_BY_PROVINCE.get(code) || [];
+      units.forEach(x => VISITED.delete(x.adcode));
+      photoDlg.close();
+      refresh(); persist();
+      toast(`已取消 ${PROV_NAME.get(code) || code} 整省（${units.length} 个）`);
+      return;
+    }
+    const u = BY_ADCODE.get(code);
+    VISITED.delete(code);
+    photoDlg.close();
+    refresh(); persist();
+    toast("已取消点亮 " + (u ? u.name : ""));
+  };
+
+  /* ---------------- 大图（可左右翻） ---------------- */
+  const lb = document.getElementById("lb");
+  const lbImg = document.getElementById("lbImg");
+  const lbCap = document.getElementById("lbCap");
+  const lbCnt = document.getElementById("lbCnt");
+  const lbPrev = document.getElementById("lbPrev");
+  const lbNext = document.getElementById("lbNext");
+  let LB = [], LBI = 0, lbDownX = null, lbMoved = false;
+
+  function paintLB() {
+    const it = LB[LBI] || {};
+    lbImg.src = it.u || "";
+    lbCap.textContent = [it.c, it.t].filter(Boolean).join("　·　");
+    lbCnt.textContent = LB.length > 1 ? (LBI + 1) + " / " + LB.length : "";
+    lbPrev.hidden = LBI <= 0;
+    lbNext.hidden = LBI >= LB.length - 1;
+  }
+  function openLB(items, i) {
+    LB = items || [];
+    if (!LB.length) return;
+    LBI = Math.max(0, Math.min(i || 0, LB.length - 1));
+    paintLB();
+    if (typeof lb.showModal === "function") { if (!lb.open) lb.showModal(); }
+    else lb.setAttribute("open", "");
+  }
+  function lbStep(d) {
+    if (!lb.open) return;
+    const n = LBI + d;
+    if (n < 0 || n >= LB.length) return;
+    LBI = n; paintLB();
+  }
+  function closeLB() {
+    if (lb.open && typeof lb.close === "function") lb.close();
+    else lb.removeAttribute("open");
+    lbImg.removeAttribute("src");
+    LB = []; LBI = 0;
+  }
+  window.__openLB = openLB;
+  window.__lbState = () => ({ on: !!lb.open, i: LBI, n: LB.length, cap: lbCap.textContent });
+  lb.addEventListener("close", () => { lbImg.removeAttribute("src"); LB = []; LBI = 0; });
+  lbPrev.onclick = (e) => { e.stopPropagation(); lbStep(-1); };
+  lbNext.onclick = (e) => { e.stopPropagation(); lbStep(1); };
+  document.getElementById("lbClose").onclick = (e) => { e.stopPropagation(); closeLB(); };
+  lbImg.onclick = (e) => e.stopPropagation();
+  lb.onclick = () => { if (!lbMoved) closeLB(); lbMoved = false; };
+  lb.addEventListener("pointerdown", (e) => { lbDownX = e.clientX; lbMoved = false; });
+  lb.addEventListener("pointerup", (e) => {
+    if (lbDownX == null) return;
+    const dx = e.clientX - lbDownX; lbDownX = null;
+    if (Math.abs(dx) > 40 && LB.length > 1) { lbMoved = true; lbStep(dx < 0 ? 1 : -1); }
+  });
+  addEventListener("keydown", (ev) => {
+    if (!lb.open) return;
+    if (ev.key === "ArrowLeft") { ev.preventDefault(); ev.stopPropagation(); lbStep(-1); }
+    else if (ev.key === "ArrowRight") { ev.preventDefault(); ev.stopPropagation(); lbStep(1); }
+    else if (ev.key === "Escape") { ev.preventDefault(); ev.stopPropagation(); closeLB(); }
+  }, true);
+  // 大图开着时按 Esc：浏览器会先尝试关掉背后的对话框，这里拦下来只关大图
+  photoDlg.addEventListener("cancel", (e) => {
+    if (lb.open) { e.preventDefault(); closeLB(); }
+  });
+
+  /* ---------------- 行程清单 ---------------- */
+  function renderTripsList() {
+    const host = document.getElementById("tripList");
+    if (!TRIPS.length) {
+      host.innerHTML = `<div class="pempty">还没有行程记录。<br>点右下「＋ 记一笔」开始记。</div>`;
+      return;
+    }
+    host.innerHTML = yearList().map(y => {
+      const rows = TRIPS.filter(t => yearOf(t) === y).map(t => {
+        const u = BY_ADCODE.get(t.code) || { name: t.code, shortName: t.code, province: "" };
+        const md = String(t.date).slice(5).replace("-", "·");
+        const ni = (t.images || []).length;
+        return `<div class="trow" data-id="${t.id}">
+          <span class="td">${md}</span>
+          <span class="tp">${esc(u.shortName || u.name)}</span>
+          <span class="tprov">${esc(u.province || "")}</span>
+          <span class="tn">${esc(t.note || "")}</span>
+          <span class="ti">${ni ? "📷 " + ni : ""}</span>
+          <span class="ta"><button data-act="edit">编辑</button><button data-act="del" class="del">删除</button></span>
+        </div>`;
+      }).join("");
+      return `<div class="yhd">${y} 年<span class="cnt">${TRIPS.filter(t => yearOf(t) === y).length} 条</span></div>${rows}`;
+    }).join("");
+    host.querySelectorAll(".trow").forEach(row => {
+      const id = row.dataset.id;
+      row.querySelector('[data-act="edit"]').onclick = () => { tripsDlg.close(); openTripForm(null, id); };
+      row.querySelector('[data-act="del"]').onclick = () => delTrip(id);
+    });
+  }
+  async function delTrip(id) {
+    const t = TRIPS.find(x => x.id === id);
+    if (!t) return;
+    const u = BY_ADCODE.get(t.code);
+    if (!confirm(`删除「${u ? u.name : t.code} · ${t.date}」这条行程？\n照片会一起删掉，不可撤销。`)) return;
+    TRIPS = TRIPS.filter(x => x.id !== id);
+    renderTripsList(); renderYearSelect(); refresh();
+    const ok = await saveTrips(true);
+    toast(ok ? "已删除" : "已删除（服务器没同步上，稍后补传时照片再清）");
+    if (ok) (t.images || []).forEach(im => imgDel(im.u));
+  }
+
+  const tripsDlg = document.getElementById("tripsDlg");
+  document.getElementById("btnTrips").onclick = () => {
+    renderTripsList();
+    if (tripsDlg.open) return;
+    if (typeof tripsDlg.showModal === "function") tripsDlg.showModal();
+    else tripsDlg.setAttribute("open", "");
+  };
+  document.getElementById("tripsClose").onclick = () => tripsDlg.close();
+  document.getElementById("tripsAdd").onclick = () => { tripsDlg.close(); openTripForm(null, null); };
+  document.getElementById("btnAddTrip").onclick = () => openTripForm(null, null);
+  selYear.onchange = () => setYear(selYear.value, true);
+
+  /* ---------------- 提示气泡 ---------------- */
+  const tip = document.getElementById("tip");
+  function showTip(ev, code) {
+    const u = BY_ADCODE.get(code);
+    if (!u) return;
+    const v = VISITED.has(code);
+    const mine = tripsOf(code).filter(inYear);
+    const nImg = mine.reduce((s, t) => s + (t.images || []).length, 0);
+    const hint = mine.length
+      ? `<span class="add">点击看${YEAR === "all" ? "" : YEAR + " 年"}记录（${mine.length} 条${nImg ? " · " + nImg + " 张照片" : ""}）</span>`
+      : (YEAR === "all"
+        ? `<span class="${v ? "rm" : "add"}">${v ? "点击取消" : "点击点亮"}</span>`
+        : `<span class="rm">${YEAR} 年没有记录</span>`);
+    tip.innerHTML = `${u.name}<span class="pn">${u.province}</span>${hint}`;
+    moveTip(ev);
+    tip.classList.add("on");
+  }
+  function showTipProv(ev, code) {
+    const name = PROV_NAME.get(code) || code;
+    const units = UNITS_BY_PROVINCE.get(code) || [];
+    const c = provCount.get(code) || 0;
+    tip.innerHTML = `${name}<span class="pn">已点亮 ${c} / ${units.length} 个地级单元</span>`
+      + `<span class="${c >= units.length ? "rm" : "add"}">${c >= units.length ? "点击取消整省" : "点击点亮整省"}</span>`;
+    moveTip(ev);
+    tip.classList.add("on");
+  }
+  function moveTip(ev) {
+    const pad = 14;
+    let x = ev.clientX + pad, y = ev.clientY + pad;
+    const r = tip.getBoundingClientRect();
+    if (x + r.width > innerWidth - 8) x = ev.clientX - r.width - pad;
+    if (y + r.height > innerHeight - 8) y = ev.clientY - r.height - pad;
+    tip.style.left = x + "px";
+    tip.style.top = y + "px";
+  }
+  function hideTip() { tip.classList.remove("on"); }
+
+  /* ---------------- 搜索 ---------------- */
+  const searchEl = document.getElementById("search");
+  const suggEl = document.getElementById("sugg");
+  let hiIdx = -1, curSugg = [];
+
+  function buildSugg(q) {
+    const s = q.trim().toLowerCase();
+    if (!s) return [];
+    const scored = [];
+    for (const u of UNITS) {
+      const names = [u.name, u.shortName, strip(u.name)];
+      let sc = -1;
+      for (const nm of names) {
+        const l = nm.toLowerCase();
+        if (l === s) sc = Math.max(sc, 100);
+        else if (l.startsWith(s)) sc = Math.max(sc, 80 - l.length);
+        else if (l.includes(s)) sc = Math.max(sc, 50 - l.length);
+      }
+      if (sc > 0) scored.push({ u, sc });
+    }
+    scored.sort((a, b) => b.sc - a.sc || a.u.adcode.localeCompare(b.u.adcode));
+    return scored.slice(0, 24).map(x => x.u);
+  }
+
+  function renderSugg() {
+    if (!curSugg.length) { suggEl.classList.remove("on"); suggEl.innerHTML = ""; return; }
+    suggEl.innerHTML = '<div class="hd">点击点亮 / 再次点击取消</div>' +
+      curSugg.map((u, i) => `<div class="it${i === hiIdx ? " hi" : ""}" data-i="${i}">
+        <span>${u.shortName}</span>
+        <span class="p">${u.province}${u.level === "city" ? "" : " · 省级单元"}</span>
+        <span class="tick">${VISITED.has(u.adcode) ? "✓" : ""}</span>
+      </div>`).join("");
+    suggEl.classList.add("on");
+    [...suggEl.querySelectorAll(".it")].forEach(el => {
+      el.onmousedown = (ev) => {
+        ev.preventDefault();
+        const u = curSugg[+el.dataset.i];
+        toggleCity(u.adcode);
+        searchEl.value = "";
+        curSugg = []; suggEl.classList.remove("on");
+        toast((VISITED.has(u.adcode) ? "已点亮 " : "已取消 ") + u.name);
+      };
+    });
+  }
+
+  searchEl.addEventListener("input", () => { curSugg = buildSugg(searchEl.value); hiIdx = -1; renderSugg(); });
+  searchEl.addEventListener("focus", () => { curSugg = buildSugg(searchEl.value); renderSugg(); });
+  searchEl.addEventListener("keydown", (ev) => {
+    if (ev.key === "ArrowDown") { hiIdx = Math.min(hiIdx + 1, curSugg.length - 1); renderSugg(); ev.preventDefault(); }
+    else if (ev.key === "ArrowUp") { hiIdx = Math.max(hiIdx - 1, 0); renderSugg(); ev.preventDefault(); }
+    else if (ev.key === "Enter" && curSugg.length) {
+      const u = curSugg[Math.max(hiIdx, 0)];
+      toggleCity(u.adcode);
+      searchEl.value = ""; curSugg = []; suggEl.classList.remove("on");
+      ev.preventDefault();
+    } else if (ev.key === "Escape") { searchEl.value = ""; curSugg = []; suggEl.classList.remove("on"); }
+  });
+  document.addEventListener("click", (ev) => {
+    if (!suggEl.contains(ev.target) && ev.target !== searchEl) suggEl.classList.remove("on");
+  });
+
+  /* ---------------- 控件 ---------------- */
+  function zoomBy(k) { svg.transition().duration(220).call(zoom.scaleBy, k); }
+  document.getElementById("btnIn").onclick = () => zoomBy(1.45);
+  document.getElementById("btnOut").onclick = () => zoomBy(1 / 1.45);
+  document.getElementById("btnFit").onclick = () => svg.transition().duration(320).call(zoom.transform, d3.zoomIdentity);
+  document.getElementById("btnPanel").onclick = () => document.getElementById("panel").classList.toggle("open");
+
+  document.getElementById("tgProv").onchange = (ev) => { gProv.style("display", ev.target.checked ? null : "none"); };
+  document.getElementById("tgLbl").onchange = (ev) => { labelOn = ev.target.checked; refresh(); };
+  document.getElementById("tgDot").onchange = (ev) => { dotOn = ev.target.checked; refresh(); };
+
+  /* ---------------- 模式切换：地级市 ⇄ 省级 ---------------- */
+  const LS_MODE = "china-travel-map/mode";
+  function renderLegend() {
+    const L = document.getElementById("legend");
+    const row = (c, t) => `<div class="row"><span class="sw" style="background:${c}"></span><span class="hint">${t}</span></div>`;
+    const yearRow = YEAR !== "all"
+      ? `<div class="row"><span class="sw" style="background:linear-gradient(135deg,#fbb862,#b8460a)"></span><span class="hint">${YEAR} 年去过（颜色深 = 该年记录多）</span></div>`
+      : "";
+    L.innerHTML = (mode === "prov")
+      ? `<div class="row"><span>去过的城市数</span></div>`
+        + row("#ffe2bd", "1") + row("#fbb862", "2-3") + row("#f58a1f", "4-6") + row("#b8460a", "7+")
+        + row("#eaeef3", "未去过") + yearRow
+        + `<div class="row"><span class="hint">点省份 = 整省点亮 / 取消 · 滚轮缩放 · 拖动平移</span></div>`
+      : `<div class="row"><span>点亮密度</span></div>`
+        + row("var(--fill-1)", "1") + row("var(--fill-3)", "2-3") + row("var(--fill-5)", "4+")
+        + row("var(--unvisited)", "未去过") + yearRow
+        + `<div class="row"><span class="hint">滚轮缩放 · 拖动平移 · 单击点亮 / 看照片</span></div>`;
+  }
+
+  /** 切换地图口径。save=true 时记住选择（下次打开还是这幅图） */
+  function setMode(m, save) {
+    mode = (m === "prov") ? "prov" : "city";
+    const provMode = (mode === "prov");
+    gCity.style("display", provMode ? "none" : null);
+    gProvFill.style("display", provMode ? null : "none");
+    for (const b of document.querySelectorAll("#segMode button")) {
+      b.classList.toggle("on", b.dataset.mode === mode);
+    }
+    document.getElementById("itemUnits").classList.toggle("dim", provMode);
+    document.getElementById("itemProv").classList.toggle("dim", !provMode);
+    document.getElementById("statPctLab").textContent = provMode ? "省级点亮率" : "地级点亮率";
+    document.getElementById("tgLblTx").textContent = provMode ? "省名" : "城市名";
+    document.getElementById("tgDotLab").style.display = provMode ? "none" : "";
+    renderLegend();
+    refresh();
+    if (save) { try { localStorage.setItem(LS_MODE, mode); } catch (e) {} }
+  }
+  for (const b of document.querySelectorAll("#segMode button")) {
+    b.onclick = () => { if (b.dataset.mode !== mode) setMode(b.dataset.mode, true); };
+  }
+  window.__setMode = setMode;
+  window.__getMode = () => mode;
+
+  document.getElementById("btnExpandAll").onclick = () => {
+    let added = 0;
+    for (const [prov, units] of UNITS_BY_PROVINCE) {
+      // 该省已有任意城市 → 视为去过该省，补全省内其余单元
+      const any = units.some(u => VISITED.has(u.adcode));
+      if (!any) continue;
+      for (const u of units) if (!VISITED.has(u.adcode)) { VISITED.set(u.adcode, 1); added++; }
+    }
+    refresh(); persist();
+    toast(added ? `补全了 ${added} 个单元` : "没有可补全的省（该省尚无城市被点亮）");
+  };
+
+  /* ---------------- 提示条：未识别 / 只写省名 ---------------- */
+  const noticeEl = document.getElementById("notice");
+  const noticeText = document.getElementById("noticeText");
+  const noticeFix = document.getElementById("noticeFix");
+  let pendingList = [];
+
+  function showNotice(pending, problems) {
+    pendingList = pending || [];
+    const shortOf = (s) => String(s).replace(/(特别行政区|维吾尔自治区|回族自治区|壮族自治区|自治区|省)$/, "");
+    const bits = [];
+    if (pendingList.length) {
+      bits.push("<b>只写了省名，没有点亮全省</b>：" + pendingList.map(p => p.input).join("、")
+        + `　要整省请点右侧按钮，或写成「${shortOf(pendingList[0].input)}全省」`);
+    }
+    if (problems && problems.length) {
+      bits.push("<b>没认出来的写法</b>：" + problems.map(p => p.input + (p.candidates ? "→ " + p.candidates.join(" / ") : "")).join("；"));
+    }
+    if (!bits.length) { noticeEl.hidden = true; return; }
+    noticeText.innerHTML = bits.join("<br>");
+    noticeFix.hidden = !pendingList.length;
+    noticeEl.hidden = false;
+  }
+
+  noticeFix.onclick = () => {
+    let added = 0;
+    for (const p of pendingList) {
+      for (const u of (UNITS_BY_PROVINCE.get(p.provinceAdcode) || [])) {
+        if (!VISITED.has(u.adcode)) { VISITED.set(u.adcode, 1); added++; }
+      }
+    }
+    pendingList = [];
+    noticeEl.hidden = true;
+    refresh(); persist();
+    toast(`按省名点亮了 ${added} 个地级单元`);
+  };
+  document.getElementById("noticeClose").onclick = () => { noticeEl.hidden = true; };
+
+  document.getElementById("btnReset").onclick = () => {
+    const wipe = serverLive && VISITED.size > 0;
+    if (wipe && !confirm(`还原会把清单恢复成页面初始状态（${INITIAL.size} 个单元），并同步覆盖服务器上的 ${VISITED.size} 个单元。\n确定继续吗？`)) return;
+    VISITED = new Map(INITIAL);
+    refresh(); persist();
+    toast("已还原为初始清单");
+  };
+
+  document.getElementById("btnCopy").onclick = async () => {
+    const txt = exportText();
+    try { await navigator.clipboard.writeText(txt); toast("清单已复制到剪贴板"); }
+    catch (e) { document.getElementById("ta").value = txt; openDlg(); toast("剪贴板不可用，已放进编辑框"); }
+  };
+
+  function exportText() {
+    const groups = new Map();
+    for (const code of VISITED.keys()) {
+      const u = BY_ADCODE.get(code); if (!u) continue;
+      if (!groups.has(u.province)) groups.set(u.province, []);
+      groups.get(u.province).push(u.name);
+    }
+    return [...groups.entries()].sort().map(([p, names]) =>
+      `${p}：${names.sort().join("、")}`).join("\n");
+  }
+
+  /* ---------------- 导出 PNG ---------------- */
+  document.getElementById("btnPng").onclick = () => {
+    const svgNode = svg.node();
+    const clone = svgNode.cloneNode(true);
+    // 复位视图变换，导出完整中国
+    const g = clone.querySelector("g");
+    if (g) g.removeAttribute("transform");
+    clone.setAttribute("width", W());
+    clone.setAttribute("height", H());
+    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    // 内联样式（cloneNode 不带走 CSS）
+    clone.querySelectorAll("path.city").forEach(el => {
+      const code = el.getAttribute("data-code");
+      el.setAttribute("style", `fill:${fillFor(code)};stroke:${strokeFor(code)};stroke-width:.5`);
+    });
+    clone.querySelectorAll("path.prov-line").forEach(el =>
+      el.setAttribute("style", "fill:none;stroke:#c2ccda;stroke-width:1.05"));
+    clone.querySelectorAll("circle.dot").forEach(el =>
+      el.setAttribute("style", el.classList.contains("off") ? "display:none" : "fill:#7f1d1d;stroke:#fff;stroke-width:1"));
+    clone.querySelectorAll("text.lbl").forEach(el =>
+      el.setAttribute("style", el.classList.contains("off") ? "display:none"
+        : "font-size:10px;font-weight:600;fill:#7c2d12;text-anchor:middle;paint-order:stroke;stroke:#fff;stroke-width:2.4px;stroke-linejoin:round"));
+    const bg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    bg.setAttribute("width", "100%"); bg.setAttribute("height", "100%"); bg.setAttribute("fill", "#eef2f8");
+    clone.insertBefore(bg, clone.firstChild);
+
+    const data = new XMLSerializer().serializeToString(clone);
+    const img = new Image();
+    const scale = 2;
+    img.onload = () => {
+      const cv = document.createElement("canvas");
+      cv.width = W() * scale; cv.height = H() * scale;
+      const ctx = cv.getContext("2d");
+      ctx.fillStyle = "#eef2f8"; ctx.fillRect(0, 0, cv.width, cv.height);
+      ctx.drawImage(img, 0, 0, cv.width, cv.height);
+      cv.toBlob(b => {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(b);
+        a.download = `我的中国足迹_${new Date().toISOString().slice(0, 10)}.png`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+        toast("已导出 PNG");
+      }, "image/png");
+    };
+    img.onerror = () => toast("PNG 导出失败（可截图代替）");
+    img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(data);
+  };
+
+  /* ---------------- 下拉选择器：选省份 → 选城市 → 点亮 ---------------- */
+  const selProv = document.getElementById("selProv");
+  const selCity = document.getElementById("selCity");
+  const btnPick = document.getElementById("btnPick");
+
+  const PROV_LIST = [...UNITS_BY_PROVINCE.entries()]
+    .map(([code, units]) => ({ code, name: units[0].province, units }))
+    .sort((a, b) => a.code.localeCompare(b.code));
+  for (const p of PROV_LIST) {
+    const o = document.createElement("option");
+    o.value = p.code;
+    o.textContent = `${p.name} · ${p.units.length}`;
+    selProv.appendChild(o);
+  }
+
+  const provUnits = code =>
+    (UNITS_BY_PROVINCE.get(code) || []).slice().sort((a, b) => a.adcode.localeCompare(b.adcode));
+
+  function syncPickBtn() {
+    const code = selProv.value, v = selCity.value;
+    if (!code || !v) { btnPick.disabled = true; btnPick.textContent = "点亮"; return; }
+    btnPick.disabled = false;
+    if (v === "__ALL__") {
+      const units = provUnits(code);
+      const all = units.every(u => VISITED.has(u.adcode));
+      btnPick.textContent = all ? `取消整省（${units.length} 个）` : `点亮全省（${units.length} 个）`;
+    } else {
+      btnPick.textContent = VISITED.has(v) ? "取消点亮" : "点亮";
+    }
+  }
+
+  // 重建城市下拉；保留当前选择（供刷新 ✓ 状态时调用）
+  function renderCitySelect() {
+    const code = selProv.value;
+    const keep = selCity.value;
+    selCity.innerHTML = "";
+    if (!code) {
+      const o = document.createElement("option");
+      o.value = ""; o.textContent = "请先选择省份";
+      selCity.appendChild(o);
+      selCity.disabled = true;
+      syncPickBtn();
+      return;
+    }
+    const units = provUnits(code);
+    selCity.disabled = false;
+    if (units.length > 1) {
+      const all = units.every(u => VISITED.has(u.adcode));
+      const o = document.createElement("option");
+      o.value = "__ALL__";
+      o.textContent = `★ 全省 / 全境（共 ${units.length} 个）${all ? " · 已点亮" : ""}`;
+      selCity.appendChild(o);
+    }
+    const ph = document.createElement("option");
+    ph.value = ""; ph.textContent = "请选择城市…";
+    selCity.appendChild(ph);
+    for (const u of units) {
+      const o = document.createElement("option");
+      o.value = u.adcode;
+      o.textContent = (VISITED.has(u.adcode) ? "✓ " : "") + u.name;
+      selCity.appendChild(o);
+    }
+    selCity.value = (keep && selCity.querySelector(`option[value="${keep}"]`)) ? keep
+      : (units.length === 1 ? units[0].adcode : "");
+    syncPickBtn();
+  }
+
+  selProv.onchange = renderCitySelect;
+  selCity.onchange = syncPickBtn;
+
+  btnPick.onclick = () => {
+    const code = selProv.value, v = selCity.value;
+    if (!code || !v) return;
+    if (v === "__ALL__") {
+      const units = provUnits(code);
+      const all = units.every(u => VISITED.has(u.adcode));
+      for (const u of units) {
+        if (all) VISITED.delete(u.adcode);
+        else VISITED.set(u.adcode, VISITED.get(u.adcode) || 1);
+      }
+      toast(all ? `已取消整省 ${units.length} 个` : `已点亮 ${units[0].province} 全部 ${units.length} 个`);
+    } else {
+      const u = BY_ADCODE.get(v);
+      if (!u) return;
+      if (VISITED.has(v)) { VISITED.delete(v); toast("已取消 " + u.name); }
+      else { VISITED.set(v, 1); toast("已点亮 " + u.name); }
+    }
+    refresh(); persist();
+  };
+
+  /* ---------------- 编辑清单对话框 ---------------- */
+  const dlg = document.getElementById("dlg");
+  const ta = document.getElementById("ta");
+  const msg = document.getElementById("msg");
+  function openDlg() {
+    ta.value = exportText();
+    msg.innerHTML = "";
+    dlg.showModal();
+  }
+  document.getElementById("btnData").onclick = openDlg;
+  document.getElementById("dlgCancel").onclick = () => dlg.close();
+  document.getElementById("dlgApply").onclick = () => {
+    const { visited, problems, pendingProvinces, tokenCount } = resolveList(ta.value);
+    VISITED = visited;
+    refresh(); persist();
+    const parts = [`<span class="ok">已点亮 ${visited.size} 个地级单元</span>`];
+    if (pendingProvinces.length) {
+      parts.push(`<span class="warn">${pendingProvinces.length} 处只写了省名，未展开：`
+        + pendingProvinces.map(p => p.input).join("、") + `（需要整省请写「${pendingProvinces[0].input}全省」）</span>`);
+    }
+    if (problems.length) {
+      parts.push(`<span class="err">${problems.length} 处未识别：`
+        + problems.map(p => p.input + (p.candidates ? "→" + p.candidates.join("/") : "")).join("；") + `</span>`);
+    }
+    msg.innerHTML = parts.join("<br>");
+    showNotice(pendingProvinces, problems);
+    toast(`解析 ${tokenCount} 项 → 点亮 ${visited.size} 个单元`);
+  };
+
+  /* ---------------- toast ---------------- */
+  let toastTimer = null;
+  function toast(t) {
+    const el = document.getElementById("toast");
+    el.textContent = t;
+    el.classList.add("on");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove("on"), 2000);
+  }
+
+  /* ---------------- 启动 ---------------- */
+  // 初始清单 → 若本地有存档则优先用存档
+  const init = loadInitial(INITIAL_VISITED);
+  VISITED = init.visited;
+  INITIAL = new Map(init.visited);
+  if (!VISITED.size) restore();
+
+  // 行程：先读本地缓存（秒开），服务器版本随后覆盖
+  try {
+    const raw = localStorage.getItem(TRIPS_LS);
+    if (raw) { const arr = JSON.parse(raw); if (Array.isArray(arr)) TRIPS = arr.filter(t => t && t.date && t.code); }
+  } catch (e) {}
+  let savedYear = null;
+  try { savedYear = localStorage.getItem(YEAR_LS); } catch (e) {}
+  YEAR = savedYear || "all";
+
+  document.getElementById("loading").style.display = "none";
+  refresh();
+
+  // 恢复上次选的地图口径（地级市 / 省级）
+  let savedMode = null;
+  try { savedMode = localStorage.getItem(LS_MODE); } catch (e) {}
+  setMode(savedMode === "prov" ? "prov" : "city", false);
+  // 年份下拉 + 年份视图（放在 setMode 之后：它会 refresh 并重写列表标题）
+  renderYearSelect();
+  setYear(YEAR, false);
+
+  // 服务器清单（部署版）：读开放；写要口令。
+  // 顺序：① 本地有「没上传成功的改动」→ 以本地为准并补传（避免服务器旧数据盖掉刚点的）② 服务器有 → 以服务器为准
+  //       ③ 服务器为空而本地有 → 把本地推上去 ④ 都为空 → 已连接
+  (async () => {
+    if (!CAN_API) { setSync("off", "💾 仅存本地"); return; }
+    setSync("off", "☁️ 读取服务器…");
+    const [r, rt] = await Promise.all([apiLoad(), apiLoadTrips()]);
+    if (!r.ok && !rt.ok) { setSync("off", "💾 仅存本地"); return; }
+    serverLive = true;
+    if (savedOnce) return;     // 启动期间用户已经点过并自动存上了，别用旧状态覆盖药丸
+    if (getPending() && (VISITED.size || TRIPS.length)) {
+      const ok = await apiSave(true);
+      const ok2 = await saveTrips(true);
+      if (!ok || !ok2) {
+        setSync("lock", "🔒 未上传，点此输入口令");
+        toast(`本地这 ${VISITED.size} 个地点、${TRIPS.length} 条行程还没上传，输入口令后自动补传`);
+      } else {
+        renderYearSelect(); setYear(YEAR, false);
+      }
+    } else {
+      if (savedOnce) return;   // 用户/自检在读取期间已经存过服务器了，别再用启动状态覆盖药丸
+      if (r.list && r.list.size) { VISITED = new Map(r.list); persistLocal(); }
+      if (rt.list) {
+        TRIPS = rt.list;
+        try { localStorage.setItem(TRIPS_LS, JSON.stringify(TRIPS)); } catch (e) {}
+      }
+      renderYearSelect();
+      setYear(YEAR, false);
+      const pushedV = (r.ok && !(r.list && r.list.size) && VISITED.size) ? await apiSave(true) : false;
+      const pushedT = (rt.ok && !rt.list && TRIPS.length) ? await saveTrips(true) : false;
+      if (!pushedV && !pushedT && !savedOnce) setSync("on", "☁️ 已同步服务器");
+      if (TRIPS.length) toast(`已载入服务器上的 ${VIEW.size} 个地点 · ${TRIPS.length} 条行程`);
+      else if (r.list && r.list.size) toast(`已载入服务器上的清单（${VISITED.size} 个单元）`);
+    }
+  })();
+
+  if (init.problems.length || init.pendingProvinces.length) {
+    showNotice(init.pendingProvinces, init.problems);
+    console.warn("[去过的地点] 需确认：", init.problems, init.pendingProvinces);
+  }
+
+  // 自适应尺寸
+  let rt = null;
+  addEventListener("resize", () => {
+    clearTimeout(rt);
+    rt = setTimeout(() => {
+      projection.fitExtent([[18, 18], [W() - 18, H() - 18]], { type:"FeatureCollection", features:feats });
+      for (const f of feats) {
+        const node = cityPaths.get(f.properties.adcode);
+        if (node) node.setAttribute("d", pathGen(f));
+      }
+      for (const f of PROVINCE_GEO.features) {
+        // 省级填色面 + 省份标签锚点（跳过 100000_JD 辅助面）
+        const code = (f.properties && f.properties.adcode != null) ? String(f.properties.adcode) : null;
+        if (!f.geometry || !UNITS_BY_PROVINCE.has(code)) continue;
+        const node = provPaths.get(code);
+        if (node) node.setAttribute("d", pathGen(f));
+        const c0 = f.properties.centroid || f.properties.center;
+        let xy = c0 ? projection(c0) : null;
+        if (!xy || !isFinite(xy[0]) || !isFinite(xy[1])) xy = pathGen.centroid(f);
+        const pm = provCenter.get(code);
+        if (pm) { pm.x = xy[0]; pm.y = xy[1]; }
+      }
+      gProv.selectAll("path").each(function (d, i) {
+        const f = PROVINCE_GEO.features[i];
+        if (f && f.geometry) d3.select(this).attr("d", pathGen(f));
+      });
+      for (const u of UNITS) {
+        const c = u.center || u.centroid; if (!c) continue;
+        const xy = projection(c); if (!xy) continue;
+        const d = dots.get(u.adcode), m = labelMeta.get(u.adcode);
+        if (d) { d.setAttribute("cx", xy[0]); d.setAttribute("cy", xy[1]); }
+        if (m) { m.x = xy[0]; m.y = xy[1]; }
+      }
+      layoutLabels();
+    }, 160);
+  });
+}
+</script>
+</body>
+</html>

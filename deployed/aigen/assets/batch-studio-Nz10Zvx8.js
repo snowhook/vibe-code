@@ -1,0 +1,1 @@
+import{t as e}from"./Placeholder-TK_BVmjI.js";import{r as t}from"./react-vendor-AyOTluXZ.js";var n=t(),r=()=>(0,n.jsx)(e,{title:`AI图片批量生成`,description:`一次排队多组配方/提示词批量出图、统一命名与入库，二期动工`});export{r as component};

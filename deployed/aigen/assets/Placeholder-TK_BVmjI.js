@@ -1,0 +1,1 @@
+import{it as e}from"./ui-vendor-B7hPlnuI.js";import{t}from"./EmptyState-GCKF4q6Q.js";import{j as n}from"./index-RtzvPZkS.js";import{r}from"./react-vendor-AyOTluXZ.js";var i=r();function a({title:r,description:a}){return(0,i.jsxs)(i.Fragment,{children:[(0,i.jsx)(n,{title:r}),(0,i.jsx)(t,{icon:e,title:`功能位已预留`,description:`${a} —— 按规划先放一放，菜单占位，二期动工。`})]})}export{a as t};

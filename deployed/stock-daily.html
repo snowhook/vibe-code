@@ -120,9 +120,9 @@
   <section id="stockSection">
     <div class="sec-title">热门个股 <span class="hint">点击卡片查看行情 &#8226; 可添加 / 删除(自动保存)</span></div>
     <div class="stock-toolbar">
-      <input type="text" id="stockInput" placeholder="输入代码,如 hk00700 / usAAPL / sh600519" autocomplete="off">
+      <input type="text" id="stockInput" placeholder="输入代码,如 688981 / hk00700 / usAAPL" autocomplete="off">
       <button class="btn" id="addStockBtn">&#43; 添加</button>
-      <span class="tip">格式:A股 sh/sz+代码 &#8226; 港股 hk+代码 &#8226; 美股 us+代码</span>
+      <span class="tip">A股可裸6位代码(自动识别沪/深/北) &#8226; 港股 hk+代码 &#8226; 美股 us+代码</span>
       <span class="add-error" id="addError"></span>
     </div>
     <div id="stockGrid" class="mk-grid"><div class="empty">正在加载个股&#8230;</div></div>
@@ -134,7 +134,7 @@
   </section>
 
   <footer>
-    数据来源:腾讯行情接口、新浪财经 RSS、Google News RSS(经 rss2json 代理)<br>
+    数据来源:腾讯行情接口、东方财富快讯(服务端代理)<br>
     行情每 5 分钟、新闻每 10 分钟自动更新 &#8226; 数据仅供参考,不构成投资建议
   </footer>
 </div>
@@ -146,23 +146,36 @@ var INDEX_GROUPS = [
   {label:"&#39321;&#28207;&#24066;&#22330; / &#28207;&#32929;", codes:["hkHSI","hkHSCEI","hkHSTECH"]},
   {label:"&#32654;&#22269;&#24066;&#22330; / &#32654;&#32929;", codes:["usDJI","usIXIC","usINX"]}
 ];
-var STOCK_KEY = "stockdaily_stocks_v1";
+var STOCK_KEY = "stockdaily_stocks_v2";
+var TS_KEY = "stockdaily_stocks_v2_ts";
 var DEFAULT_STOCKS = ["sh600519","sz300750","hk00700","hk03690","usAAPL","usNVDA"];
 
 function loadStocks(){
   try{
     var s = JSON.parse(localStorage.getItem(STOCK_KEY));
     if(s && Array.isArray(s) && s.length) return s;
+    var o = JSON.parse(localStorage.getItem("stockdaily_stocks_v1"));
+    if(o && Array.isArray(o) && o.length) return o;
   }catch(e){}
   return DEFAULT_STOCKS.slice();
 }
 function saveStocks(list){
   try{ localStorage.setItem(STOCK_KEY, JSON.stringify(list)); }catch(e){}
+  /* 服务端持久化: 跨设备/浏览器共享, 清缓存不丢 */
+  fetch("/api/save",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({key:STOCK_KEY,value:{stocks:list,ts:Date.now()}})})
+    .then(function(r){return r.json();})
+    .then(function(j){ if(!j||j.ok!==true) showAddError("保存失败, 仅在当前浏览器生效"); })
+    .catch(function(){ showAddError("保存失败, 仅在当前浏览器生效"); });
+}
+function showAddError(msg){
+  var err=document.getElementById("addError");
+  if(err) err.textContent=msg;
 }
 
 function fetchQuotes(codes){
   if(!codes.length) return Promise.resolve({});
-  return fetch("https://qt.gtimg.cn/q=" + codes.join(","))
+  return fetch(new Request("https://qt.gtimg.cn/q=" + encodeURIComponent(codes.join(",")) + "&_=" + Date.now()))
     .then(function(r){ return r.arrayBuffer(); })
     .then(function(buf){
       var text = new TextDecoder("gbk").decode(buf);
@@ -170,6 +183,7 @@ function fetchQuotes(codes){
       var re = /v_([^=]+)="([^"]*)"/g, m;
       while((m = re.exec(text)) !== null){
         var f = m[2].split("~");
+        if(f.length < 30 || !f[1]) continue;
         quotes[m[1]] = {
           name: f[1], code: f[2], price: parseFloat(f[3]),
           prevClose: parseFloat(f[4]), open: parseFloat(f[5]),
@@ -224,6 +238,40 @@ function renderMarkets(q){
 /* ================= 热门个股(可增删) ================= */
 var curStocks = loadStocks();
 
+/* 启动时与服务端同步自选列表(服务端为准, 本地为缓存) */
+function syncStocksFromServer(){
+  fetch("/api/load",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({key:STOCK_KEY})})
+    .then(function(r){return r.json();})
+    .then(function(j){
+      var v=j&&j.value;
+      var serverList=null;
+      if(v && Array.isArray(v.stocks)) serverList=v.stocks;
+      else if(Array.isArray(v)) serverList=v; /* 兼容旧格式 */
+      if(!serverList){ saveStocks(curStocks); return; } /* 服务端空: 用本地初始化 */
+      /* 并集合并: 本地新增永不丢, 服务端新增也会显示 */
+      var merged=serverList.slice();
+      curStocks.forEach(function(c){ if(merged.indexOf(c)===-1) merged.push(c); });
+      if(JSON.stringify(merged)!==JSON.stringify(serverList)){
+        /* 本地有服务端没有的股: 合并后回写服务端 */
+        curStocks=merged;
+        saveStocks(merged);
+        doRefresh(false);
+      }else if(JSON.stringify(curStocks)!==JSON.stringify(serverList)){
+        /* 服务端是超集(别的设备加过): 采用服务端 */
+        curStocks=serverList;
+        try{ localStorage.setItem(STOCK_KEY, JSON.stringify(serverList)); localStorage.setItem(TS_KEY, String(Date.now())); }catch(e){}
+        doRefresh(false);
+      }
+    }).catch(function(){});
+}
+
+function detailUrl(code, d){
+  if(code.slice(0,2) === "us" && d.code) return "https://gu.qq.com/us" + d.code;   /* 美股详情页需交易所后缀: usAAPL.OQ */
+  if(code.slice(0,2) === "bj") return "https://quote.eastmoney.com/unify/r/0." + code.slice(2);   /* 腾讯无北交所详情页, 裸代码404; 东财unify路由实测可达 */
+  return "https://gu.qq.com/" + code;   /* 带sh/sz/hk前缀, 裸代码会被gu.qq解析成同名指数(000963→中证下游) */
+}
+
 function renderStocks(q){
   var grid = document.getElementById("stockGrid");
   if(!curStocks.length){
@@ -238,7 +286,7 @@ function renderStocks(q){
     card.className = "mk-card";
     card.style.cursor = "pointer";
     card.title = "点击查看行情";
-    card.onclick = function(){ window.open("https://gu.qq.com/" + d.code, "_blank"); };
+    card.onclick = function(){ window.open(detailUrl(code, d), "_blank"); };
     card.innerHTML = mkCardHTML(d, true) +
       '<button class="del-btn" title="删除">&#10005;</button>';
     card.querySelector(".del-btn").addEventListener("click", function(e){
@@ -249,26 +297,46 @@ function renderStocks(q){
   });
 }
 
+function normalizeCode(raw){
+  var c = String(raw || '').trim().toUpperCase();
+  if(!c) return null;
+  if(/^(SH|SZ|BJ)\d{6}$/.test(c)) return c.toLowerCase();
+  if(/^HK\d{5}$/.test(c)) return c.toLowerCase();
+  if(/^US[A-Z][A-Z0-9.\-]{0,9}$/.test(c)) return 'us' + c.slice(2);
+  if(/^\d{6}$/.test(c)){
+    var f = c.charAt(0);
+    if(f === '6' || f === '5' || f === '9') return 'sh' + c;
+    if(f === '4' || f === '8') return 'bj' + c;
+    return 'sz' + c;
+  }
+  if(/^\d{5}$/.test(c)) return 'hk' + c;
+  if(/^\d{4}$/.test(c)) return 'hk0' + c;
+  if(/^[A-Z][A-Z0-9.\-]{0,9}$/.test(c)) return 'us' + c;
+  return null;
+}
 function addStock(){
   var input = document.getElementById("stockInput");
   var err = document.getElementById("addError");
-  var code = input.value.trim().toLowerCase();
+  var btn = document.getElementById("addStockBtn");
+  var code = normalizeCode(input.value);
   err.textContent = "";
-  if(!code){ err.textContent = "请输入代码"; return; }
-  if(!/^(sh|sz|hk|us)[a-z0-9]+$/.test(code)){
-    err.textContent = "格式不正确,示例:hk00700 / usAAPL / sh600519";
-    return;
-  }
+  if(!code){ err.textContent = "代码格式不正确（支持:688981 / sh600519 / hk00700 / usAAPL）"; return; }
   if(curStocks.indexOf(code) !== -1){ err.textContent = "该代码已在列表中"; return; }
+  btn.disabled = true; btn.textContent = "查询中\u2026";
   fetchQuotes([code]).then(function(q){
     if(!q[code] || !q[code].name){
-      err.textContent = "未找到该代码对应的股票,请检查";
+      err.textContent = "未找到 " + code + "，请检查代码是否正确";
       return;
     }
     curStocks.push(code);
     saveStocks(curStocks);
     input.value = "";
+    err.textContent = "\u2713 已添加 " + q[code].name;
     doRefresh(false);
+  }).catch(function(){
+    err.textContent = "行情接口连接失败，请稍后重试";
+  }).then(function(){
+    btn.disabled = false; btn.innerHTML = "&#43; 添加";
   });
 }
 
@@ -280,28 +348,11 @@ function removeStock(code){
 
 /* ================= 新闻(RSS via rss2json,分区) ================= */
 var NEWS_BLOCKS = [
-  {
-    key:"a", title:"A&#32929;&#35201;&#38395;", limit:30, perPage:10,
-    sources:[
-      {name:"&#26032;&#28010;&#36130;&#32463;", url:"http://rss.sina.com.cn/roll/finance/hot_roll.xml"},
-      {name:"A&#32929;", url:"https://news.google.com/rss/search?q=A%E8%82%A1&hl=zh-CN&gl=CN&ceid=CN:zh-Hans"},
-      {name:"&#28006;&#28145;&#20004;&#24066;", url:"https://news.google.com/rss/search?q=%E6%B2%AA%E6%B7%B1%E4%B8%A4%E5%B8%82&hl=zh-CN&gl=CN&ceid=CN:zh-Hans"}
-    ]
-  },
-  {
-    key:"hk", title:"&#28207;&#32929;&#35201;&#38395;", limit:10, perPage:10,
-    sources:[
-      {name:"&#28207;&#32929;", url:"https://news.google.com/rss/search?q=%E6%B8%AF%E8%82%A1&hl=zh-HK&gl=HK&ceid=HK:zh-Hant"}
-    ]
-  },
-  {
-    key:"us", title:"&#32654;&#32929;&#35201;&#38395;", limit:10, perPage:10,
-    sources:[
-      {name:"&#32654;&#32929;", url:"https://news.google.com/rss/search?q=%E7%BE%8E%E8%82%A1&hl=zh-CN&gl=CN&ceid=CN:zh-Hans"}
-    ]
-  }
+  {key:"a", title:"A&#32929;&#35201;&#38395;", limit:30, perPage:10},
+  {key:"hk", title:"&#28207;&#32929;&#35201;&#38395;", limit:10, perPage:10},
+  {key:"us", title:"&#32654;&#32929;&#35201;&#38395;", limit:10, perPage:10}
 ];
-var CACHE_KEY = "stockdaily_news_v3";
+var CACHE_KEY = "stockdaily_news_v4";
 var CACHE_TTL = 10 * 60 * 1000; // 10分钟
 
 function loadNews(force){
@@ -314,39 +365,16 @@ function loadNews(force){
   }
   var container = document.getElementById("newsBlocks");
   if(container.innerHTML === "") container.innerHTML = '<div class="empty">正在加载新闻&#8230;</div>';
-
-  var blockTasks = NEWS_BLOCKS.map(function(block){
-    var tasks = block.sources.map(function(src){
-      var proxy = "https://api.rss2json.com/v1/api.json?rss_url=" + encodeURIComponent(src.url);
-      return fetch(proxy).then(function(r){ return r.json(); })
-        .then(function(j){
-          if(j.status !== "ok" || !j.items){ return []; }
-          return j.items.map(function(it){
-            return {title: it.title, link: it.link, pubDate: it.pubDate, src: src.name};
-          });
-        }).catch(function(){ return []; });
+  fetch(new Request("/api/news/data", {method:"POST", headers:{"Content-Type":"application/json"}, body:"{}"}))
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+      if(!j || j.ok !== true || !j.blocks) throw new Error("bad payload");
+      try{ localStorage.setItem(CACHE_KEY, JSON.stringify({ts: Date.now(), blocks: j.blocks})); }catch(e){}
+      renderNewsBlocks(j.blocks);
+    })
+    .catch(function(){
+      container.innerHTML = '<div class="empty">新闻暂时无法获取,请稍后点击刷新</div>';
     });
-    return Promise.all(tasks).then(function(results){
-      var seen = {}, items = [];
-      results.forEach(function(arr){
-        arr.forEach(function(it){
-          var key = it.title.toLowerCase().replace(/\s+/g,"");
-          if(seen[key]) return;
-          seen[key] = true;
-          items.push(it);
-        });
-      });
-      items.sort(function(a,b){ return new Date(b.pubDate) - new Date(a.pubDate); });
-      return items.slice(0, block.limit);
-    });
-  });
-
-  Promise.all(blockTasks).then(function(blocks){
-    var data = {};
-    NEWS_BLOCKS.forEach(function(b, i){ data[b.key] = blocks[i]; });
-    try{ localStorage.setItem(CACHE_KEY, JSON.stringify({ts: Date.now(), blocks: data})); }catch(e){}
-    renderNewsBlocks(data);
-  });
 }
 
 function renderNewsBlocks(data){
@@ -445,8 +473,106 @@ document.getElementById("stockInput").addEventListener("keydown", function(e){
 });
 document.getElementById("today").textContent = fmtDate();
 doRefresh(false);
+syncStocksFromServer();
 setInterval(function(){ doRefresh(false); }, 5 * 60 * 1000);      // 行情5分钟
 setInterval(function(){ loadNews(false); }, 10 * 60 * 1000);      // 新闻10分钟
 </script>
+<!-- wb-auth-guard:start -->
+<script>
+/* 统一写接口口令守卫：POST 到 /api/ 的写操作自动带口令，缺口令时询问一次。
+   口令存 localStorage["footprint-token"]（与 travel-map 页面同一个键，全站通用）。*/
+(function () {
+  if (window.__wbAuthGuard) return; window.__wbAuthGuard = 1;
+  var LS = 'footprint-token', LEGACY = 'portalToken';
+  var READONLY = new RegExp('^/api/(?:load|keys|parse-xls|portal/list|routings/list|routings/get'
+    + '|reports/list|sentiment/data|lockup/data|collab/fetch|collab/structured'
+    + '|gzh/trending|gzh/search|gzh/author-rank|gzh/keywords/get'
+    + '|bazi/cities|bazi/lunar-days|bazi/focus-keywords|bazi/records|bazi/record'
+    + '|math/history|math/voices|math/anim-status|math/record)(?:\\?|$)');
+  function effPath(u) {
+    u = String(u || '');
+    var k = u.indexOf('://');
+    if (k >= 0) { var j = u.indexOf('/', k + 3); u = j < 0 ? '' : u.slice(j); }
+    if (u.slice(0, 5) !== '/api/') return null;
+    return u;
+  }
+  function tokFor(u) { return effPath(u) ? getTok() : ''; }
+  function getTok() { try { return localStorage.getItem(LS) || localStorage.getItem(LEGACY) || ''; } catch (e) { return ''; } }
+  function setTok(v) { try { localStorage.setItem(LS, v); } catch (e) {} try { localStorage.removeItem(LEGACY); } catch (e) {} }
+  function clearTok() { try { localStorage.removeItem(LS); localStorage.removeItem(LEGACY); } catch (e) {} }
+  var asked = false, told = false;
+  function toast(m) {
+    try {
+      var d = document.createElement('div'); d.textContent = m;
+      d.style.cssText = 'position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:2147483647;'
+        + 'background:#1f2937;color:#fff;padding:10px 16px;border-radius:8px;'
+        + 'font:14px/1.5 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif;'
+        + 'box-shadow:0 8px 28px rgba(0,0,0,.4);max-width:82vw';
+      document.body.appendChild(d); setTimeout(function () { d.remove(); }, 4600);
+    } catch (e) { console.warn('[auth]', m); }
+  }
+  function isWrite(u) {
+    u = String(u || '');
+    var k = u.indexOf('://');
+    if (k >= 0) { var j = u.indexOf('/', k + 3); u = j < 0 ? '' : u.slice(j); }
+    if (u.slice(0, 5) !== '/api/') return false;   // 只管本站 /api/，别误伤其它服务
+    return !READONLY.test(u);
+  }
+  function ask() {
+    if (asked) return ''; asked = true;
+    try {
+      if (typeof window.prompt !== 'function') return '';
+      var v = window.prompt('此操作需要门户口令：', '');
+      if (v && v.trim()) { v = v.trim(); setTok(v); return v; }
+    } catch (e) {}
+    return '';
+  }
+  function deny() {
+    clearTok();
+    if (!told) { told = true; toast('未保存到服务器：口令缺失或错误。刷新本页后可重新输入口令。'); }
+  }
+  // ── XHR（含同步 XHR：routing.html / index.html 用的是同步请求）──
+  var _open = XMLHttpRequest.prototype.open, _send = XMLHttpRequest.prototype.send;
+  XMLHttpRequest.prototype.open = function (m, u) {
+    this.__wbM = (m || 'GET').toUpperCase(); this.__wbU = u; return _open.apply(this, arguments);
+  };
+  XMLHttpRequest.prototype.send = function (body) {
+    var self = this, m = this.__wbM, u = this.__wbU;
+    var w = (m === 'POST' && isWrite(u));
+    var tok = getTok();
+    if (w && !tok) tok = ask();
+    if (w) { tok = tokFor(u); if (tok) { try { self.setRequestHeader('X-Footprint-Token', tok); } catch (e) {} } }
+    if (w) { try { self.addEventListener('load', function () { if (self.status === 401) deny(); }); } catch (e) {} }
+    return _send.apply(this, arguments);
+  };
+  // ── fetch（math-solver / stock-daily / travel 系）──
+  var _f = window.fetch;
+  if (typeof _f === 'function') {
+    window.fetch = function (input, init) {
+      init = init || {};
+      if (typeof input !== 'string') return _f.call(window, input, init);
+      var m = String(init.method || 'GET').toUpperCase();
+      var w = (m === 'POST' && isWrite(input));
+      var tok = getTok();
+      if (w && !tok) tok = ask();
+      if (w) { tok = tokFor(input); } else { tok = ''; }
+      if (tok) {
+        try { var h = new Headers(init.headers || {}); h.set('X-Footprint-Token', tok); init.headers = h; } catch (e) {}
+        try {
+          if (typeof init.body === 'string' && /^\s*\{/.test(init.body)) {
+            var o = JSON.parse(init.body);
+            if (o && typeof o === 'object' && o.token === undefined) { o.token = tok; init.body = JSON.stringify(o); }
+          }
+        } catch (e) {}
+      }
+      return _f.call(window, input, init).then(function (r) {
+        if (w && r && r.status === 401) deny();
+        return r;
+      });
+    };
+  }
+})();
+</script>
+<!-- wb-auth-guard:end -->
 </body>
 </html>

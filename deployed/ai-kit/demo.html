@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AIKit 自检 / 用法示例</title>
+<style>
+  body{font:14px/1.7 -apple-system,"Segoe UI",system-ui,"Microsoft YaHei",sans-serif;margin:0;background:#f6f7f9;color:#0f172a}
+  .wrap{max-width:860px;margin:0 auto;padding:26px 20px 60px}
+  h1{font-size:20px;margin:0 0 4px}
+  .sub{color:#64748b;margin-bottom:18px}
+  .card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:14px 16px;margin-bottom:14px}
+  .card h2{font-size:14px;margin:0 0 8px}
+  button{font:inherit;padding:6px 12px;border-radius:8px;border:1px solid #cbd5e1;background:#fff;cursor:pointer}
+  button.p{background:#0f172a;color:#fff;border-color:#0f172a}
+  pre{background:#0b1020;color:#d7e3f4;border-radius:10px;padding:10px 12px;overflow:auto;font-size:12px;line-height:1.6;max-height:260px}
+  .ok{color:#0a7d3f}.bad{color:#b91c1c}
+  code{background:#eef2f7;border-radius:4px;padding:1px 5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>AIKit 自检 / 用法示例</h1>
+  <div class="sub">这页只做一件事：证明 <code>https://gr.czyuma.com/api/aikit/*</code> 能从任意页面直接调用。源码就在本页 <code>&lt;script&gt;</code> 里。</div>
+
+  <div class="card">
+    <h2>① 服务端代持 Key（通义）——不需要任何密钥</h2>
+    <button class="p" id="b1">拉通义模型列表</button>
+    <pre id="o1">（未运行）</pre>
+  </div>
+
+  <div class="card">
+    <h2>② 自己的 Key 测连通（把 Key 填进输入框，不会被保存）</h2>
+    <input id="k" placeholder="粘贴你的 Key（只在本页内存里用）" style="width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font:inherit">
+    <div style="margin-top:8px"><button id="b2">测火山方舟</button> <button id="b3">拉火山方舟模型</button></div>
+    <pre id="o2">（未运行）</pre>
+  </div>
+
+  <div class="card">
+    <h2>③ 预设服务商清单</h2>
+    <button id="b4">GET providers</button>
+    <pre id="o3">（未运行）</pre>
+  </div>
+</div>
+
+<script src="./ai-kit.js"></script>
+<script>
+const o1 = document.getElementById("o1"), o2 = document.getElementById("o2"), o3 = document.getElementById("o3");
+const show = (el, t, ok) => { el.className = ""; el.innerHTML = ""; const s = document.createElement("span"); s.className = ok ? "ok" : "bad"; s.textContent = t; el.appendChild(s); };
+
+document.getElementById("b1").onclick = async () => {
+  o1.textContent = "请求中…";
+  const j = await AIKit.models({ provider: "qwen", apiKey: "server" });
+  o1.textContent = JSON.stringify(j, null, 2);
+  document.getElementById("selftest").textContent = "@@SELFTEST@@qwen ok=" + j.ok + " count=" + (j.count || 0) + "@@END@@";
+};
+document.getElementById("b4").onclick = async () => {
+  const j = await AIKit.providers();
+  o3.textContent = JSON.stringify(j, null, 2);
+};
+const key = () => document.getElementById("k").value.trim();
+document.getElementById("b2").onclick = async () => {
+  if (!key()) { o2.textContent = "先填 Key"; return; }
+  o2.textContent = "请求中…";
+  const j = await AIKit.test({ provider: "ark", apiKey: key() });
+  o2.textContent = JSON.stringify({ ok: j.ok, auth: j.auth, via: j.via, status: j.status, error: (j.error || "").slice(0, 400) }, null, 2);
+};
+document.getElementById("b3").onclick = async () => {
+  if (!key()) { o2.textContent = "先填 Key"; return; }
+  o2.textContent = "请求中…";
+  const j = await AIKit.models({ provider: "ark", apiKey: key() });
+  o2.textContent = JSON.stringify({ ok: j.ok, count: j.count, models: (j.models || []).slice(0, 30) }, null, 2);
+};
+
+// 无头自检：自动跑一次 ①，把结果写进 #selftest
+addEventListener("load", () => setTimeout(() => { if (location.hash === "#auto") document.getElementById("b1").click(); }, 300));
+</script>
+<div id="selftest"></div>
+</body>
+</html>

@@ -1,0 +1,1 @@
+import{t as e}from"./Placeholder-kav0Vyn3.js";import{r as t}from"./react-vendor-AyOTluXZ.js";var n=t(),r=()=>(0,n.jsx)(e,{title:`人物资产生成台`,description:`锁定同一人物多张出图，依赖各家参考强度参数，二期评估`});export{r as component};

@@ -1,0 +1,1 @@
+import{t as e}from"./GalleryPage-Cs22Oz-Q.js";import{r as t}from"./react-vendor-AyOTluXZ.js";var n=t();function r(){return(0,n.jsx)(e,{kind:`portrait`,title:`人物库`,description:`原生人像 + 我的上传，统一标签/归档口径`})}export{r as component};

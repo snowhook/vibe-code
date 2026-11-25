@@ -1,0 +1,1 @@
+import{t as e}from"./GalleryPage-4e5Vdyse.js";import{r as t}from"./react-vendor-AyOTluXZ.js";var n=t();function r(){return(0,n.jsx)(e,{kind:`costume`,title:`服饰库`,description:`现实 + 二次元原生服装与我的服饰条目合并`})}export{r as component};

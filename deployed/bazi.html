@@ -1,0 +1,1329 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>八字分析</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Noto+Serif+SC:wght@600;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#16161a;--surface:#ffffff;
+  --dark-surface:rgba(255,255,255,.04);--dark-border:rgba(255,255,255,.06);--dark-border2:rgba(255,255,255,.1);
+  --text:#fffffe;--text2:#b8b8c0;--text3:#6b6b78;
+  --card-text:#1c1917;--card-text2:#57534e;--card-text3:#a8a29e;
+  --accent:#ea580c;--accent2:#f97316;--accent-glow:rgba(234,88,12,.12);
+  --violet:#7c3aed;--emerald:#059669;--rose:#e11d48;--gold:#c9a227;--crimson:#8b1a1a;
+  --wx-wood:#2e7d32;--wx-fire:#c62828;--wx-earth:#8d6e63;--wx-metal:#b8860b;--wx-water:#1565c0;
+  --radius:18px;--radius-sm:12px;--radius-xs:8px;
+  --card-shadow:0 4px 20px -4px rgba(0,0,0,.3),0 2px 8px -1px rgba(0,0,0,.2);
+  --card-shadow-hover:0 16px 48px -8px rgba(0,0,0,.5),0 6px 16px -2px rgba(0,0,0,.3);
+  --disp:'Outfit','PingFang SC','Microsoft YaHei',sans-serif;
+  --serif:'Noto Serif SC',serif;
+  --mono:'JetBrains Mono',ui-monospace,Consolas,monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--disp);color:var(--text);background:var(--bg);overflow-x:hidden;-webkit-font-smoothing:antialiased}
+::selection{background:var(--accent);color:#fff}
+body::before{content:'';position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.035;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+.glow{position:fixed;z-index:0;pointer-events:none;border-radius:50%;filter:blur(80px)}
+.glow-1{top:-15%;right:5%;width:50vw;height:50vw;background:rgba(234,88,12,.06)}
+.glow-2{bottom:-10%;left:-5%;width:45vw;height:45vw;background:rgba(124,58,237,.05)}
+
+.wrap{position:relative;z-index:2;max-width:960px;margin:0 auto;padding:0 20px 80px}
+
+header{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:28px 0 0;margin-bottom:24px}
+.brand{display:flex;align-items:center;gap:14px}
+.stamp{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--crimson),#b03030);
+  display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff;
+  box-shadow:0 4px 20px -3px rgba(139,26,26,.5);position:relative;overflow:hidden}
+.stamp::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.25),transparent 60%)}
+.brand h1{font-family:var(--serif);font-size:22px;font-weight:900;letter-spacing:2px}
+.brand .tag{font-size:10px;color:var(--text3);letter-spacing:3px;text-transform:uppercase;margin-top:1px;font-weight:600}
+.back-btn{font-size:12px;font-weight:600;color:var(--text3);text-decoration:none;padding:8px 18px;
+  border:1px solid var(--dark-border2);border-radius:50px;transition:all .15s;background:var(--dark-surface)}
+.back-btn:hover{color:var(--text);border-color:var(--accent);background:rgba(234,88,12,.08)}
+
+.nav-tabs{display:flex;gap:4px;margin-bottom:24px;padding:4px;background:var(--dark-surface);
+  border:1px solid var(--dark-border);border-radius:var(--radius-sm)}
+.nav-tab{font-size:13px;font-weight:600;padding:10px 16px;border-radius:var(--radius-xs);cursor:pointer;
+  border:none;background:transparent;color:var(--text3);transition:all .2s;flex:1;text-align:center}
+.nav-tab:hover{color:var(--text)}
+.nav-tab.active{background:var(--surface);color:var(--card-text);box-shadow:0 2px 8px rgba(0,0,0,.15)}
+
+/* ── 表单卡片 ── */
+.form-card{background:var(--surface);border-radius:var(--radius);padding:28px;box-shadow:var(--card-shadow);
+  animation:fadeUp .5s cubic-bezier(.16,1,.3,1) both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}}
+.form-title{font-family:var(--serif);font-size:18px;font-weight:700;color:var(--card-text);margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.form-title::before{content:'';width:4px;height:20px;background:var(--crimson);border-radius:2px}
+.form-sub{font-size:12px;color:var(--card-text3);margin-bottom:22px}
+
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.f-item{display:flex;flex-direction:column;gap:6px}
+.f-item.full{grid-column:1/-1}
+.f-label{font-size:11px;color:var(--card-text2);font-weight:700;letter-spacing:1px}
+.f-label em{color:var(--accent);font-style:normal}
+.f-input,.f-select{font-family:var(--disp);font-size:14px;padding:10px 12px;border-radius:var(--radius-xs);
+  border:1px solid #e7e5e4;background:#fafaf9;color:var(--card-text);outline:none;transition:border-color .15s,box-shadow .15s;width:100%}
+.f-input:focus,.f-select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+.date-row{display:flex;gap:8px}
+.date-row>*{flex:1}
+
+.cal-toggle{display:flex;background:#f5f5f4;border-radius:var(--radius-xs);padding:3px;width:fit-content}
+.cal-btn{font-size:13px;font-weight:600;padding:7px 20px;border:none;border-radius:6px;cursor:pointer;
+  background:transparent;color:var(--card-text3);transition:all .15s}
+.cal-btn.active{background:var(--surface);color:var(--card-text);box-shadow:0 1px 4px rgba(0,0,0,.1)}
+
+.gender-toggle{display:flex;gap:8px}
+.g-btn{flex:1;font-size:14px;font-weight:600;padding:10px;border:1px solid #e7e5e4;border-radius:var(--radius-xs);
+  cursor:pointer;background:#fafaf9;color:var(--card-text3);transition:all .15s}
+.g-btn.active{border-color:var(--accent);background:rgba(234,88,12,.06);color:var(--accent)}
+
+.focus-tags{display:flex;flex-wrap:wrap;gap:8px}
+.focus-tag{display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:50px;font-size:13px;font-weight:600;
+  border:1px solid #e7e5e4;background:#fafaf9;color:var(--card-text2);cursor:pointer;transition:all .15s;user-select:none}
+.focus-tag:hover{border-color:var(--accent)}
+.focus-tag.on{background:linear-gradient(135deg,rgba(234,88,12,.1),rgba(249,115,22,.08));border-color:var(--accent);color:var(--accent)}
+.focus-tag .fd{font-size:10px;color:var(--card-text3);font-weight:400}
+.focus-all{font-size:12px;color:var(--accent);cursor:pointer;font-weight:600;margin-left:auto}
+
+.ver-toggle{display:flex;gap:10px;flex-wrap:wrap}
+.ver-btn{flex:1;min-width:220px;display:flex;align-items:center;gap:10px;text-align:left;
+  padding:12px 14px;border:1px solid #e7e5e4;border-radius:var(--radius-sm);cursor:pointer;
+  background:#fafaf9;color:var(--card-text3);transition:all .15s}
+.ver-btn:hover{border-color:var(--accent)}
+.ver-btn.active{border-color:var(--accent);background:rgba(234,88,12,.05);color:var(--card-text);
+  box-shadow:0 2px 10px -2px rgba(234,88,12,.25)}
+.ver-btn .vb-icon{font-size:22px}
+.ver-btn .vb-txt{display:flex;flex-direction:column;gap:2px}
+.ver-btn .vb-txt b{font-size:14px}
+.ver-btn .vb-txt small{font-size:11px;color:var(--card-text3);font-weight:400}
+.leap-row{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--card-text2)}
+.leap-row input{width:16px;height:16px;accent-color:var(--accent)}
+
+.submit-row{margin-top:26px;display:flex;gap:12px;align-items:center}
+.btn-analyze{flex:1;font-size:16px;font-weight:700;padding:15px 32px;border:none;border-radius:var(--radius-sm);cursor:pointer;
+  background:linear-gradient(135deg,var(--crimson),#a63030);color:#fff;font-family:var(--serif);letter-spacing:4px;
+  box-shadow:0 6px 24px -6px rgba(139,26,26,.5);transition:transform .2s,box-shadow .2s}
+.btn-analyze:hover{transform:translateY(-2px);box-shadow:0 10px 32px -6px rgba(139,26,26,.6)}
+.btn-analyze:active{transform:scale(.98)}
+.btn-analyze:disabled{opacity:.5;cursor:wait;transform:none}
+
+/* ── 运算动画 ── */
+.loading-page{display:none;text-align:center;padding:60px 20px}
+.loading-page.show{display:block}
+.bagua-box{position:relative;width:200px;height:200px;margin:0 auto 30px}
+.bagua{width:200px;height:200px;animation:spinSlow 8s linear infinite}
+@keyframes spinSlow{to{transform:rotate(360deg)}}
+.taiji{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:64px;height:64px;
+  animation:spinRev 4s linear infinite}
+@keyframes spinRev{to{transform:translate(-50%,-50%) rotate(-360deg)}}
+.loading-steps{max-width:400px;margin:0 auto;text-align:left}
+.lstep{display:flex;align-items:center;gap:10px;padding:8px 14px;font-size:13px;color:var(--text3);
+  transition:all .3s;border-radius:var(--radius-xs)}
+.lstep.active{color:var(--accent2);background:rgba(234,88,12,.06)}
+.lstep.done{color:var(--emerald)}
+.lstep .dot{width:8px;height:8px;border-radius:50%;background:currentColor;flex-shrink:0}
+.lstep.active .dot{animation:pulseDot 1s ease-in-out infinite}
+@keyframes pulseDot{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.5);opacity:.5}}
+.loading-hint{font-family:var(--serif);font-size:15px;color:var(--text2);margin-top:24px;letter-spacing:2px}
+.loading-hint .cur{color:var(--accent2)}
+
+/* ── 结果页 ── */
+.result-page{display:none}
+.result-page.show{display:block}
+.r-card{background:var(--surface);border-radius:var(--radius);padding:24px;margin-bottom:16px;
+  box-shadow:var(--card-shadow);animation:fadeUp .5s cubic-bezier(.16,1,.3,1) both;color:var(--card-text)}
+.r-title{font-family:var(--serif);font-size:16px;font-weight:700;color:var(--crimson);margin-bottom:14px;
+  display:flex;align-items:center;gap:8px}
+.r-title .rt-line{flex:1;height:1px;background:linear-gradient(90deg,#e5d9c3,transparent)}
+
+/* 四柱盘 */
+.chart-name{font-family:var(--serif);font-size:22px;font-weight:900;text-align:center;letter-spacing:4px;margin-bottom:4px}
+.chart-meta{text-align:center;font-size:12px;color:var(--card-text3);margin-bottom:18px;line-height:1.8}
+.pillars{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.pillar{border:1px solid #e5d9c3;border-radius:var(--radius-sm);text-align:center;padding:14px 6px;background:#fdfbf5;
+  transition:transform .2s}
+.pillar:hover{transform:translateY(-3px)}
+.p-label{font-size:11px;color:var(--card-text3);letter-spacing:2px;margin-bottom:8px}
+.p-gan,.p-zhi{font-family:var(--serif);font-size:34px;font-weight:900;line-height:1.25}
+.p-gan small,.p-zhi small{display:block;font-size:10px;font-weight:400;color:var(--card-text3);font-family:var(--disp)}
+.p-cang{font-size:10px;color:var(--card-text3);margin-top:6px;border-top:1px dashed #e5d9c3;padding-top:6px}
+.p-ss{display:inline-block;font-size:10px;font-weight:700;color:#8b1a1a;background:rgba(139,26,26,.07);
+  border:1px solid rgba(139,26,26,.15);border-radius:10px;padding:1px 8px;margin:3px 0;letter-spacing:1px}
+.p-ss.dm{color:var(--gold);background:rgba(201,162,39,.08);border-color:rgba(201,162,39,.3)}
+.pillar-tg{margin-top:16px;padding-top:14px;border-top:1px dashed #e5d9c3}
+.pillar-tg .tg-cap{font-size:11px;color:var(--card-text3);font-weight:700;letter-spacing:1px;margin-bottom:8px}
+.wx-木{color:var(--wx-wood)}.wx-火{color:var(--wx-fire)}.wx-土{color:var(--wx-earth)}
+.wx-金{color:var(--wx-metal)}.wx-水{color:var(--wx-water)}
+
+/* 五行条 */
+.wx-row{display:flex;align-items:center;gap:10px;margin:7px 0}
+.wx-name{width:86px;font-weight:700;font-size:13px}
+.wx-bar{flex:1;height:14px;background:#f0ead9;border-radius:7px;overflow:hidden}
+.wx-fill{height:100%;border-radius:7px;transition:width 1s cubic-bezier(.16,1,.3,1);width:0}
+.wx-fill.run{width:var(--w)}
+.wx-bg-木{background:#4caf50}.wx-bg-火{background:#e53935}.wx-bg-土{background:#a1887f}
+.wx-bg-金{background:#d4a017}.wx-bg-水{background:#1e88e5}
+.wx-val{width:56px;text-align:right;font-family:var(--mono);font-size:11px;color:var(--card-text3)}
+.wx-mark{font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;margin-left:4px}
+.wx-mark.yong{background:rgba(234,88,12,.12);color:var(--accent)}
+.wx-mark.xi{background:rgba(5,150,105,.1);color:var(--emerald)}
+.wx-mark.ji{background:rgba(225,29,72,.08);color:var(--rose)}
+
+/* 旺衰 */
+.strength-box{display:flex;gap:14px;align-items:stretch;flex-wrap:wrap}
+.strength-level{flex:0 0 150px;background:linear-gradient(135deg,#faf3e0,#f5e9d0);border:1px solid #e0c98f;
+  border-radius:var(--radius-sm);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px}
+.strength-level .lv{font-family:var(--serif);font-size:24px;font-weight:900;color:var(--crimson)}
+.strength-level .sc{font-size:12px;color:var(--card-text3);margin-top:4px}
+.strength-details{flex:1;min-width:240px;display:flex;flex-direction:column;gap:6px}
+.sd-item{font-size:12.5px;color:var(--card-text2);line-height:1.6;padding:8px 12px;background:#faf9f5;border-radius:var(--radius-xs);border-left:3px solid var(--gold)}
+.sd-item b{color:var(--card-text)}
+.sd-item .pts{font-family:var(--mono);color:var(--accent);font-weight:700}
+
+/* 喜用神重点框 */
+.yong-hero{background:linear-gradient(135deg,#2a1206,#3d1c0a);border-radius:var(--radius);padding:26px;margin-bottom:16px;
+  box-shadow:var(--card-shadow-hover);animation:fadeUp .5s cubic-bezier(.16,1,.3,1) both;position:relative;overflow:hidden}
+.yong-hero::before{content:'';position:absolute;top:-40px;right:-40px;width:160px;height:160px;border-radius:50%;
+  background:radial-gradient(circle,rgba(234,88,12,.3),transparent 70%)}
+.yong-hero .yh-title{font-family:var(--serif);font-size:15px;color:#e0c98f;letter-spacing:6px;margin-bottom:16px}
+.yong-grid{display:flex;gap:12px;flex-wrap:wrap}
+.yong-item{flex:1;min-width:110px;background:rgba(255,255,255,.06);border:1px solid rgba(224,201,143,.25);
+  border-radius:var(--radius-sm);padding:14px;text-align:center;backdrop-filter:blur(4px)}
+.yong-item .yl{font-size:11px;color:#b8b8c0;letter-spacing:2px;margin-bottom:6px}
+.yong-item .yv{font-family:var(--serif);font-size:34px;font-weight:900;line-height:1.2}
+.yong-item.yong .yv{color:#ff9a5c}
+.yong-item.xi .yv{color:#7dd8a0}
+.yong-item.ji .yv{color:#f28b9c;font-size:24px;padding-top:6px}
+.yong-reasons{margin-top:16px;font-size:12.5px;color:#d8cfc0;line-height:1.9}
+.yong-reasons li{list-style:none;padding-left:18px;position:relative}
+.yong-reasons li::before{content:'◈';position:absolute;left:0;color:var(--gold)}
+
+/* 日常喜忌 */
+.advice-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.adv-item{background:#faf9f5;border:1px solid #ece4cf;border-radius:var(--radius-sm);padding:12px 14px}
+.adv-item .ak{font-size:11px;color:var(--card-text3);font-weight:700;letter-spacing:1px;margin-bottom:6px}
+.adv-item .av{font-size:13px;line-height:1.6}
+.adv-item .av.good{color:var(--emerald)}
+.adv-item .av.bad{color:var(--rose)}
+.adv-item .av.gold{color:var(--accent)}
+.adv-full{grid-column:1/-1}
+
+/* 重点分析 */
+.focus-block{background:#fbf9f3;border:1px solid #ece4cf;border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:10px}
+.focus-block h4{font-size:15px;color:var(--crimson);margin-bottom:8px;font-family:var(--serif);letter-spacing:1px}
+.focus-block p{font-size:13px;color:var(--card-text2);line-height:1.8}
+.sec-text{font-size:13px;color:var(--card-text2);line-height:1.9;margin:8px 0}
+.sec-quote{background:linear-gradient(135deg,#faf3e0,#f5e9d0);border-left:3px solid var(--gold);
+  padding:10px 14px;margin:10px 0;font-size:13px;color:#5a4a20;line-height:1.8;border-radius:0 var(--radius-xs) var(--radius-xs) 0}
+.sec-list{margin:8px 0 8px 20px;font-size:13px;color:var(--card-text2);line-height:1.9}
+.sec-list li{margin:3px 0}
+.sec-table-wrap{overflow-x:auto;margin:10px 0;border-radius:var(--radius-xs)}
+.sec-table{border-collapse:collapse;width:100%;font-size:12px;min-width:520px}
+.sec-table th{background:var(--crimson);color:#fff;padding:7px 10px;text-align:left;font-weight:600;white-space:nowrap;font-size:12px}
+.sec-table td{border:1px solid #e5d9c3;padding:6px 10px;vertical-align:top;line-height:1.6;color:var(--card-text2)}
+.sec-table tr:nth-child(even) td{background:#fdfbf5}
+.sec-table tr:hover td{background:rgba(234,88,12,.04)}
+
+/* 命书报告 */
+.rp-box{background:var(--surface);border-radius:var(--radius);padding:28px;margin-bottom:16px;
+  box-shadow:var(--card-shadow);animation:fadeUp .5s cubic-bezier(.16,1,.3,1) both;color:var(--card-text)}
+.rp-head{background:linear-gradient(135deg,#faf3e0,#f5e9d0);border:1px solid #e0c98f;border-radius:10px;
+  padding:14px 18px;margin-bottom:18px;font-size:13px;line-height:2;color:#4a3a18}
+.rp-h2{font-family:var(--serif);font-size:17px;color:#8b1a1a;border-left:4px solid #c9a227;padding-left:10px;margin:22px 0 10px;letter-spacing:1px}
+.rp-h3{font-size:14px;color:#a05a1a;margin:14px 0 8px;font-weight:700}
+.rp-h4{font-size:13px;color:#5a4a20;margin:10px 0 6px;font-weight:700}
+.rp-p{font-size:13px;line-height:2;color:#3a3a42;margin:8px 0}
+.rp-strong{font-size:14px;font-weight:600;color:#2b2b33}
+.rp-lines{font-size:13px;line-height:2;color:#3a3a42;background:#fbf9f3;border:1px solid #ece4cf;
+  border-radius:8px;padding:10px 14px;margin:8px 0}
+.rp-quote{background:#f3ecdb;border-left:3px solid #c9a227;padding:10px 14px;margin:10px 0;
+  font-size:13px;color:#5a4a20;line-height:1.9;border-radius:0 8px 8px 0}
+.rp-note{font-size:12px;color:#8b6914;margin:6px 0}
+.rp-sub{font-size:11px;color:#999}
+.rp-table{border-collapse:collapse;width:100%;margin:10px 0;font-size:12px}
+.rp-table th{background:#8b1a1a;color:#fff;padding:6px 8px;border:1px solid #6e1414;font-weight:600;text-align:left;white-space:nowrap}
+.rp-table td{border:1px solid #e5d9c3;padding:6px 8px;vertical-align:top;line-height:1.7;color:#3a3a42}
+.rp-table tr:nth-child(even) td{background:#fdfbf5}
+.rp-role{font-weight:700;padding:1px 8px;border-radius:10px;font-size:11px}
+.rp-role-yong{background:rgba(234,88,12,.12);color:#c2410c}
+.rp-role-xi{background:rgba(5,150,105,.1);color:#047857}
+.rp-role-ji{background:rgba(225,29,72,.08);color:#be123c}
+.rp-role-xian{background:rgba(0,0,0,.05);color:#888}
+.rp-ol,.rp-check{margin:6px 0 6px 20px;font-size:13px;line-height:2;color:#3a3a42}
+.rp-check li{list-style:none;position:relative}
+.rp-check li::before{content:'[ ] ';font-family:monospace;color:#c9a227}
+.rp-footer{margin-top:24px;text-align:center;color:#bbb;font-size:10px;letter-spacing:1px}
+.rp-loading{display:flex;align-items:center;gap:14px;padding:24px;background:var(--surface);
+  border-radius:var(--radius);margin-bottom:16px;color:var(--card-text2);font-size:13px;box-shadow:var(--card-shadow)}
+.rp-loading .spinner{width:22px;height:22px;border:2px solid rgba(139,26,26,.15);border-top-color:var(--crimson);
+  border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0}
+
+/* 命书撰写进度弹窗 */
+.rp-modal{position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(10px);z-index:60;
+  display:none;align-items:center;justify-content:center}
+.rp-modal.show{display:flex}
+.rp-modal-box{width:min(460px,90vw);background:var(--surface);border-radius:20px;padding:32px 28px 26px;
+  box-shadow:0 30px 90px -10px rgba(0,0,0,.6);text-align:center;animation:pop .3s cubic-bezier(.16,1,.3,1);color:var(--card-text)}
+@keyframes pop{from{opacity:0;transform:scale(.92) translateY(14px)}}
+.rp-modal-icon{font-size:44px;margin-bottom:12px}
+.rp-modal-icon.writing{animation:brushFloat 2.2s ease-in-out infinite;display:inline-block}
+@keyframes brushFloat{0%,100%{transform:translateY(0) rotate(-6deg)}50%{transform:translateY(-8px) rotate(6deg)}}
+.rp-modal-title{font-family:var(--serif);font-size:19px;font-weight:900;letter-spacing:2px;margin-bottom:6px;color:var(--crimson)}
+.rp-modal-sub{font-size:12px;color:var(--card-text3);margin-bottom:20px}
+.rp-progress-wrap{height:6px;background:#f0ead9;border-radius:3px;overflow:hidden;margin-bottom:16px}
+.rp-progress{height:100%;width:0%;background:linear-gradient(90deg,var(--crimson),var(--gold));border-radius:3px;
+  transition:width 1.2s linear}
+.rp-steps{text-align:left;margin:0 auto 18px;max-width:320px}
+.rp-step{display:flex;align-items:center;gap:10px;padding:6px 8px;font-size:12.5px;color:var(--card-text3);
+  border-radius:var(--radius-xs);transition:all .3s}
+.rp-step.active{color:var(--accent);background:rgba(234,88,12,.05);font-weight:600}
+.rp-step.done{color:var(--emerald)}
+.rp-step .sdot{width:8px;height:8px;border-radius:50%;background:currentColor;flex-shrink:0}
+.rp-step.active .sdot{animation:pulseDot 1s ease-in-out infinite}
+.rp-modal-eta{font-family:var(--mono);font-size:11px;color:var(--card-text3);margin-bottom:16px}
+.rp-modal-btn{font-size:14px;font-weight:700;padding:12px 36px;border:none;border-radius:50px;cursor:pointer;
+  background:linear-gradient(135deg,var(--crimson),#a63030);color:#fff;font-family:var(--serif);letter-spacing:2px;
+  box-shadow:0 4px 16px -4px rgba(139,26,26,.4);transition:transform .15s;display:none}
+.rp-modal-btn.show{display:inline-block}
+.rp-modal-btn:hover{transform:translateY(-2px)}
+.rp-modal-close{margin-top:10px;font-size:11px;color:var(--card-text3);cursor:pointer;display:none}
+.rp-modal-close.show{display:block}
+.rp-modal-close:hover{color:var(--card-text2)}
+.rp-modal-tip{font-size:11px;color:var(--card-text3);margin-top:12px}
+.btn-report{background:linear-gradient(135deg,#8b1a1a,#c9a227);color:#fff;box-shadow:0 4px 16px -4px rgba(201,162,39,.4)}
+.act-btn.simple{background:linear-gradient(135deg,#047857,#059669);color:#fff;box-shadow:0 4px 16px -4px rgba(5,150,105,.4)}
+.simple-head{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.simple-head .sh-title{font-family:var(--serif);font-size:16px;color:#047857;letter-spacing:2px;font-weight:900}
+.simple-head .sh-hint{font-size:11px;color:var(--card-text3)}
+.simple-head .sh-close{margin-left:auto;font-size:12px;color:var(--card-text3);cursor:pointer;padding:4px 12px;
+  border:1px solid #e7e5e4;border-radius:50px;transition:all .15s}
+.simple-head .sh-close:hover{color:var(--crimson);border-color:var(--crimson)}
+
+/* 大运 */
+.dayun-scroll{overflow-x:auto;padding-bottom:6px}
+.dayun-row{display:flex;gap:8px;min-width:min-content}
+.dy-item{flex:0 0 78px;border:1px solid #e5d9c3;border-radius:var(--radius-xs);text-align:center;padding:10px 4px;background:#fdfbf5}
+.dy-item.cur{border-color:var(--accent);background:rgba(234,88,12,.05);box-shadow:0 2px 10px -2px rgba(234,88,12,.3)}
+.dy-gz{font-family:var(--serif);font-size:20px;font-weight:800}
+.dy-age{font-size:10px;color:var(--card-text3);margin-top:3px}
+.dy-yr{font-size:9px;color:var(--card-text3)}
+.dy-cur-tag{font-size:9px;color:var(--accent);font-weight:700;margin-top:2px}
+
+/* 十神 */
+.tg-grid{display:flex;flex-wrap:wrap;gap:8px}
+.tg-chip{padding:6px 12px;border-radius:50px;font-size:12px;font-weight:600;background:#faf9f5;border:1px solid #ece4cf;color:var(--card-text2)}
+.tg-chip b{color:var(--accent);font-family:var(--mono)}
+
+/* 按钮行 */
+.action-row{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.act-btn{font-size:14px;font-weight:700;padding:12px 24px;border-radius:var(--radius-sm);cursor:pointer;border:none;
+  transition:transform .15s,box-shadow .15s;font-family:var(--disp);display:flex;align-items:center;gap:8px}
+.act-btn:hover{transform:translateY(-2px)}
+.act-btn.pdf{background:linear-gradient(135deg,var(--crimson),#a63030);color:#fff;box-shadow:0 4px 16px -4px rgba(139,26,26,.5)}
+.act-btn.html{background:var(--dark-surface);color:var(--text);border:1px solid var(--dark-border2)}
+.act-btn.again{background:var(--dark-surface);color:var(--text2);border:1px solid var(--dark-border2)}
+.act-btn:disabled{opacity:.5;cursor:wait;transform:none}
+
+/* 历史记录 */
+.hist-list{display:flex;flex-direction:column;gap:10px}
+.hist-item{display:flex;align-items:center;gap:14px;padding:16px 18px;background:var(--surface);border-radius:var(--radius);
+  box-shadow:var(--card-shadow);cursor:pointer;transition:transform .2s,box-shadow .2s;animation:fadeUp .4s cubic-bezier(.16,1,.3,1) both}
+.hist-item:hover{transform:translateY(-3px);box-shadow:var(--card-shadow-hover)}
+.hist-name{font-size:16px;font-weight:700;color:var(--card-text)}
+.hist-info{font-size:12px;color:var(--card-text3);margin-top:2px}
+.hist-time{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--card-text3);text-align:right}
+.hist-del{width:30px;height:30px;border-radius:50%;border:1px solid #e7e5e4;background:transparent;color:var(--card-text3);
+  cursor:pointer;font-size:13px;transition:all .15s;flex-shrink:0}
+.hist-del:hover{color:var(--rose);border-color:var(--rose);background:rgba(225,29,72,.06)}
+.hist-edit{width:30px;height:30px;border-radius:50%;border:1px solid #e7e5e4;background:transparent;color:var(--card-text3);
+  cursor:pointer;font-size:13px;transition:all .15s;flex-shrink:0;margin-right:6px}
+.hist-edit:hover{color:var(--accent);border-color:var(--accent);background:rgba(234,88,12,.06)}
+.empty-hist{text-align:center;padding:60px 20px;color:var(--text3)}
+.empty-hist .big{font-size:44px;opacity:.3;margin-bottom:12px}
+
+/* 关键词管理 */
+.kw-admin{background:var(--surface);border-radius:var(--radius);padding:24px;box-shadow:var(--card-shadow);color:var(--card-text)}
+.kw-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #ece4cf;border-radius:var(--radius-xs);margin-bottom:8px;background:#fdfbf5}
+.kw-row input{flex:1;border:1px solid #e7e5e4;border-radius:6px;padding:8px 10px;font-size:13px;font-family:var(--disp);background:#fff;color:var(--card-text)}
+.kw-row .kw-del{width:28px;height:28px;border-radius:50%;border:1px solid #e7e5e4;background:transparent;color:var(--card-text3);cursor:pointer;flex-shrink:0}
+.kw-row .kw-del:hover{color:var(--rose);border-color:var(--rose)}
+.kw-add{font-size:13px;font-weight:600;padding:9px 18px;border:1px dashed var(--accent);border-radius:50px;background:transparent;color:var(--accent);cursor:pointer;margin-right:8px}
+.kw-save{font-size:13px;font-weight:700;padding:9px 22px;border:none;border-radius:50px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;cursor:pointer}
+
+.toast{position:fixed;top:24px;left:50%;transform:translateX(-50%) translateY(-90px);z-index:99;
+  background:var(--surface);color:var(--card-text);border:1px solid rgba(0,0,0,.08);
+  padding:12px 28px;border-radius:50px;font-size:13px;font-weight:600;
+  box-shadow:var(--card-shadow-hover);transition:transform .3s cubic-bezier(.16,1,.3,1);pointer-events:none}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.err-box{background:rgba(225,29,72,.08);border:1px solid rgba(225,29,72,.25);border-radius:var(--radius-sm);
+  padding:13px 18px;color:#fb7185;font-size:13px;margin-bottom:14px;display:none}
+
+@media(max-width:768px){
+  .form-grid{grid-template-columns:1fr}
+  .advice-grid{grid-template-columns:1fr}
+  .p-gan,.p-zhi{font-size:26px}
+  .yong-item .yv{font-size:26px}
+  .wrap{padding:0 14px 48px}
+}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+<div class="glow glow-1"></div>
+<div class="glow glow-2"></div>
+
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="stamp">☯</div>
+      <div>
+        <h1>八字分析</h1>
+        <div class="tag">Bazi Destiny Analysis</div>
+      </div>
+    </div>
+    <a href="/" class="back-btn">← 返回门户</a>
+  </header>
+
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('form')">🧮 排盘分析</button>
+    <button class="nav-tab" onclick="showPage('history')">📚 历史记录</button>
+    <button class="nav-tab" onclick="showPage('admin')">⚙️ 关键词设置</button>
+  </div>
+
+  <!-- ═══ 表单页 ═══ -->
+  <div id="page-form">
+    <div class="err-box" id="errBox"></div>
+    <div class="form-card">
+      <div class="form-title">命主信息</div>
+      <div class="form-sub">请填写出生信息，时辰精确到分钟更佳（用于真太阳时校正）</div>
+      <div id="formModeHint" style="display:none;background:rgba(234,88,12,.08);border:1px solid rgba(234,88,12,.25);border-radius:var(--radius-xs);padding:10px 14px;margin-bottom:16px;font-size:12.5px;color:var(--accent)">✎ 正在编辑已有记录——修改生日/时辰/地点等信息后点击「重新排盘分析」，原记录将被更新并重新撰写命书</div>
+      <div class="form-grid">
+        <div class="f-item">
+          <label class="f-label">姓名 <em>*</em></label>
+          <input class="f-input" id="fName" placeholder="命主姓名" maxlength="20">
+        </div>
+        <div class="f-item">
+          <label class="f-label">性别 <em>*</em></label>
+          <div class="gender-toggle">
+            <button class="g-btn active" id="gMale" onclick="setGender('男')">乾造 · 男</button>
+            <button class="g-btn" id="gFemale" onclick="setGender('女')">坤造 · 女</button>
+          </div>
+        </div>
+        <div class="f-item full">
+          <label class="f-label">历法</label>
+          <div class="cal-toggle">
+            <button class="cal-btn active" id="calSolar" onclick="setCalendar('solar')">☀ 公历</button>
+            <button class="cal-btn" id="calLunar" onclick="setCalendar('lunar')">🌙 农历</button>
+          </div>
+        </div>
+        <div class="f-item full">
+          <label class="f-label">出生日期 <em>*</em></label>
+          <div class="date-row">
+            <select class="f-select" id="fYear"></select>
+            <select class="f-select" id="fMonth"></select>
+            <select class="f-select" id="fDay"></select>
+            <span class="leap-row" id="leapRow" style="display:none">
+              <input type="checkbox" id="fLeap" onchange="refreshLunarDays()"><label for="fLeap">闰月</label>
+            </span>
+          </div>
+        </div>
+        <div class="f-item">
+          <label class="f-label">出生时辰 <em>*</em></label>
+          <div class="date-row">
+            <select class="f-select" id="fHour"></select>
+            <select class="f-select" id="fMinute"></select>
+          </div>
+        </div>
+        <div class="f-item">
+          <label class="f-label">出生地点 <em>*</em></label>
+          <div class="date-row">
+            <select class="f-select" id="fProvince" onchange="onProvince()"></select>
+            <select class="f-select" id="fCity"></select>
+          </div>
+        </div>
+        <div class="f-item full">
+          <label class="f-label">重点分析项 <span style="font-weight:400;color:var(--card-text3)">（可多选，全部不选则只做全盘基础分析）</span></label>
+          <div class="focus-tags" id="focusTags"></div>
+        </div>
+        <div class="f-item full">
+          <label class="f-label">命书版本 <em>*</em></label>
+          <div class="ver-toggle">
+            <button class="ver-btn active" id="verFull" onclick="setBookVersion('full')">
+              <span class="vb-icon">📜</span>
+              <span class="vb-txt"><b>详细版</b><small>全盘章节+流年流月表格+专章深批（约2-3分钟）</small></span>
+            </button>
+            <button class="ver-btn" id="verSimple" onclick="setBookVersion('simple')">
+              <span class="vb-icon">⚡</span>
+              <span class="vb-txt"><b>简化版</b><small>只出结论·近三年+大运走势+重点项专项（约1分钟）</small></span>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="submit-row">
+        <button class="btn-analyze" id="btnAnalyze" onclick="doAnalyze()">☯ 开始排盘</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 运算动画页 ═══ -->
+  <div class="loading-page" id="page-loading">
+    <div class="bagua-box">
+      <svg class="bagua" viewBox="0 0 200 200">
+        <g fill="none" stroke="#c9a227" stroke-width="2" opacity=".7">
+          <circle cx="100" cy="100" r="95"/>
+          <circle cx="100" cy="100" r="78"/>
+          <circle cx="100" cy="100" r="48"/>
+        </g>
+        <g stroke="#ea580c" stroke-width="5" stroke-linecap="round">
+          <g transform="rotate(0 100 100)"><line x1="100" y1="12" x2="100" y2="26"/><line x1="88" y1="12" x2="88" y2="26"/><line x1="112" y1="12" x2="112" y2="26"/></g>
+          <g transform="rotate(45 100 100)"><line x1="100" y1="12" x2="100" y2="26"/><line x1="88" y1="12" x2="88" y2="19"/><line x1="88" y1="21" x2="88" y2="26"/><line x1="112" y1="12" x2="112" y2="26"/></g>
+          <g transform="rotate(90 100 100)"><line x1="100" y1="12" x2="100" y2="19"/><line x1="100" y1="21" x2="100" y2="26"/><line x1="88" y1="12" x2="88" y2="26"/><line x1="112" y1="12" x2="112" y2="26"/></g>
+          <g transform="rotate(135 100 100)"><line x1="100" y1="12" x2="100" y2="19"/><line x1="100" y1="21" x2="100" y2="26"/><line x1="88" y1="12" x2="88" y2="19"/><line x1="88" y1="21" x2="88" y2="26"/><line x1="112" y1="12" x2="112" y2="26"/></g>
+          <g transform="rotate(180 100 100)"><line x1="100" y1="12" x2="100" y2="19"/><line x1="100" y1="21" x2="100" y2="26"/><line x1="88" y1="12" x2="88" y2="19"/><line x1="88" y1="21" x2="88" y2="26"/><line x1="112" y1="12" x2="112" y2="19"/><line x1="112" y1="21" x2="112" y2="26"/></g>
+          <g transform="rotate(225 100 100)"><line x1="100" y1="12" x2="100" y2="26"/><line x1="88" y1="12" x2="88" y2="19"/><line x1="88" y1="21" x2="88" y2="26"/><line x1="112" y1="12" x2="112" y2="19"/><line x1="112" y1="21" x2="112" y2="26"/></g>
+          <g transform="rotate(270 100 100)"><line x1="100" y1="12" x2="100" y2="26"/><line x1="88" y1="12" x2="88" y2="19"/><line x1="88" y1="21" x2="88" y2="26"/><line x1="112" y1="12" x2="112" y2="26"/></g>
+          <g transform="rotate(315 100 100)"><line x1="100" y1="12" x2="100" y2="26"/><line x1="88" y1="12" x2="88" y2="26"/><line x1="112" y1="12" x2="112" y2="26"/></g>
+        </g>
+      </svg>
+      <svg class="taiji" viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="48" fill="#fff" stroke="#c9a227" stroke-width="2"/>
+        <path d="M50 2 A48 48 0 0 1 50 98 A24 24 0 0 1 50 50 A24 24 0 0 0 50 2" fill="#1c1917"/>
+        <circle cx="50" cy="26" r="6" fill="#fff"/>
+        <circle cx="50" cy="74" r="6" fill="#1c1917"/>
+      </svg>
+    </div>
+    <div class="loading-steps" id="loadSteps">
+      <div class="lstep" id="ls1"><span class="dot"></span>校正真太阳时，定位节气…</div>
+      <div class="lstep" id="ls2"><span class="dot"></span>排四柱，定日主…</div>
+      <div class="lstep" id="ls3"><span class="dot"></span>衡旺衰，辨强弱…</div>
+      <div class="lstep" id="ls4"><span class="dot"></span>取用神，明喜忌…</div>
+      <div class="lstep" id="ls5"><span class="dot"></span>推大运，批流年…</div>
+    </div>
+    <div class="loading-hint" id="loadHint"></div>
+  </div>
+
+  <!-- ═══ 结果页 ═══ -->
+  <div class="result-page" id="page-result"></div>
+
+  <!-- ═══ 历史记录页 ═══ -->
+  <div id="page-history" style="display:none">
+    <div class="hist-list" id="histList"></div>
+  </div>
+
+  <!-- ═══ 关键词设置页 ═══ -->
+  <div id="page-admin" style="display:none">
+    <div class="kw-admin">
+      <div class="form-title">重点分析关键词</div>
+      <div class="form-sub">配置表单中可选的重点分析项（名称+说明），保存在服务器</div>
+      <div id="kwAdminList"></div>
+      <div style="margin-top:14px">
+        <button class="kw-add" onclick="kwAddRow()">＋ 添加关键词</button>
+        <button class="kw-save" onclick="kwSave()">保存设置</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="rp-modal" id="rpModal">
+  <div class="rp-modal-box">
+    <div class="rp-modal-icon writing" id="rpIcon">🖋</div>
+    <div class="rp-modal-title" id="rpTitle">命书撰写中</div>
+    <div class="rp-modal-sub" id="rpSub">正在为您批算命盘，请稍候</div>
+    <div class="rp-progress-wrap"><div class="rp-progress" id="rpProgress"></div></div>
+    <div class="rp-steps" id="rpSteps">
+      <div class="rp-step" id="rps1"><span class="sdot"></span>审阅命盘，理清旺衰喜忌</div>
+      <div class="rp-step" id="rps2"><span class="sdot"></span>批断性情格局，洞察一生主线</div>
+      <div class="rp-step" id="rps3"><span class="sdot"></span>推演大运流年，细批事业婚姻</div>
+      <div class="rp-step" id="rps4"><span class="sdot"></span>斟酌字句，落笔成文</div>
+    </div>
+    <div class="rp-modal-eta" id="rpEta">预计需要 2-3 分钟…</div>
+    <button class="rp-modal-btn" id="rpOkBtn" onclick="rpModalDone()">查看命书 →</button>
+    <div class="rp-modal-close" id="rpCloseBtn" onclick="rpModalDone()">关闭</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var GENDER='男',CALENDAR='solar',FOCUS=[],CITIES=[],PROVINCES=[],FOCUS_KWS=[],CUR_RESULT=null,BOOK_VERSION='full';
+function setBookVersion(v){BOOK_VERSION=v;$('verFull').classList.toggle('active',v==='full');$('verSimple').classList.toggle('active',v==='simple')}
+var WX_CLASS={'木':'wood','火':'fire','土':'earth','金':'metal','水':'water'};
+var SHICHEN=['子时(23-1点)','丑时(1-3点)','寅时(3-5点)','卯时(5-7点)','辰时(7-9点)','巳时(9-11点)',
+  '午时(11-13点)','未时(13-15点)','申时(15-17点)','酉时(17-19点)','戌时(19-21点)','亥时(21-23点)'];
+var LOADING_HINTS=['天干地支，六十甲子轮回…','阴阳五行，生生克制化…','得令得地得势，细辨旺衰…',
+  '调候扶抑病药通关，五法取用…','命由天定，运由己造…'];
+
+function $(id){return document.getElementById(id)}
+function esc(s){if(s==null)return'';var d=document.createElement('div');d.textContent=String(s);return d.innerHTML}
+function api(path,body){
+  return new Promise(function(resolve,reject){
+    var x=new XMLHttpRequest();x.open('POST',path,true);x.setRequestHeader('Content-Type','application/json');
+    x.onload=function(){try{resolve(JSON.parse(x.responseText))}catch(e){reject(e)}};
+    x.onerror=function(){reject(new Error('网络错误'))};
+    x.send(JSON.stringify(body||{}));
+  });
+}
+function toast(msg){var t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(function(){t.classList.remove('show')},2800)}
+function showErr(msg){var e=$('errBox');e.style.display='block';e.textContent='⚠️ '+msg}
+function hideErr(){$('errBox').style.display='none'}
+
+function showPage(p){
+  ['form','loading','result','history','admin'].forEach(function(n){
+    var el=$('page-'+n);if(!el)return;
+    if(n==='loading'){el.classList.toggle('show',p==='loading')}
+    else if(n==='result'){el.classList.toggle('show',p==='result')}
+    else{el.style.display=(n===p)?'block':'none'}
+  });
+  document.querySelectorAll('.nav-tab').forEach(function(t,i){
+    var map={0:'form',1:'history',2:'admin'};
+    t.classList.toggle('active',map[i]===p||(p==='loading'||p==='result')&&i===0&&p!=='history'&&p!=='admin'&&map[i]==='form'&&(p==='form'||p==='loading'||p==='result'));
+  });
+  if(p==='history')loadHistory();
+  if(p==='admin')loadAdminKw();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function setGender(g){GENDER=g;$('gMale').classList.toggle('active',g==='男');$('gFemale').classList.toggle('active',g==='女')}
+function setCalendar(c){
+  CALENDAR=c;
+  $('calSolar').classList.toggle('active',c==='solar');
+  $('calLunar').classList.toggle('active',c==='lunar');
+  $('leapRow').style.display=c==='lunar'?'flex':'none';
+  fillMonths();fillDays();
+}
+
+function fillYears(){
+  var s=$('fYear'),now=new Date().getFullYear(),html='';
+  for(var y=now;y>=1920;y--)html+='<option value="'+y+'"'+(y===1990?' selected':'')+'>'+y+'年</option>';
+  s.innerHTML=html;
+  s.onchange=function(){if(CALENDAR==='lunar')refreshLunarDays()};
+}
+function fillMonths(){
+  var s=$('fMonth'),html='';
+  if(CALENDAR==='solar'){for(var m=1;m<=12;m++)html+='<option value="'+m+'"'+(m===5?' selected':'')+'>'+m+'月</option>'}
+  else{
+    var names=['正月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','腊月'];
+    for(var m=1;m<=12;m++)html+='<option value="'+m+'"'+(m===4?' selected':'')+'>'+names[m-1]+'</option>';
+  }
+  s.innerHTML=html;
+  s.onchange=function(){if(CALENDAR==='lunar')refreshLunarDays()};
+}
+function fillDays(max){
+  var s=$('fDay'),html='',n=max||(CALENDAR==='solar'?31:30);
+  var names30=['初一','初二','初三','初四','初五','初六','初七','初八','初九','初十','十一','十二','十三','十四','十五','十六','十七','十八','十九','二十','廿一','廿二','廿三','廿四','廿五','廿六','廿七','廿八','廿九','三十'];
+  for(var d=1;d<=n;d++){
+    var label=CALENDAR==='solar'?(d+'日'):names30[d-1];
+    html+='<option value="'+d+'"'+(CALENDAR==='solar'&&d===15?' selected':'')+(CALENDAR==='lunar'&&d===21?' selected':'')+'>'+label+'</option>';
+  }
+  s.innerHTML=html;
+}
+function refreshLunarDays(){
+  if(CALENDAR!=='lunar')return;
+  var y=+$('fYear').value,m=+$('fMonth').value,leap=$('fLeap').checked;
+  api('/api/bazi/lunar-days',{year:y,month:m,is_leap:leap}).then(function(r){
+    if(r.ok){fillDays(r.days);if(!r.has_leap)$('fLeap').checked=false}
+  }).catch(function(){});
+}
+function fillHours(){
+  var s=$('fHour'),html='';
+  for(var h=0;h<24;h++)html+='<option value="'+h+'"'+(h===8?' selected':'')+'>'+h+'点</option>';
+  s.innerHTML=html;
+  var sm=$('fMinute'),mhtml='';
+  for(var m=0;m<60;m++)mhtml+='<option value="'+m+'"'+(m===30?' selected':'')+'>'+(m<10?'0':'')+m+'分</option>';
+  sm.innerHTML=mhtml;
+}
+
+function onProvince(){
+  var p=$('fProvince').value,s=$('fCity'),html='';
+  var prov=PROVINCES.filter(function(x){return x.province===p})[0];
+  if(prov)prov.cities.forEach(function(c){html+='<option value="'+esc(c)+'">'+esc(c)+'</option>'});
+  s.innerHTML=html;
+  // 默认选东莞所在省广东时选东莞
+  if(p==='广东'){s.value='东莞'}
+}
+
+function loadCities(){
+  api('/api/bazi/cities',{}).then(function(r){
+    if(r.ok){
+      PROVINCES=r.provinces;
+      var html='';
+      PROVINCES.forEach(function(p,i){html+='<option value="'+esc(p.province)+'"'+(p.province==='广东'?' selected':'')+'>'+esc(p.province)+'</option>'});
+      $('fProvince').innerHTML=html;
+      onProvince();
+    }
+  }).catch(function(){toast('城市数据加载失败')});
+}
+
+function loadFocusKw(){
+  api('/api/bazi/focus-keywords',{}).then(function(r){
+    if(r.ok){
+      FOCUS_KWS=r.keywords;
+      renderFocusTags();
+    }
+  }).catch(function(){});
+}
+function renderFocusTags(){
+  var el=$('focusTags');
+  el.innerHTML='<span class="focus-all" onclick="toggleAllFocus()">全选/反选</span>';
+  FOCUS_KWS.forEach(function(k){
+    var on=FOCUS.indexOf(k.id)>=0;
+    var tag=document.createElement('span');
+    tag.className='focus-tag'+(on?' on':'');
+    tag.innerHTML='<span>'+esc(k.name)+'</span><span class="fd">'+esc(k.desc||'')+'</span>';
+    tag.onclick=function(){
+      var i=FOCUS.indexOf(k.id);
+      if(i>=0)FOCUS.splice(i,1);else FOCUS.push(k.id);
+      tag.classList.toggle('on');
+    };
+    el.appendChild(tag);
+  });
+}
+function toggleAllFocus(){
+  if(FOCUS.length===FOCUS_KWS.length)FOCUS=[];
+  else FOCUS=FOCUS_KWS.map(function(k){return k.id});
+  renderFocusTags();
+}
+
+// ── 分析 ──
+var hintTimer=null;
+function doAnalyze(){
+  hideErr();
+  var name=$('fName').value.trim();
+  if(!name){showErr('请填写姓名');return}
+  var data={
+    name:name,gender:GENDER,calendar:CALENDAR,
+    year:+$('fYear').value,month:+$('fMonth').value,day:+$('fDay').value,
+    hour:+$('fHour').value,minute:+$('fMinute').value,
+    city:$('fCity').value,lunar_leap:$('fLeap').checked,focus:FOCUS.slice(),version:BOOK_VERSION
+  };
+  if(EDITING_ID)data.update_id=EDITING_ID;
+  // 显示动画
+  showPage('loading');
+  var step=0;
+  ['ls1','ls2','ls3','ls4','ls5'].forEach(function(id){$(id).className='lstep'});
+  $('ls1').classList.add('active');
+  var stepTimer=setInterval(function(){
+    $('ls'+step).classList.remove('active');
+    if(step>=1)$('ls'+step).classList.add('done');
+    step++;
+    if(step<=5){$('ls'+step).classList.add('active')}else{clearInterval(stepTimer)}
+  },1400);
+  var hi=0;
+  $('loadHint').innerHTML='';
+  hintTimer=setInterval(function(){
+    $('loadHint').innerHTML='<span class="cur">'+LOADING_HINTS[hi%LOADING_HINTS.length]+'</span>';
+    hi++;
+  },1600);
+
+  api('/api/bazi/analyze',data).then(function(r){
+    clearInterval(stepTimer);clearInterval(hintTimer);
+    if(r.ok){CUR_RESULT=r;renderResult(r);showPage('result');
+      if(EDITING_ID){EDITING_ID=null;$('btnAnalyze').textContent='☯ 开始排盘';$('formModeHint').style.display='none';toast('记录已更新')}
+      if(BOOK_VERSION==='simple')loadSimple(false);else loadReport(false);
+    }
+    else{showErr(r.error||'分析失败');showPage('form')}
+  }).catch(function(e){
+    clearInterval(stepTimer);clearInterval(hintTimer);
+    showErr('请求失败: '+e.message);showPage('form');
+  });
+}
+
+function wxSpan(ch){return '<span class="wx-'+ch+'">'+ch+'</span>'}
+
+// 十神推算（日主天干 vs 他干）
+var TG_WX={'甲':'木','乙':'木','丙':'火','丁':'火','戊':'土','己':'土','庚':'金','辛':'金','壬':'水','癸':'水'};
+var TG_YY={'甲':'阳','乙':'阴','丙':'阳','丁':'阴','戊':'阳','己':'阴','庚':'阳','辛':'阴','壬':'阳','癸':'阴'};
+var WX_SHENG={'木':'火','火':'土','土':'金','金':'水','水':'木'};
+var WX_SHENGWO={'火':'木','土':'火','金':'土','水':'金','木':'水'};
+var WX_KE={'木':'土','土':'水','水':'火','火':'金','金':'木'};
+var WX_KEWO={'土':'木','水':'土','火':'水','金':'火','木':'金'};
+function tgOf(dayMaster,dayGan,otherGan){
+  var dg=dayGan||dayMaster.charAt(0);
+  var dwx=TG_WX[dg],dyy=TG_YY[dg],owx=TG_WX[otherGan],oyy=TG_YY[otherGan];
+  if(!dwx||!owx)return '';
+  var same=(dyy===oyy);
+  if(owx===dwx)return same?'比肩':'劫财';
+  if(WX_SHENGWO[dwx]===owx)return same?'偏印':'正印';
+  if(WX_SHENG[dwx]===owx)return same?'食神':'伤官';
+  if(WX_KE[dwx]===owx)return same?'偏财':'正财';
+  if(WX_KEWO[dwx]===owx)return same?'七杀':'正官';
+  return '';
+}
+
+function renderSection(s){
+  if(s.type==='text')return '<p class="sec-text">'+esc(s.content)+'</p>';
+  if(s.type==='quote')return '<div class="sec-quote">'+esc(s.content)+'</div>';
+  if(s.type==='list')return '<ul class="sec-list">'+s.items.map(function(it){return '<li>'+esc(it)+'</li>'}).join('')+'</ul>';
+  if(s.type==='table'){
+    var h='<div class="sec-table-wrap"><table class="sec-table"><tr>';
+    s.headers.forEach(function(x){h+='<th>'+esc(x)+'</th>'});
+    h+='</tr>';
+    s.rows.forEach(function(row){
+      h+='<tr>';
+      row.forEach(function(cell){h+='<td>'+esc(cell)+'</td>'});
+      h+='</tr>';
+    });
+    return h+'</table></div>';
+  }
+  return '';
+}
+
+function renderResult(r){
+  var el=$('page-result');
+  var p=r.pillars,ys=r.yongshen,st=r.strength,adv=r.advice;
+  var html='';
+
+  // 操作按钮
+  html+='<div class="action-row">';
+  html+='<button class="act-btn pdf" id="btnPdf" onclick="genPdf()">📄 命书PDF下载</button>';
+  html+='<button class="act-btn html" onclick="viewHtml()">🌐 命书网页版</button>';
+  html+='<button class="act-btn simple" onclick="toggleSimple()">⚡ 简化版</button>';
+  html+='<button class="act-btn btn-report" onclick="rewriteBook()">🖋 修改信息重新撰写</button>';
+  html+='<button class="act-btn again" onclick="showPage(\'form\')">🔁 再测一人</button>';
+  html+='</div>';
+
+  // 四柱
+  html+='<div class="r-card">';
+  html+='<div class="chart-name">'+esc(r.name)+' · '+(r.gender==='男'?'乾造':'坤造')+'</div>';
+  html+='<div class="chart-meta">公历 '+esc(r.birth_solar)+'　|　农历 '+esc(r.birth_lunar)+'<br>出生地：'+esc(r.city)+'（真太阳时校正）　|　日主：<b>'+esc(r.day_master)+'</b></div>';
+  // 十神查表（来自 r.ten_gods.items）
+  var tgMap={};
+  if(r.ten_gods&&r.ten_gods.items){
+    r.ten_gods.items.forEach(function(it){tgMap[it.pos]=it.shishen});
+  }
+  var POS_CN={year:'年',month:'月',day:'日',hour:'时'};
+  var CANG={'子':['癸'],'丑':['己','癸','辛'],'寅':['甲','丙','戊'],'卯':['乙'],
+    '辰':['戊','乙','癸'],'巳':['丙','戊','庚'],'午':['丁','己'],
+    '未':['己','丁','乙'],'申':['庚','壬','戊'],'酉':['辛'],
+    '戌':['戊','辛','丁'],'亥':['壬','甲']};
+  html+='<div class="pillars">';
+  [['year','年柱'],['month','月柱'],['day','日柱'],['hour','时柱']].forEach(function(pair){
+    var gz=p[pair[0]],g=gz[0],z=gz[1];
+    var cn=POS_CN[pair[0]];
+    var ganSS=pair[0]==='day'?'日主':(tgMap[cn+'干']||'');
+    var zhiSS=tgMap[cn+'支']||'';
+    html+='<div class="pillar"><div class="p-label">'+pair[1]+'</div>';
+    if(ganSS)html+='<div><span class="p-ss'+(pair[0]==='day'?' dm':'')+'">'+esc(ganSS)+'</span></div>';
+    html+='<div class="p-gan wx-'+g+'" style="color:var(--wx-'+WX_CLASS[wxCn(g)]+')">'+g+'<small>'+wxName(g)+'</small></div>';
+    html+='<div class="p-zhi" style="color:var(--wx-'+WX_CLASS[wxCn(z)]+')">'+z+'<small>'+wxName(z)+'</small></div>';
+    if(zhiSS)html+='<div><span class="p-ss">'+esc(zhiSS)+'</span></div>';
+    var cangList=(CANG[z]||[]).map(function(cg){
+      var ss=(cg===g&&pair[0]==='day')?'日主':tgOf(r.day_master,g,cg);
+      return cg+'('+ss+')';
+    });
+    html+='<div class="p-cang">藏 '+cangList.join('、')+'</div>';
+    html+='</div>';
+  });
+  html+='</div>';
+  // 十神分布（并入八字展示卡底部）
+  if(r.ten_gods&&r.ten_gods.stats){
+    html+='<div class="pillar-tg"><div class="tg-cap">十神分布</div><div class="tg-grid">';
+    Object.keys(r.ten_gods.stats).forEach(function(k){
+      html+='<span class="tg-chip">'+esc(k)+' <b>×'+r.ten_gods.stats[k]+'</b></span>';
+    });
+    html+='</div></div>';
+  }
+  html+='</div>';
+
+  // 五行力量
+  html+='<div class="r-card"><div class="r-title">五行力量<span class="rt-line"></span></div>';
+  ['木','火','土','金','水'].forEach(function(w){
+    var v=ys.wx_count[w]||0;
+    var pct=Math.min(v/4*100,100);
+    var mark=w===ys.yongshen?'<span class="wx-mark yong">用神</span>':(w===ys.xishen?'<span class="wx-mark xi">喜神</span>':(ys.jishen.indexOf(w)>=0?'<span class="wx-mark ji">忌神</span>':''));
+    html+='<div class="wx-row"><span class="wx-name" style="color:var(--wx-'+WX_CLASS[w]+'">'+w+mark+'</span>';
+    html+='<div class="wx-bar"><div class="wx-fill wx-bg-'+w+'" style="--w:'+pct+'%"></div></div>';
+    html+='<span class="wx-val">'+v+'</span></div>';
+  });
+  html+='</div>';
+
+  // 旺衰
+  html+='<div class="r-card"><div class="r-title">日主旺衰<span class="rt-line"></span></div>';
+  html+='<div class="strength-box"><div class="strength-level"><div class="lv">'+esc(st.level_name)+'</div><div class="sc">综合评分 '+st.score+' 分</div></div>';
+  html+='<div class="strength-details">';
+  st.details.forEach(function(d){
+    html+='<div class="sd-item"><b>'+esc(d.name)+' <span class="pts">'+(d.score>0?'+':'')+d.score+'分</span></b>　'+esc(d.desc)+'</div>';
+  });
+  html+='</div></div></div>';
+
+  // 喜用神（重点·深色大卡片）
+  html+='<div class="yong-hero">';
+  html+='<div class="yh-title">✦ 喜 用 神 ✦</div>';
+  html+='<div class="yong-grid">';
+  html+='<div class="yong-item yong"><div class="yl">用神</div><div class="yv">'+wxSpan2(ys.yongshen)+'</div></div>';
+  html+='<div class="yong-item xi"><div class="yl">喜神</div><div class="yv">'+wxSpan2(ys.xishen)+'</div></div>';
+  html+='<div class="yong-item ji"><div class="yl">忌神</div><div class="yv">'+ys.jishen.map(wxSpan2).join(' ')+'</div></div>';
+  if(ys.tiaohou)html+='<div class="yong-item"><div class="yl">调候</div><div class="yv" style="color:#7cc4ff;font-size:28px">'+wxSpan2(ys.tiaohou)+'</div></div>';
+  html+='</div>';
+  html+='<ul class="yong-reasons">';
+  ys.reasons.forEach(function(x){html+='<li>'+esc(x)+'</li>'});
+  html+='</ul></div>';
+
+  // 日常喜忌（重点）
+  html+='<div class="r-card"><div class="r-title">日常喜忌<span class="rt-line"></span></div>';
+  html+='<div class="advice-grid">';
+  html+=advItem('🎨 吉利颜色',adv.lucky_colors.join('、'),'good');
+  html+=advItem('🚫 忌讳颜色',adv.avoid_colors.join('、'),'bad');
+  html+=advItem('🧭 吉利方位',adv.lucky_dir.join('、'),'good');
+  html+=advItem('⚠ 忌讳方位',adv.avoid_dir.join('、'),'bad');
+  html+=advItem('🔢 吉利数字',adv.lucky_nums.join('、'),'good');
+  html+=advItem('🔢 忌讳数字',adv.avoid_nums.join('、'),'bad');
+  html+=advItem('🌤 有利季节',adv.lucky_season.join('、'),'good');
+  html+=advItem('📿 宜佩戴',adv.accessory,'gold');
+  html+=advItem('💼 有利行业',adv.good_industry.join('、'),'good adv-full');
+  html+=advItem('🏥 健康提示',adv.health_focus.join('；')+'；'+adv.health_warn.join('；'),'adv-full');
+  html+='</div></div>';
+
+  // 大运
+  if(r.dayun&&r.dayun.dayun_list){
+    html+='<div class="r-card"><div class="r-title">大运排盘<span class="rt-line"></span></div>';
+    html+='<div style="font-size:12px;color:var(--card-text3);margin-bottom:10px">起运：'+esc(r.dayun.start_age_description||'-')+'（'+esc(r.dayun.direction||'')+'）</div>';
+    html+='<div class="dayun-scroll"><div class="dayun-row">';
+    var nowY=new Date().getFullYear();
+    r.dayun.dayun_list.slice(0,9).forEach(function(d){
+      var yrs=(d.year_range||'').split('-');
+      var isCur=yrs.length===2&&+yrs[0]<=nowY&&nowY<=+yrs[1];
+      html+='<div class="dy-item'+(isCur?' cur':'')+'">';
+      html+='<div class="dy-gz" style="color:var(--crimson)">'+esc(d.gan_zhi)+'</div>';
+      html+='<div class="dy-age">'+esc(d.age_range_xu||'')+'</div>';
+      html+='<div class="dy-yr">'+esc(d.year_range||'')+'</div>';
+      if(isCur)html+='<div class="dy-cur-tag">● 当前</div>';
+      html+='</div>';
+    });
+    html+='</div></div></div>';
+  }
+
+  html+='<div id="rpBox"></div>';
+  html+='<div id="simpleBox" style="display:none"></div>';
+  SIMPLE_SHOWN=false;
+  el.innerHTML=html;
+  // 五行条动画
+  setTimeout(function(){
+    el.querySelectorAll('.wx-fill').forEach(function(f){f.classList.add('run')});
+  },100);
+}
+
+function advItem(k,v,cls){
+  return '<div class="adv-item'+(cls&&cls.indexOf('adv-full')>=0?' adv-full':'')+'"><div class="ak">'+k+'</div><div class="av '+(cls||'').replace(' adv-full','')+'">'+esc(v)+'</div></div>';
+}
+var WX_BY_GAN={'甲':'木','乙':'木','丙':'火','丁':'火','戊':'土','己':'土','庚':'金','辛':'金','壬':'水','癸':'水'};
+var WX_BY_ZHI={'子':'水','丑':'土','寅':'木','卯':'木','辰':'土','巳':'火','午':'火','未':'土','申':'金','酉':'金','戌':'土','亥':'水'};
+function wxCn(ch){return WX_BY_GAN[ch]||WX_BY_ZHI[ch]||'土'}
+function wxName(ch){return wxCn(ch)}
+function wxSpan2(w){return '<span style="color:var(--wx-'+WX_CLASS[w]+'">'+w+'</span>'}
+
+// ── 命书报告（弹窗进度）──
+var rpTimer=null,rpStepTimer=null,rpStart=0,rpDone=false;
+function rpShowModal(){
+  var m=$('rpModal');
+  rpDone=false;
+  $('rpIcon').textContent='🖋';$('rpIcon').className='rp-modal-icon writing';
+  $('rpTitle').textContent='命书撰写中';
+  $('rpSub').textContent='正在为您批算命盘，请稍候';
+  $('rpProgress').style.width='0%';
+  $('rpEta').textContent='预计需要 2-3 分钟，可离开此窗口，完成后会提示';
+  $('rpOkBtn').classList.remove('show');
+  $('rpCloseBtn').classList.remove('show');
+  for(var i=1;i<=4;i++){$('rps'+i).className='rp-step'}
+  $('rps1').classList.add('active');
+  m.classList.add('show');
+  // 假进度：90秒内走到92%，留最后一段给完成
+  rpStart=Date.now();
+  var pct=0;
+  clearInterval(rpTimer);
+  rpTimer=setInterval(function(){
+    var elapsed=(Date.now()-rpStart)/1000;
+    var target=Math.min(92, elapsed/90*92);
+    if(target>pct)pct=target;
+    $('rpProgress').style.width=pct+'%';
+    var remain=Math.max(0,Math.round((90-elapsed)));
+    if(elapsed<90)$('rpEta').textContent='预计还需约 '+remain+' 秒…';
+    else $('rpEta').textContent='即将完成…';
+  },1000);
+  // 步骤推进（按时间模拟）
+  clearInterval(rpStepTimer);
+  var step=1;
+  rpStepTimer=setInterval(function(){
+    if(step<4){
+      $('rps'+step).classList.remove('active');$('rps'+step).classList.add('done');
+      step++;
+      $('rps'+step).classList.add('active');
+    }
+  },22000);
+}
+function rpModalSuccess(html){
+  clearInterval(rpTimer);clearInterval(rpStepTimer);
+  var box=$('rpBox');
+  if(box)box.innerHTML='<div class="rp-box">'+html+'</div>';
+  $('rpProgress').style.width='100%';
+  for(var i=1;i<=4;i++){$('rps'+i).className='rp-step done'}
+  $('rpIcon').textContent='✅';$('rpIcon').className='rp-modal-icon';
+  $('rpTitle').textContent='命书撰写完成';
+  $('rpSub').textContent='全文已呈现在结果页下方';
+  $('rpEta').textContent='';
+  $('rpOkBtn').classList.add('show');
+  rpDone=true;
+  // 浏览器通知（如已授权）+ 声音提示音
+  try{
+    if('Notification' in window&&Notification.permission==='granted'){
+      new Notification('命书撰写完成',{body:(CUR_RESULT&&CUR_RESULT.name?CUR_RESULT.name:'命主')+'的八字命书已生成'});
+    }
+    var ctx=new (window.AudioContext||window.webkitAudioContext)();
+    var o=ctx.createOscillator(),g=ctx.createGain();
+    o.connect(g);g.connect(ctx.destination);
+    o.frequency.value=880;g.gain.value=0.08;
+    o.start();o.frequency.setValueAtTime(1320,ctx.currentTime+0.15);
+    g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.5);
+    o.stop(ctx.currentTime+0.55);
+  }catch(e){}
+}
+function rpModalError(msg){
+  clearInterval(rpTimer);clearInterval(rpStepTimer);
+  $('rpIcon').textContent='⚠️';$('rpIcon').className='rp-modal-icon';
+  $('rpTitle').textContent='撰写失败';
+  $('rpSub').textContent=msg||'请稍后重试';
+  $('rpEta').textContent='';
+  $('rpProgress').style.width='0%';
+  $('rpOkBtn').classList.remove('show');
+  $('rpCloseBtn').classList.add('show');
+  $('rpCloseBtn').textContent='关闭';
+}
+function rpModalDone(){
+  $('rpModal').classList.remove('show');
+  if(rpDone){
+    // 滚动到命书位置
+    var box=$('rpBox');
+    if(box&&box.offsetParent)box.scrollIntoView({behavior:'smooth',block:'start'});
+  }
+}
+var SIMPLE_SHOWN=false;
+function toggleSimple(){
+  var box=$('simpleBox');
+  if(SIMPLE_SHOWN){
+    box.style.display='none';SIMPLE_SHOWN=false;
+    return;
+  }
+  loadSimple(false);
+}
+function loadSimple(regen){
+  if(!CUR_RESULT||!CUR_RESULT.id){toast('无当前记录');return}
+  var rbox=$('rpBox');if(rbox)rbox.innerHTML='';
+  var box=$('simpleBox');
+  box.style.display='block';
+  box.innerHTML='<div class="rp-loading"><div class="spinner"></div><span>简化版撰写中，只出结论、不出表格，约需1分钟…</span></div>';
+  box.scrollIntoView({behavior:'smooth',block:'start'});
+  pollSimple({id:CUR_RESULT.id,regenerate:!!regen},box,Date.now());
+}
+function pollSimple(payload,box,t0){
+  api('/api/bazi/report/simple',payload).then(function(r){
+    if(r.ok&&r.status==='generating'){
+      box.innerHTML='<div class="rp-loading"><div class="spinner"></div><span>简化版撰写中，只出结论、不出表格，约需1分钟…</span></div>';
+      setTimeout(function(){pollSimple({id:payload.id,regenerate:false},box,t0)},8000);
+      return;
+    }
+    if(r.ok&&r.html){
+      SIMPLE_SHOWN=true;
+      box.innerHTML='<div class="rp-box"><div class="simple-head"><span class="sh-title">⚡ 简化版 · 结论简批</span>'
+        +'<span class="sh-hint">无表格 · 近三年+大运整体走势</span>'
+        +'<button class="sh-close" onclick="loadSimple(true)">重新撰写</button>'
+        +'<button class="sh-close" onclick="simplePdf()">PDF下载</button>'
+        +'<button class="sh-close" onclick="hideSimple()">收起</button></div>'
+        +r.html+'</div>';
+    }else{
+      box.innerHTML='';SIMPLE_SHOWN=false;toast(r.error||'简化版生成失败');
+    }
+  }).catch(function(e){
+    if(Date.now()-t0<900000){setTimeout(function(){pollSimple({id:payload.id,regenerate:false},box,t0)},10000)}
+    else{box.innerHTML='';SIMPLE_SHOWN=false;toast('请求失败: '+e.message)}
+  });
+}
+function hideSimple(){$('simpleBox').style.display='none';SIMPLE_SHOWN=false}
+function simplePdf(){
+  if(!CUR_RESULT||!CUR_RESULT.id)return;
+  toast('简化版PDF生成中…');
+  api('/api/bazi/report/simple-pdf',{id:CUR_RESULT.id}).then(function(r){
+    if(r.ok&&r.status==='generating'){toast('简化版正在撰写中，完成后再下载')}
+    else if(r.ok){window.location.href=r.url;toast('PDF已生成')}
+    else toast(r.error||'PDF生成失败');
+  }).catch(function(){toast('请求失败')});
+}
+function rewriteBook(){
+  // 先带用户回到表单修改生日/地点等参数，保存后自动重新撰写命书
+  if(!CUR_RESULT||!CUR_RESULT.id){toast('无当前记录');return}
+  if(!confirm('重新撰写将进入信息编辑页：\n\n· 修改生日/时辰/地点等参数后点「重新排盘分析」\n· 排盘完成后命书将自动重新撰写（约2-3分钟）\n\n继续吗？'))return;
+  editRecord(CUR_RESULT.id);
+}
+var rpFinished=false;
+// 轮询：服务端后台生成中(status=generating)时每8秒再问一次，直到拿到html或报错
+function pollReport(url,payload,t0,box){
+  api(url,payload).then(function(r){
+    var dt=Date.now()-t0;
+    if(r.ok&&r.status==='generating'){
+      // 后台撰写中：弹窗保持，稍后再查
+      setTimeout(function(){pollReport(url,{id:payload.id,regenerate:false},t0,box)},8000);
+      return;
+    }
+    rpFinished=true;
+    if(r.ok&&r.html){
+      if(dt<800){if(box)box.innerHTML='<div class="rp-box">'+r.html+'</div>';}
+      else{rpModalSuccess(r.html);}
+    }else{
+      if(box)box.innerHTML='';
+      rpModalError(r.error||'命书生成失败');
+    }
+  }).catch(function(e){
+    // 网络抖动不直接报错，重试几次
+    if(Date.now()-t0<900000){
+      setTimeout(function(){pollReport(url,{id:payload.id,regenerate:false},t0,box)},10000);
+    }else{
+      rpFinished=true;if(box)box.innerHTML='';rpModalError('请求失败: '+e.message);
+    }
+  });
+}
+function loadReport(regen){
+  if(!CUR_RESULT||!CUR_RESULT.id)return;
+  var sbox=$('simpleBox');if(sbox){sbox.style.display='none';sbox.innerHTML=''}
+  SIMPLE_SHOWN=false;
+  var box=$('rpBox');
+  if(box)box.innerHTML='<div class="rp-loading"><div class="spinner"></div><span>命书加载中…</span></div>';
+  try{if('Notification' in window&&Notification.permission==='default')Notification.requestPermission()}catch(e){}
+  rpFinished=false;
+  var t0=Date.now();
+  // 800ms 后仍未返回 → 说明是撰写场景，弹出进度窗（缓存命中不会弹）
+  setTimeout(function(){
+    if(!rpFinished)rpShowModal();
+  },800);
+  pollReport('/api/bazi/report',{id:CUR_RESULT.id,regenerate:!!regen},t0,box);
+}
+
+// ── PDF / HTML 报告 ──
+function genPdf(){
+  if(!CUR_RESULT||!CUR_RESULT.id)return;
+  var btn=$('btnPdf');btn.disabled=true;btn.textContent='⏳ 生成中（首次约2-3分钟）…';
+  api('/api/bazi/pdf',{id:CUR_RESULT.id}).then(function(r){
+    btn.disabled=false;btn.textContent='📄 命书PDF下载';
+    if(r.ok&&r.status==='generating'){toast('命书正在撰写中，完成后再下载PDF（弹窗会提示）')}
+    else if(r.ok){window.location.href=r.url;toast('命书PDF已生成')}
+    else{toast(r.error||'PDF生成失败')}
+  }).catch(function(e){btn.disabled=false;btn.textContent='📄 命书PDF下载';toast('请求失败')});
+}
+function viewHtml(){
+  if(!CUR_RESULT||!CUR_RESULT.id)return;
+  toast('命书撰写中，完成后自动打开…');
+  api('/api/bazi/report/html',{id:CUR_RESULT.id}).then(function(r){
+    if(r.ok&&r.status==='generating'){toast('命书正在撰写中，完成后再打开网页版')}
+    else if(r.ok&&r.url)window.open(r.url,'_blank');
+    else toast(r.error||'生成失败');
+  }).catch(function(){toast('请求失败')});
+}
+
+// ── 历史记录 ──
+function loadHistory(){
+  api('/api/bazi/records',{}).then(function(r){
+    var el=$('histList');
+    if(!r.ok||!r.records||!r.records.length){
+      el.innerHTML='<div class="empty-hist"><div class="big">📚</div><p>暂无分析记录</p></div>';
+      return;
+    }
+    el.innerHTML=r.records.map(function(rec,i){
+      return '<div class="hist-item" style="animation-delay:'+(i*0.05)+'s" onclick="openRecord(\''+rec.id+'\')">'
+        +'<div><div class="hist-name">'+esc(rec.name)+'</div>'
+        +'<div class="hist-info">'+esc(rec.gender)+' · '+esc(rec.city)+' · '+(rec.calendar==='lunar'?'农历':'公历')+' '+esc(rec.birth)+'</div></div>'
+        +'<div class="hist-time">'+esc(rec.created_at)+'</div>'
+        +'<button class="hist-edit" onclick="event.stopPropagation();editRecord(\''+rec.id+'\')" title="修改信息重新分析">✎</button>'
+        +'<button class="hist-del" onclick="event.stopPropagation();delRecord(\''+rec.id+'\')" title="删除">✕</button>'
+        +'</div>';
+    }).join('');
+  }).catch(function(){toast('加载失败')});
+}
+function openRecord(id){
+  api('/api/bazi/record',{id:id}).then(function(r){
+    if(r.ok){CUR_RESULT=r.result;CUR_RESULT.id=id;
+      var ver=(r.input&&r.input.version)||'full';
+      setBookVersion(ver);
+      renderResult(r.result);showPage('result');
+      if(ver==='simple')loadSimple(false);else loadReport(false);}
+    else toast(r.error||'记录不存在');
+  }).catch(function(){toast('加载失败')});
+}
+function delRecord(id){
+  if(!confirm('确定删除这条记录？'))return;
+  api('/api/bazi/record/delete',{id:id}).then(function(r){
+    if(r.ok){toast('已删除');loadHistory()}else toast('删除失败');
+  }).catch(function(){toast('请求失败')});
+}
+var EDITING_ID=null;
+function editRecord(id){
+  api('/api/bazi/record',{id:id}).then(function(r){
+    if(!r.ok){toast(r.error||'记录不存在');return}
+    var d=r.input;
+    EDITING_ID=id;
+    // 回填表单
+    $('fName').value=d.name||'';
+    setGender(d.gender||'男');
+    setCalendar(d.calendar||'solar');
+    $('fYear').value=d.year;$('fMonth').value=d.month;
+    if(d.calendar==='lunar'){$('fLeap').checked=!!d.lunar_leap;refreshLunarDays()}
+    setTimeout(function(){$('fDay').value=d.day},d.calendar==='lunar'?400:0);
+    $('fHour').value=d.hour!=null?d.hour:12;
+    $('fMinute').value=d.minute!=null?d.minute:30;
+    // 城市回填
+    if(d.city){
+      for(var i=0;i<PROVINCES.length;i++){
+        if(PROVINCES[i].cities.indexOf(d.city)>=0){
+          $('fProvince').value=PROVINCES[i].province;onProvince();
+          setTimeout(function(){$('fCity').value=d.city},50);
+          break;
+        }
+      }
+    }
+    // 重点分析项回填
+    FOCUS=(d.focus||[]).slice();
+    renderFocusTags();
+    // 命书版本回填
+    setBookVersion(d.version||'full');
+    // 更新按钮状态
+    $('btnAnalyze').textContent='☯ 重新排盘分析';
+    $('formModeHint').style.display='block';
+    showPage('form');
+    toast('已载入「'+d.name+'」的信息，修改后点击重新排盘');
+  }).catch(function(){toast('加载失败')});
+}
+
+// ── 关键词管理 ──
+function loadAdminKw(){
+  api('/api/bazi/focus-keywords',{}).then(function(r){
+    if(r.ok){FOCUS_KWS=r.keywords;renderAdminKw()}
+  }).catch(function(){toast('加载失败')});
+}
+function renderAdminKw(){
+  var el=$('kwAdminList');
+  el.innerHTML=FOCUS_KWS.map(function(k,i){
+    return '<div class="kw-row"><input value="'+esc(k.name)+'" placeholder="名称" onchange="FOCUS_KWS['+i+'].name=this.value">'
+      +'<input value="'+esc(k.desc||'')+'" placeholder="说明" onchange="FOCUS_KWS['+i+'].desc=this.value">'
+      +'<button class="kw-del" onclick="kwDelRow('+i+')">✕</button></div>';
+  }).join('');
+}
+function kwAddRow(){
+  FOCUS_KWS.push({id:'k'+Date.now(),name:'',desc:''});
+  renderAdminKw();
+}
+function kwDelRow(i){FOCUS_KWS.splice(i,1);renderAdminKw()}
+function kwSave(){
+  var kws=FOCUS_KWS.filter(function(k){return k.name&&k.name.trim()});
+  kws.forEach(function(k){k.name=k.name.trim();k.desc=(k.desc||'').trim()});
+  api('/api/bazi/focus-keywords/save',{keywords:kws}).then(function(r){
+    if(r.ok){FOCUS_KWS=kws;toast('已保存');loadFocusKw()}else toast('保存失败');
+  }).catch(function(){toast('请求失败')});
+}
+
+// ── Init ──
+fillYears();fillMonths();fillDays();fillHours();
+loadCities();loadFocusKw();
+</script>
+<!-- wb-auth-guard:start -->
+<script>
+/* 统一写接口口令守卫：POST 到 /api/ 的写操作自动带口令，缺口令时询问一次。
+   口令存 localStorage["footprint-token"]（与 travel-map 页面同一个键，全站通用）。*/
+(function () {
+  if (window.__wbAuthGuard) return; window.__wbAuthGuard = 1;
+  var LS = 'footprint-token', LEGACY = 'portalToken';
+  var READONLY = new RegExp('^/api/(?:load|keys|parse-xls|portal/list|routings/list|routings/get'
+    + '|reports/list|sentiment/data|lockup/data|collab/fetch|collab/structured'
+    + '|gzh/trending|gzh/search|gzh/author-rank|gzh/keywords/get'
+    + '|bazi/cities|bazi/lunar-days|bazi/focus-keywords|bazi/records|bazi/record'
+    + '|math/history|math/voices|math/anim-status|math/record)(?:\\?|$)');
+  function effPath(u) {
+    u = String(u || '');
+    var k = u.indexOf('://');
+    if (k >= 0) { var j = u.indexOf('/', k + 3); u = j < 0 ? '' : u.slice(j); }
+    if (u.slice(0, 5) !== '/api/') return null;
+    return u;
+  }
+  function tokFor(u) { return effPath(u) ? getTok() : ''; }
+  function getTok() { try { return localStorage.getItem(LS) || localStorage.getItem(LEGACY) || ''; } catch (e) { return ''; } }
+  function setTok(v) { try { localStorage.setItem(LS, v); } catch (e) {} try { localStorage.removeItem(LEGACY); } catch (e) {} }
+  function clearTok() { try { localStorage.removeItem(LS); localStorage.removeItem(LEGACY); } catch (e) {} }
+  var asked = false, told = false;
+  function toast(m) {
+    try {
+      var d = document.createElement('div'); d.textContent = m;
+      d.style.cssText = 'position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:2147483647;'
+        + 'background:#1f2937;color:#fff;padding:10px 16px;border-radius:8px;'
+        + 'font:14px/1.5 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif;'
+        + 'box-shadow:0 8px 28px rgba(0,0,0,.4);max-width:82vw';
+      document.body.appendChild(d); setTimeout(function () { d.remove(); }, 4600);
+    } catch (e) { console.warn('[auth]', m); }
+  }
+  function isWrite(u) {
+    u = String(u || '');
+    var k = u.indexOf('://');
+    if (k >= 0) { var j = u.indexOf('/', k + 3); u = j < 0 ? '' : u.slice(j); }
+    if (u.slice(0, 5) !== '/api/') return false;   // 只管本站 /api/，别误伤其它服务
+    return !READONLY.test(u);
+  }
+  function ask() {
+    if (asked) return ''; asked = true;
+    try {
+      if (typeof window.prompt !== 'function') return '';
+      var v = window.prompt('此操作需要门户口令：', '');
+      if (v && v.trim()) { v = v.trim(); setTok(v); return v; }
+    } catch (e) {}
+    return '';
+  }
+  function deny() {
+    clearTok();
+    if (!told) { told = true; toast('未保存到服务器：口令缺失或错误。刷新本页后可重新输入口令。'); }
+  }
+  // ── XHR（含同步 XHR：routing.html / index.html 用的是同步请求）──
+  var _open = XMLHttpRequest.prototype.open, _send = XMLHttpRequest.prototype.send;
+  XMLHttpRequest.prototype.open = function (m, u) {
+    this.__wbM = (m || 'GET').toUpperCase(); this.__wbU = u; return _open.apply(this, arguments);
+  };
+  XMLHttpRequest.prototype.send = function (body) {
+    var self = this, m = this.__wbM, u = this.__wbU;
+    var w = (m === 'POST' && isWrite(u));
+    var tok = getTok();
+    if (w && !tok) tok = ask();
+    if (w) { tok = tokFor(u); if (tok) { try { self.setRequestHeader('X-Footprint-Token', tok); } catch (e) {} } }
+    if (w) { try { self.addEventListener('load', function () { if (self.status === 401) deny(); }); } catch (e) {} }
+    return _send.apply(this, arguments);
+  };
+  // ── fetch（math-solver / stock-daily / travel 系）──
+  var _f = window.fetch;
+  if (typeof _f === 'function') {
+    window.fetch = function (input, init) {
+      init = init || {};
+      if (typeof input !== 'string') return _f.call(window, input, init);
+      var m = String(init.method || 'GET').toUpperCase();
+      var w = (m === 'POST' && isWrite(input));
+      var tok = getTok();
+      if (w && !tok) tok = ask();
+      if (w) { tok = tokFor(input); } else { tok = ''; }
+      if (tok) {
+        try { var h = new Headers(init.headers || {}); h.set('X-Footprint-Token', tok); init.headers = h; } catch (e) {}
+        try {
+          if (typeof init.body === 'string' && /^\s*\{/.test(init.body)) {
+            var o = JSON.parse(init.body);
+            if (o && typeof o === 'object' && o.token === undefined) { o.token = tok; init.body = JSON.stringify(o); }
+          }
+        } catch (e) {}
+      }
+      return _f.call(window, input, init).then(function (r) {
+        if (w && r && r.status === 401) deny();
+        return r;
+      });
+    };
+  }
+})();
+</script>
+<!-- wb-auth-guard:end -->
+</body>
+</html>

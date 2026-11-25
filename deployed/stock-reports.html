@@ -364,5 +364,102 @@ async function load(){
 }
 load();
 </script>
+<!-- wb-auth-guard:start -->
+<script>
+/* 统一写接口口令守卫：POST 到 /api/ 的写操作自动带口令，缺口令时询问一次。
+   口令存 localStorage["footprint-token"]（与 travel-map 页面同一个键，全站通用）。*/
+(function () {
+  if (window.__wbAuthGuard) return; window.__wbAuthGuard = 1;
+  var LS = 'footprint-token', LEGACY = 'portalToken';
+  var READONLY = new RegExp('^/api/(?:load|keys|parse-xls|portal/list|routings/list|routings/get'
+    + '|reports/list|sentiment/data|lockup/data|collab/fetch|collab/structured'
+    + '|gzh/trending|gzh/search|gzh/author-rank|gzh/keywords/get'
+    + '|bazi/cities|bazi/lunar-days|bazi/focus-keywords|bazi/records|bazi/record'
+    + '|math/history|math/voices|math/anim-status|math/record)(?:\\?|$)');
+  function effPath(u) {
+    u = String(u || '');
+    var k = u.indexOf('://');
+    if (k >= 0) { var j = u.indexOf('/', k + 3); u = j < 0 ? '' : u.slice(j); }
+    if (u.slice(0, 5) !== '/api/') return null;
+    return u;
+  }
+  function tokFor(u) { return effPath(u) ? getTok() : ''; }
+  function getTok() { try { return localStorage.getItem(LS) || localStorage.getItem(LEGACY) || ''; } catch (e) { return ''; } }
+  function setTok(v) { try { localStorage.setItem(LS, v); } catch (e) {} try { localStorage.removeItem(LEGACY); } catch (e) {} }
+  function clearTok() { try { localStorage.removeItem(LS); localStorage.removeItem(LEGACY); } catch (e) {} }
+  var asked = false, told = false;
+  function toast(m) {
+    try {
+      var d = document.createElement('div'); d.textContent = m;
+      d.style.cssText = 'position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:2147483647;'
+        + 'background:#1f2937;color:#fff;padding:10px 16px;border-radius:8px;'
+        + 'font:14px/1.5 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif;'
+        + 'box-shadow:0 8px 28px rgba(0,0,0,.4);max-width:82vw';
+      document.body.appendChild(d); setTimeout(function () { d.remove(); }, 4600);
+    } catch (e) { console.warn('[auth]', m); }
+  }
+  function isWrite(u) {
+    u = String(u || '');
+    var k = u.indexOf('://');
+    if (k >= 0) { var j = u.indexOf('/', k + 3); u = j < 0 ? '' : u.slice(j); }
+    if (u.slice(0, 5) !== '/api/') return false;   // 只管本站 /api/，别误伤其它服务
+    return !READONLY.test(u);
+  }
+  function ask() {
+    if (asked) return ''; asked = true;
+    try {
+      if (typeof window.prompt !== 'function') return '';
+      var v = window.prompt('此操作需要门户口令：', '');
+      if (v && v.trim()) { v = v.trim(); setTok(v); return v; }
+    } catch (e) {}
+    return '';
+  }
+  function deny() {
+    clearTok();
+    if (!told) { told = true; toast('未保存到服务器：口令缺失或错误。刷新本页后可重新输入口令。'); }
+  }
+  // ── XHR（含同步 XHR：routing.html / index.html 用的是同步请求）──
+  var _open = XMLHttpRequest.prototype.open, _send = XMLHttpRequest.prototype.send;
+  XMLHttpRequest.prototype.open = function (m, u) {
+    this.__wbM = (m || 'GET').toUpperCase(); this.__wbU = u; return _open.apply(this, arguments);
+  };
+  XMLHttpRequest.prototype.send = function (body) {
+    var self = this, m = this.__wbM, u = this.__wbU;
+    var w = (m === 'POST' && isWrite(u));
+    var tok = getTok();
+    if (w && !tok) tok = ask();
+    if (w) { tok = tokFor(u); if (tok) { try { self.setRequestHeader('X-Footprint-Token', tok); } catch (e) {} } }
+    if (w) { try { self.addEventListener('load', function () { if (self.status === 401) deny(); }); } catch (e) {} }
+    return _send.apply(this, arguments);
+  };
+  // ── fetch（math-solver / stock-daily / travel 系）──
+  var _f = window.fetch;
+  if (typeof _f === 'function') {
+    window.fetch = function (input, init) {
+      init = init || {};
+      if (typeof input !== 'string') return _f.call(window, input, init);
+      var m = String(init.method || 'GET').toUpperCase();
+      var w = (m === 'POST' && isWrite(input));
+      var tok = getTok();
+      if (w && !tok) tok = ask();
+      if (w) { tok = tokFor(input); } else { tok = ''; }
+      if (tok) {
+        try { var h = new Headers(init.headers || {}); h.set('X-Footprint-Token', tok); init.headers = h; } catch (e) {}
+        try {
+          if (typeof init.body === 'string' && /^\s*\{/.test(init.body)) {
+            var o = JSON.parse(init.body);
+            if (o && typeof o === 'object' && o.token === undefined) { o.token = tok; init.body = JSON.stringify(o); }
+          }
+        } catch (e) {}
+      }
+      return _f.call(window, input, init).then(function (r) {
+        if (w && r && r.status === 401) deny();
+        return r;
+      });
+    };
+  }
+})();
+</script>
+<!-- wb-auth-guard:end -->
 </body>
 </html>

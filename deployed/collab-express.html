@@ -197,6 +197,9 @@ footer a:hover{text-decoration:underline}
     <button class="tb-tab" data-cat="tea" onclick="setCat('tea')">🧋 奶茶饮品</button>
     <button class="tb-tab" data-cat="food" onclick="setCat('food')">🍔 快餐餐饮</button>
     <button class="tb-tab" data-cat="fash" onclick="setCat('fash')">👕 时尚服饰</button>
+    <button class="tb-tab" data-cat="toy" onclick="setCat('toy')">🧸 玩具潮玩</button>
+    <button class="tb-tab" data-cat="gu" onclick="setCat('gu')">🎴 谷子周边</button>
+    <button class="tb-tab" data-cat="beauty" onclick="setCat('beauty')">💄 美妆</button>
   </div>
   <div class="tb-search"><input id="q" placeholder="搜索品牌 / IP / 关键词…" oninput="onFilter()"></div>
   <select class="sel" id="f-status" onchange="onFilter()">
@@ -239,7 +242,7 @@ footer a:hover{text-decoration:underline}
 </div>
 
 <footer>
-  二次元联动速递 · 漫展情报局子模块 · 实时情报流：进入页面自动拉取（来源：SearXNG 聚合搜索）· 精选联动档案库采集于 2026-08-04（来源：界面新闻/雷报、wuhu动画人空间、餐饮情报站、各品牌官方公告及公开报道）<br>
+  二次元联动速递 · 漫展情报局子模块 · 实时情报流：进入页面自动拉取（来源：SearXNG 聚合搜索 + 📷AI读图：视觉模型解读文章内盘点图/海报，提取结构化联动情报）· 精选联动档案库采集于 2026-08-04（来源：界面新闻/雷报、wuhu动画人空间、餐饮情报站、各品牌官方公告及公开报道）<br>
   联动时间/周边以品牌方官方公告为准 · 点击「情报来源」可查看原始报道 · <a href="manga-expo.html">返回漫展情报局 →</a>
 </footer>
 </div>
@@ -457,7 +460,7 @@ var FCAT='',FQ='',FSTATUS='',FIPTYPE='';
 var LIVE_ITEMS=[],LIVE_TIME='',TODAY_COLLABS=[];
 var CUR_COLLABS=null;   // 主区当前显示的联动（进入页加载 /api/collab/structured 后替换为今日数据）
 
-var CAT_META={tea:{name:'🧋 奶茶饮品',cls:'tea'},food:{name:'🍔 快餐餐饮',cls:'food'},fash:{name:'👕 时尚服饰',cls:'fash'},game:{name:'🎮 游戏/动漫IP',cls:'food'},anime:{name:'📺 动画IP',cls:'tea'},char:{name:'🧸 角色IP',cls:'fash'},comic:{name:'📖 漫画IP',cls:'food'}};
+var CAT_META={tea:{name:'🧋 奶茶饮品',cls:'tea'},food:{name:'🍔 快餐餐饮',cls:'food'},fash:{name:'👕 时尚服饰',cls:'fash'},toy:{name:'🧸 玩具潮玩',cls:'fash'},gu:{name:'🎴 谷子周边',cls:'food'},beauty:{name:'💄 美妆',cls:'tea'},game:{name:'🎮 游戏/动漫IP',cls:'food'},anime:{name:'📺 动画IP',cls:'tea'},char:{name:'🧸 角色IP',cls:'fash'},comic:{name:'📖 漫画IP',cls:'food'}};
 var IPTYPE_META={game:{name:'🎮 游戏',cls:'ip-game'},anime:{name:'📺 动画',cls:'ip-anime'},comic:{name:'📖 漫画',cls:'ip-comic'},char:{name:'🧸 角色/潮玩',cls:'ip-char'}};
 
 function status(c){
@@ -508,6 +511,7 @@ function filtered(){
 function cardHtml(c,i){
   var st=status(c),cd=countdown(c);
   var badge=st==='live'?'进行中':st==='soon'?(cd||'即将开始'):'已结束';
+  if(c._vision)badge='📷 AI读图';
   var ipm=IPTYPE_META[c.ipType]||{name:c.ipType,cls:'ip-char'};
   return '<div class="card'+(st==='end'?' end':'')+'" style="animation-delay:'+Math.min(i*0.03,0.6)+'s">'
     +'<span class="badge '+st+'">'+badge+'</span>'
@@ -532,28 +536,32 @@ function cardHtml(c,i){
 function liveCardHtml(it,i){
   var dt=(it.time||'').slice(5).replace('-','.');
   return '<div class="card" style="animation-delay:'+Math.min(i*0.03,0.6)+'s">'
-    +'<span class="badge live">实时</span>'
-    +'<div class="c-top"><div class="brand-em">📡</div><div class="c-title">'
+    +'<span class="badge live">'+(it.src==='vision'?'📷 AI读图':'实时')+'</span>'
+    +'<div class="c-top"><div class="brand-em">'+(it.src==='vision'?'📷':'📡')+'</div><div class="c-title">'
     +'<div class="c-vs">'+esc(it.title)+'</div>'
-    +'<div class="c-tags"><span class="tag brand">今日抓取</span>'+(dt?'<span class="tag region">🗓️ '+esc(dt)+'</span>':'')+'</div>'
+    +'<div class="c-tags"><span class="tag brand">'+(it.src==='vision'?'AI图片解读':'今日抓取')+'</span>'+(dt?'<span class="tag region">🗓️ '+esc(dt)+'</span>':'')+'</div>'
     +'</div></div>'
     +(it.snippet?'<div class="c-desc">'+esc(it.snippet)+'</div>':'')
-    +'<div class="c-ft"><span class="hot-note">实时聚合搜索新命中</span>'+(it.url?'<a class="src-link" href="'+esc(it.url)+'" target="_blank" onclick="event.stopPropagation()">查看原文 ↗</a>':'')+'</div></div>';
+    +'<div class="c-ft"><span class="hot-note">'+(it.src==='vision'?'📷 视觉模型读图提取':'实时聚合搜索新命中')+'</span>'+(it.url?'<a class="src-link" href="'+esc(it.url)+'" target="_blank" onclick="event.stopPropagation()">查看原文 ↗</a>':'')+'</div></div>';
 }
 
 function catOfTitle(t){
-  // 从标题/快照归类到 tea/food/fash/game
+  // 从标题/快照归类到 tea/food/fash/toy/gu/beauty/game
   var b=t||'';
-  if(/茶|奶|饮|咖啡|奶白|奶茶|COFFEE|TEA/.test(b))return 'tea';
   if(/肯德基|麦当劳|汉堡|德克士|必胜客|海底捞|快餐|餐|KFC|M记/.test(b))return 'food';
-  if(/优衣库|服装|T恤|服饰|UNIQLO|时尚|潮流/.test(b))return 'fash';
+  if(/优衣库|服装|T恤|服饰|UNIQLO|时尚|潮流|球鞋|卫衣/.test(b))return 'fash';
+  if(/泡泡玛特|名创优品|玩具|公仔|盲盒|手办|积木|miniso|POPMART/.test(b))return 'toy';
+  if(/谷子|吧唧|亚克力|立牌|镭射票|色纸/.test(b))return 'gu';
+  if(/美妆|彩妆|口红|面膜|护肤/.test(b))return 'beauty';
+  if(/茶|奶|饮|咖啡|奶白|奶茶|COFFEE|TEA/.test(b))return 'tea';
   return 'game';
 }
 
 /* 把实时联动新闻转成与 COLLABS 同构的卡片（直接进主联动区） */
 function liveToCollabs(items){
   return items.map(function(it){
-    var cat=catOfTitle((it.title||'')+' '+(it.snippet||''));
+    // vision 条目后端已给 _cat 品类，直接用；其他走标题推断
+    var cat=it._cat||catOfTitle((it.title||'')+' '+(it.snippet||''));
     var em={tea:'🧋',food:'🍔',fash:'👕',game:'🎮'}[cat]||'📡';
     return {
       brand: (it.title||'').split(/[×xX联动]/)[0]||'实时',
@@ -591,7 +599,7 @@ function render(){
   }
 
   var html='',idx=0;
-  var order=FCAT?[FCAT]:['tea','food','fash'];
+  var order=FCAT?[FCAT]:['tea','food','fash','toy','gu','beauty','game'];
   order.forEach(function(cat){
     var arr=list.filter(function(c){return c.cat===cat});
     if(!arr.length)return;
@@ -713,7 +721,7 @@ function doFetch(manual,attempt){
       var dtHtml=dt?'<div class="fd-d">'+esc(dt.slice(3))+'</div><div>'+esc(dt.slice(0,2))+'月</div>':'<div class="fd-d">🆕</div><div>最新</div>';
       return '<a class="feed-item" href="'+esc(it.url)+'" target="_blank" style="animation-delay:'+Math.min(i*0.04,0.8)+'s">'
         +'<div class="feed-date">'+dtHtml+'</div>'
-        +'<div class="feed-bd"><div class="feed-title">'+esc(it.title)+'</div>'
+        +'<div class="feed-bd"><div class="feed-title">'+(it.src==='vision'?'📷 ':'')+esc(it.title)+'</div>'
         +(it.snippet?'<div class="feed-snip">'+esc(it.snippet)+'</div>':'')
         +'</div></a>';
     }).join('');

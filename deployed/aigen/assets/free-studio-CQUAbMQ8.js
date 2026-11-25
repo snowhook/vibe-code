@@ -1,0 +1,1 @@
+import{n as e}from"./index-6I2hZp1j.js";import{r as t}from"./react-vendor-AyOTluXZ.js";var n=t(),r=()=>(0,n.jsx)(e,{fixedMode:`free`});export{r as component};

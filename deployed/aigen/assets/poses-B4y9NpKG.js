@@ -1,0 +1,1 @@
+import{t as e}from"./GalleryPage-CUtxRLEx.js";import{r as t}from"./react-vendor-AyOTluXZ.js";var n=t();function r(){return(0,n.jsx)(e,{kind:`pose`,title:`姿势库`,description:`原生姿势参考与我的姿势条目合并`})}export{r as component};

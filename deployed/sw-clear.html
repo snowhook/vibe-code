@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>清除缓存</title>
+<style>
+body{font-family:'PingFang SC','Microsoft YaHei',sans-serif;background:#16161a;color:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;flex-direction:column;gap:20px}
+h1{font-size:24px}
+.log{background:#1c1c22;border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:20px;max-width:500px;width:90%;font-family:monospace;font-size:13px;line-height:1.8;color:#b8b8c0;white-space:pre-wrap}
+.ok{color:#059669}
+.btn{padding:12px 32px;border-radius:50px;border:none;background:linear-gradient(135deg,#ea580c,#f97316);color:#fff;font-size:16px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-block}
+.btn:hover{transform:translateY(-2px)}
+</style>
+</head>
+<body>
+<h1>正在清除浏览器缓存…</h1>
+<div class="log" id="log"></div>
+<a class="btn" id="goBtn" href="gzh-trending.html" style="display:none">→ 进入公众号热门文章</a>
+
+<script>
+var logEl = document.getElementById('log');
+function log(msg, cls) {
+  logEl.innerHTML += '<span class="' + (cls||'') + '">' + msg + '</span>\n';
+}
+
+(async function() {
+  var done = true;
+
+  // 1. Unregister Service Workers
+  if ('serviceWorker' in navigator) {
+    var regs = await navigator.serviceWorker.getRegistrations();
+    if (regs.length > 0) {
+      for (var r of regs) {
+        await r.unregister();
+        log('✅ Service Worker 已注销: ' + r.scope, 'ok');
+      }
+    } else {
+      log('ℹ️ 没有 Service Worker');
+    }
+  }
+
+  // 2. Clear all caches
+  if (window.caches) {
+    var names = await caches.keys();
+    if (names.length > 0) {
+      for (var n of names) {
+        await caches.delete(n);
+        log('✅ 缓存已删除: ' + n, 'ok');
+      }
+    } else {
+      log('ℹ️ 没有缓存');
+    }
+  }
+
+  // 3. Clear storage
+  if (window.localStorage) {
+    var keys = [];
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i);
+      if (k && k.indexOf('gzh') >= 0) keys.push(k);
+    }
+    keys.forEach(function(k) { localStorage.removeItem(k); });
+    if (keys.length) log('✅ localStorage 已清理: ' + keys.join(', '), 'ok');
+    else log('ℹ️ localStorage 无旧数据');
+  }
+
+  log('\n🎉 清理完成！点击下方按钮进入', 'ok');
+  document.getElementById('goBtn').style.display = 'inline-block';
+})();
+</script>
+</body>
+</html>

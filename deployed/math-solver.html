@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>动画化解题 · VIBE CODE</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<style>
+:root{
+  --bg:#0a0e17; --bg2:#0e1320; --panel:#121a2b; --line:#1e2a42;
+  --txt:#e8eefb; --sub:#8fa3c8; --cyan:#39c5ff; --gold:#ffd166;
+  --green:#4ade80; --red:#ff5d5d; --blue:#4f8ef7;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  background: radial-gradient(1200px 600px at 20% -10%, #131a29 0%, var(--bg) 55%) fixed, var(--bg);
+  color:var(--txt); font-family:"Microsoft YaHei","PingFang SC",system-ui,-apple-system,sans-serif;
+  min-height:100vh; padding-bottom:60px;
+}
+a{color:var(--cyan)}
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+header{padding:26px 0 18px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+header h1{font-size:24px;font-weight:800;letter-spacing:.5px}
+header .icon{font-size:30px}
+header .sub{color:var(--sub);font-size:13px;margin-top:4px}
+.tabs{display:flex;gap:10px;margin-left:auto}
+.tab-btn{background:var(--panel);border:1px solid var(--line);color:var(--sub);
+  padding:9px 20px;border-radius:999px;font-size:14px;cursor:pointer;font-family:inherit;transition:.2s}
+.tab-btn.active{color:#fff;border-color:var(--cyan);background:linear-gradient(160deg,#16233c,#101828)}
+.tab-btn:hover{color:#fff}
+.card{background:linear-gradient(160deg,var(--panel) 0%,var(--bg2) 100%);
+  border:1px solid var(--line);border-radius:14px;padding:22px;margin-bottom:18px}
+.card h2{font-size:16px;font-weight:700;margin-bottom:14px;color:var(--gold)}
+label.fl{display:block;font-size:12px;color:var(--sub);margin:12px 0 6px}
+textarea,input[type=text],select{width:100%;background:#0b1120;border:1px solid var(--line);
+  color:var(--txt);border-radius:8px;padding:10px 12px;font-size:14px;font-family:inherit;resize:vertical}
+textarea:focus,input:focus{outline:none;border-color:var(--blue)}
+.btn{display:inline-flex;align-items:center;gap:8px;background:linear-gradient(160deg,#1d4ed8,#1e40af);
+  color:#fff;border:none;border-radius:8px;padding:10px 22px;font-size:14px;font-weight:600;
+  cursor:pointer;font-family:inherit;transition:.15s;text-decoration:none}
+.btn:hover{filter:brightness(1.15)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.ghost{background:var(--panel);border:1px solid var(--line);color:var(--sub)}
+.btn.ghost:hover{color:#fff;border-color:var(--blue)}
+.btn.gold{background:linear-gradient(160deg,#d97706,#b45309)}
+.btn.green{background:linear-gradient(160deg,#15803d,#166534)}
+.btn.danger{background:linear-gradient(160deg,#b91c1c,#7f1d1d)}
+.btn.sm{padding:6px 14px;font-size:12px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+/* 输入模式切换 */
+.mode-tabs{display:flex;gap:0;margin-bottom:16px;border:1px solid var(--line);border-radius:10px;overflow:hidden;width:fit-content}
+.mode-btn{background:var(--bg2);border:none;color:var(--sub);padding:10px 28px;font-size:14px;
+  cursor:pointer;font-family:inherit;font-weight:600;transition:.15s}
+.mode-btn.active{background:linear-gradient(160deg,#1d4ed8,#1e40af);color:#fff}
+.drop{border:1.5px dashed var(--line);border-radius:10px;padding:22px;text-align:center;
+  color:var(--sub);font-size:13px;cursor:pointer;transition:.2s;position:relative}
+.drop:hover,.drop.over{border-color:var(--cyan);color:var(--cyan)}
+.drop img{max-width:100%;max-height:260px;border-radius:8px;display:block;margin:10px auto 0}
+.drop input{display:none}
+.status{font-size:13px;color:var(--cyan);margin-top:10px;min-height:18px}
+.status.err{color:var(--red)}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);
+  border-top-color:#fff;border-radius:50%;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.elapsed{font-family:ui-monospace,Consolas,"Courier New",monospace;font-size:12px;color:var(--gold);
+  margin-left:10px;font-variant-numeric:tabular-nums;animation:elpulse 2s ease-in-out infinite;white-space:nowrap}
+@keyframes elpulse{0%,100%{opacity:1}50%{opacity:.5}}
+/* 解答 */
+.sol-title{font-size:20px;font-weight:800;margin-bottom:8px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.chip{font-size:12px;padding:4px 12px;border-radius:999px;border:1px solid var(--line);
+  color:var(--sub);background:var(--bg2)}
+.chip.subj{color:var(--cyan);border-color:#164e63}
+.chip.fix{color:var(--green);border-color:#14532d}
+.answer-box{background:#0b1120;border-left:3px solid var(--green);border-radius:8px;
+  padding:14px 16px;margin:12px 0;font-size:15px}
+.answer-box b{color:var(--green)}
+.summary{color:var(--sub);font-size:14px;line-height:1.7;margin:10px 0}
+.step{border:1px solid var(--line);border-radius:10px;margin:10px 0;overflow:hidden}
+.step-h{background:#101828;padding:12px 16px;font-size:14px;font-weight:700;color:var(--gold);
+  display:flex;gap:10px;align-items:center}
+.step-h .n{background:var(--gold);color:#1a1200;width:22px;height:22px;border-radius:50%;
+  display:inline-flex;align-items:center;justify-content:center;font-size:12px;flex:none}
+.step-d{padding:14px 16px;font-size:14px;line-height:1.9;color:#c9d6ee}
+.svgfig{margin:14px 0;text-align:center}
+.svgfig .cap{font-size:12px;color:var(--sub);margin-top:6px}
+.svgfig svg{max-width:100%;height:auto;background:#f8fafc;border-radius:10px;padding:8px}
+.problem-box{background:#0b1120;border:1px solid var(--line);border-radius:8px;
+  padding:14px 16px;font-size:14px;line-height:1.8;color:#b8c7e0;margin:10px 0;white-space:pre-wrap}
+/* 对话纠偏 */
+.chatlog{max-height:380px;overflow-y:auto;margin:10px 0;display:flex;flex-direction:column;gap:10px}
+.msg{border-radius:12px;padding:12px 16px;font-size:14px;line-height:1.8;max-width:85%}
+.msg.u{background:#1e3a5f;align-self:flex-end;border-bottom-right-radius:4px}
+.msg.a{background:#101828;border:1px solid var(--line);align-self:flex-start;border-bottom-left-radius:4px}
+.msg .who{font-size:11px;color:var(--sub);margin-bottom:4px}
+.msg .fixed{display:inline-block;font-size:11px;color:var(--green);border:1px solid #14532d;
+  border-radius:999px;padding:1px 8px;margin-left:8px}
+.chat-input{display:flex;gap:10px;margin-top:12px}
+.chat-input textarea{flex:1;min-height:44px;max-height:120px}
+/* 动画 */
+.prog-wrap{background:#0b1120;border-radius:999px;height:14px;overflow:hidden;flex:1;min-width:200px}
+.prog-bar{height:100%;background:linear-gradient(90deg,var(--blue),var(--cyan));width:0%;transition:.5s;border-radius:999px}
+video{width:100%;border-radius:12px;background:#000;margin-top:12px}
+/* 历史 */
+.hist-item{display:flex;gap:14px;align-items:center;padding:14px 16px;border:1px solid var(--line);
+  border-radius:10px;margin-bottom:10px;cursor:pointer;transition:.15s;background:var(--bg2)}
+.hist-item:hover{border-color:var(--blue);transform:translateX(3px)}
+.hist-item .t{flex:1;min-width:0}
+.hist-item .t .name{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hist-item .t .meta{font-size:12px;color:var(--sub);margin-top:4px}
+.vbadge{font-size:11px;padding:3px 10px;border-radius:999px;flex:none;margin-right:4px}
+.vbadge.has{background:#14532d;color:#86efac}
+.vbadge.none{background:#1e293b;color:#64748b}
+.vbadge.run{background:#1e3a5f;color:#7dd3fc}
+.vbadge.exp{background:#3b2f14;color:#fcd34d}
+.empty{text-align:center;color:var(--sub);padding:40px 0;font-size:14px}
+.back{margin-bottom:14px}
+.hidden{display:none!important}
+.katex{font-size:1.05em}
+footer{text-align:center;color:#3b4a68;font-size:12px;margin-top:30px}
+.actionbar{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0;padding:16px 20px;
+  background:linear-gradient(160deg,#1e1b4b,#172554);border:1px solid #3730a3;border-radius:12px;align-items:center}
+.actionbar .tip{font-size:13px;color:#a5b4fc;margin-right:auto}
+@media(max-width:640px){
+  header{flex-direction:column;align-items:flex-start}
+  .tabs{margin-left:0}
+  .step-d{font-size:13px}
+  .msg{max-width:95%}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="icon">🎬</div>
+  <div>
+    <h1>动画化解题</h1>
+    <div class="sub">中学题目 · AI 详解 · 对话纠偏 · SVG 图示 · HyperFrames 解说动画 · HTML 存档</div>
+  </div>
+  <div class="tabs">
+    <button class="tab-btn active" id="tab-solve" onclick="switchTab('solve')">✏️ 解题</button>
+    <button class="tab-btn" id="tab-hist" onclick="switchTab('hist')">🗂️ 历史档案</button>
+  </div>
+</header>
+
+<!-- ═══════════ 解题页 ═══════════ -->
+<div id="page-solve">
+  <div class="card">
+    <h2>① 输入题目</h2>
+    <div class="mode-tabs">
+      <button class="mode-btn active" id="mode-text" onclick="switchMode('text')">⌨️ 文字题目</button>
+      <button class="mode-btn" id="mode-img" onclick="switchMode('img')">📷 图片解题</button>
+    </div>
+
+    <!-- 文字模式 -->
+    <div id="input-text">
+      <label class="fl">输入题目文字（支持 LaTeX：\(x^2\) 或 $$...$$）</label>
+      <textarea id="problem" rows="6" placeholder="例：已知函数 f(x)=x²-2x-3，求 f(x) 的最小值及取得最小值时 x 的值。"></textarea>
+    </div>
+
+    <!-- 图片模式 -->
+    <div id="input-img" class="hidden">
+      <div class="drop" id="drop" onclick="document.getElementById('file').click()">
+        <div id="drop-text">📷 点击选择 或 拖拽图片到此处<br><span style="font-size:11px">jpg / png / webp，≤10MB。上传后可在下方填写备注</span></div>
+        <img id="preview" class="hidden" alt="题目图片">
+        <input type="file" id="file" accept="image/*">
+      </div>
+      <div id="reco-zone" class="hidden">
+        <div class="row" style="margin-top:12px">
+          <button class="btn ghost sm" id="btn-reco" onclick="recognize()">🔍 识别图片文字（可先核对修正）</button>
+          <span id="reco-hint" style="font-size:12px;color:var(--sub)"></span>
+        </div>
+        <label class="fl">识别出的题目（可直接编辑修正；不识别也行，AI 会直接看图解题）</label>
+        <textarea id="problem-img" rows="4" placeholder="点上方按钮识别，或直接留空——AI 会读图解题"></textarea>
+      </div>
+      <label class="fl">📝 对题目的备注（告诉 AI 具体要求，如「请解图片上第 5 题」「只要第 (2) 问」「用向量法解」）</label>
+      <input type="text" id="note" placeholder="例：请解图片上第5题">
+    </div>
+
+    <div class="row" style="margin-top:14px">
+      <button class="btn" id="btn-solve" onclick="solve()">🚀 开始解题</button>
+      <button class="btn ghost" id="btn-clear" onclick="clearAll()">🧹 一键清除</button>
+      <select id="subject" style="width:auto">
+        <option value="">学科自动判断</option>
+        <option>数学</option><option>物理</option><option>化学</option>
+        <option>生物</option><option>语文</option><option>英语</option><option>其他</option>
+      </select>
+    </div>
+    <div class="status" id="st-input"></div>
+  </div>
+
+  <div id="solution-area" class="hidden">
+    <div class="card" id="sol-card"></div>
+
+    <!-- 对话纠偏 -->
+    <div class="card">
+      <h2>② 有疑问？直接和 AI 对话（识别错 / 理解错 / 算错都能纠）</h2>
+      <div class="chatlog" id="chatlog"></div>
+      <div class="chat-input">
+        <textarea id="chat-msg" rows="2" placeholder="例：第2步的符号错了，应该是 -3 不是 +3 / 你看错图了，∠B 才是直角" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat()}"></textarea>
+        <button class="btn" id="btn-chat" onclick="sendChat()">发送</button>
+      </div>
+      <div class="hint" style="font-size:12px;color:var(--sub);margin-top:8px">AI 接受纠正后会自动更新上面的解答与档案；Enter 发送，Shift+Enter 换行</div>
+    </div>
+
+    <!-- 操作栏：动画 + 保存 -->
+    <div class="actionbar">
+      <div class="tip">③ 对解答满意后，可生成解说动画并保存 HTML 存档。<b style="color:#fcd34d">注意：只有点「保存为 HTML」的记录才会进入历史档案</b>，未存档的 7 天后自动清理。</div>
+      <span style="font-size:13px;color:var(--sub);white-space:nowrap">🎙 配音音色</span>
+      <select id="voice-sel" style="width:auto;max-width:250px" title="选择动画配音音色（可随时更换后重新生成）"></select>
+      <button class="btn gold" id="btn-anim" onclick="startAnim()">🎬 生成动画</button>
+      <button class="btn green" id="btn-export" onclick="exportHtml()">💾 保存为 HTML</button>
+      <button class="btn ghost" onclick="clearAll()">🧹 清除</button>
+    </div>
+
+    <div class="card hidden" id="anim-card">
+      <h2>④ 演示动画</h2>
+      <div id="anim-body"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ 历史页 ═══════════ -->
+<div id="page-hist" class="hidden">
+  <div id="hist-list-view">
+    <div class="card">
+      <h2>历史解题档案 <span id="hist-count" style="color:var(--sub);font-weight:400;font-size:13px"></span> <span style="color:var(--sub);font-weight:400;font-size:12px">（仅显示已保存为 HTML 存档的记录）</span></h2>
+      <div id="hist-list"><div class="empty">加载中…</div></div>
+    </div>
+  </div>
+  <div id="hist-detail-view" class="hidden">
+    <button class="btn ghost sm back" onclick="backToList()">← 返回列表</button>
+    <div class="card" id="hist-detail"></div>
+    <div class="card hidden" id="hist-anim-card"><h2>演示动画</h2><div id="hist-anim-body"></div></div>
+    <div class="actionbar">
+      <div class="tip">继续操作这道题</div>
+      <span style="font-size:13px;color:var(--sub);white-space:nowrap">🎙 配音音色</span>
+      <select id="hist-voice-sel" style="width:auto;max-width:250px" title="选择动画配音音色（换音色后点「生成/重做动画」即可）"></select>
+      <button class="btn gold" id="hist-btn-anim" onclick="startAnim(window.__histRid)">🎬 生成/重做动画</button>
+      <button class="btn green" onclick="exportHtml(window.__histRid)">💾 保存为 HTML</button>
+    </div>
+  </div>
+</div>
+
+<footer>动画化解题 · Powered by Qwen LLM + HyperFrames · VIBE CODE 模块中心</footer>
+</div>
+
+<script>
+let curDataUrl = null;
+let curRecord = null;
+let curMode = 'text';
+let pollTimer = null;
+let voiceOpts = [];
+const elapsedTimers = {}, elapsedT0 = {};
+
+/* 配音选项：页面加载时拉取一次，填充两个下拉框；记住上次选的音色 */
+const VOICE_PREF_KEY = 'math_voice_pref';
+async function loadVoices(){
+  const r = await api('/api/math/voices');
+  if(!r.ok || !r.options) return;
+  voiceOpts = r.options;
+  let pref = null;
+  try{ pref = localStorage.getItem(VOICE_PREF_KEY); }catch(e){}
+  const fallback = (voiceOpts.find(o => o.kind !== 'none') || voiceOpts[0] || {});
+  const fallbackVal = fallback.kind ? (fallback.kind + '|' + (fallback.voice || '')) : '';
+  for(const sel of ['voice-sel','hist-voice-sel']){
+    const el = $(sel);
+    if(!el) continue;
+    el.innerHTML = voiceOpts.map(o =>
+      '<option value="'+o.kind+'|'+o.voice+'">'+o.label+'</option>').join('');
+    el.classList.toggle('hidden', voiceOpts.length <= 1);
+    const valid = pref && voiceOpts.some(o => (o.kind+'|'+o.voice) === pref);
+    el.value = valid ? pref : fallbackVal;
+    el.onchange = () => {
+      try{ localStorage.setItem(VOICE_PREF_KEY, el.value); }catch(e){}
+      for(const other of ['voice-sel','hist-voice-sel']){
+        const oe = $(other); if(oe && oe !== el) oe.value = el.value;
+      }
+    };
+  }
+}
+function pickedVoice(selId){
+  const el = $(selId);
+  if(!el || !el.value) return null;
+  const [kind, voice] = el.value.split('|');
+  return kind === 'none' ? null : {kind, voice};
+}
+
+/* 已用时间计时器：每秒刷新，消除“卡住了”的错觉 */
+function fmtDur(s){ return s>=60 ? Math.floor(s/60)+'分'+String(s%60).padStart(2,'0')+'秒' : s+'秒'; }
+function startElapsed(key, el, baseSec){
+  stopElapsed(key);
+  elapsedT0[key] = Date.now() - (baseSec||0)*1000;
+  const tick = () => {
+    if(!el || !document.body.contains(el)){ stopElapsed(key); return; }
+    el.textContent = '⏱️ 已用 ' + fmtDur(Math.floor((Date.now()-elapsedT0[key])/1000));
+  };
+  tick();
+  elapsedTimers[key] = setInterval(tick, 1000);
+}
+function stopElapsed(key){ if(elapsedTimers[key]){ clearInterval(elapsedTimers[key]); delete elapsedTimers[key]; } }
+function elapsedSec(key){ return elapsedT0[key] ? Math.floor((Date.now()-elapsedT0[key])/1000) : null; }
+
+const $ = id => document.getElementById(id);
+
+function switchTab(t){
+  $('tab-solve').classList.toggle('active', t==='solve');
+  $('tab-hist').classList.toggle('active', t==='hist');
+  $('page-solve').classList.toggle('hidden', t!=='solve');
+  $('page-hist').classList.toggle('hidden', t!=='hist');
+  if(t==='hist') loadHistory();
+}
+
+function switchMode(m){
+  curMode = m;
+  $('mode-text').classList.toggle('active', m==='text');
+  $('mode-img').classList.toggle('active', m==='img');
+  $('input-text').classList.toggle('hidden', m!=='text');
+  $('input-img').classList.toggle('hidden', m!=='img');
+}
+
+async function api(path, body){
+  const r = await fetch(path, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body||{})});
+  return r.json();
+}
+
+function typeset(el){
+  if(window.renderMathInElement){
+    renderMathInElement(el, {delimiters:[
+      {left:'$$',right:'$$',display:true},
+      {left:'\\[',right:'\\]',display:true},
+      {left:'\\(',right:'\\)',display:false},
+      {left:'$',right:'$',display:false}
+    ], throwOnError:false});
+  }
+}
+
+function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+/* ── 图片上传 ── */
+const drop = $('drop'), fileInput = $('file');
+fileInput.addEventListener('change', e => { if(e.target.files[0]) loadFile(e.target.files[0]); });
+['dragover','dragenter'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => { if(e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]); });
+
+function loadFile(f){
+  if(!f.type.startsWith('image/')){ setSt('st-input','请选择图片文件',true); return; }
+  if(f.size > 10*1024*1024){ setSt('st-input','图片超过 10MB',true); return; }
+  const rd = new FileReader();
+  rd.onload = () => {
+    compressImage(rd.result, (dataUrl, info) => {
+      curDataUrl = dataUrl;
+      $('preview').src = curDataUrl;
+      $('preview').classList.remove('hidden');
+      $('drop-text').classList.add('hidden');
+      $('reco-zone').classList.remove('hidden');
+      setSt('st-input','图片已就绪'+info+'：可先「识别文字」核对，也可直接填备注后「开始解题」（AI 直接看图）');
+    });
+  };
+  rd.readAsDataURL(f);
+}
+
+// 上传前自动压缩：最长边≤2000px、转 JPEG，大幅提速识别与解题（手机原图动辄几MB）
+function compressImage(src, cb){
+  const im = new Image();
+  im.onload = () => {
+    const MAX = 2000;
+    const scale = Math.min(1, MAX / Math.max(im.width, im.height));
+    const w = Math.round(im.width * scale), h = Math.round(im.height * scale);
+    const cv = document.createElement('canvas');
+    cv.width = w; cv.height = h;
+    const cx = cv.getContext('2d');
+    cx.fillStyle = '#fff'; cx.fillRect(0, 0, w, h);   // 透明背景铺白，避免 JPEG 变黑
+    cx.drawImage(im, 0, 0, w, h);
+    const out = cv.toDataURL('image/jpeg', 0.9);
+    const kb = Math.round(out.length * 0.75 / 1024);
+    cb(out, '（已压缩至 ' + w + '×' + h + '，约 ' + kb + 'KB）');
+  };
+  im.onerror = () => cb(src, '');
+  im.src = src;
+}
+
+async function recognize(){
+  if(!curDataUrl){ setSt('st-input','请先上传图片',true); return; }
+  setBtn('btn-reco', true, '识别中…');
+  const r = await api('/api/math/recognize', {image: curDataUrl});
+  setBtn('btn-reco', false, '🔍 识别图片文字（可先核对修正）');
+  if(r.ok){
+    $('problem-img').value = r.problem;
+    $('reco-hint').textContent = '✅ 识别完成，可编辑修正';
+    if(r.subject && r.subject!=='其他'){
+      const sel=$('subject');
+      for(const o of sel.options) if(o.value===r.subject||o.text===r.subject){ sel.value=o.value||o.text; break; }
+    }
+  } else { $('reco-hint').textContent=''; setSt('st-input','识别失败：'+(r.error||'未知错误'),true); }
+}
+
+async function solve(){
+  const isImg = curMode==='img';
+  let problem='', note='', image=null;
+  if(isImg){
+    if(!curDataUrl){ setSt('st-input','请先上传图片，或切换到文字题目',true); return; }
+    problem = $('problem-img').value.trim();
+    note = $('note').value.trim();
+    image = curDataUrl;
+  } else {
+    problem = $('problem').value.trim();
+    if(!problem){ setSt('st-input','请输入题目',true); return; }
+  }
+  setBtn('btn-solve', true, '解题中…');
+  const stEl = $('st-input');
+  stEl.classList.remove('err');
+  stEl.innerHTML = '<span class="spin"></span> ' + (isImg && !problem ? 'AI 正在看图解题，约需 1~3 分钟' : 'AI 正在推理解题，约需 1~3 分钟') + '<span class="elapsed" id="solve-elapsed"></span>';
+  startElapsed('solve', $('solve-elapsed'), 0);
+  const r = await api('/api/math/solve', {problem, subject:$('subject').value||null, image, note});
+  const total = elapsedSec('solve');
+  stopElapsed('solve');
+  setBtn('btn-solve', false, '🚀 开始解题');
+  if(!r.ok){ setSt('st-input','解题失败：'+(r.error||'未知错误'),true); return; }
+  setSt('st-input', total!=null ? '✅ 解答完成，总耗时 '+fmtDur(total) : '');
+  curRecord = r.record;
+  renderSolution($('sol-card'), r.record);
+  renderChats(r.record.chats||[]);
+  $('solution-area').classList.remove('hidden');
+  $('anim-card').classList.add('hidden');
+  stopPoll();
+  setBtn('btn-anim', false, '🎬 生成动画');
+  setBtn('btn-export', false, '💾 保存为 HTML');
+  $('solution-area').scrollIntoView({behavior:'smooth'});
+  refreshAnimIfRunning(r.record.id);
+}
+
+function renderSolution(el, rec, opts){
+  opts = opts || {};
+  const sol = rec.solution || {};
+  let h = '';
+  h += '<div class="sol-title">'+esc(rec.title)+'</div>';
+  h += '<div class="chips"><span class="chip subj">'+esc(rec.subject||'其他')+'</span>';
+  (sol.knowledge||[]).forEach(k => h += '<span class="chip">📌 '+esc(k)+'</span>');
+  h += '<span class="chip">🕐 '+new Date((rec.updated_at||rec.created_at)*1000).toLocaleString('zh-CN')+'</span>';
+  if(rec.exported) h += '<span class="chip fix">💾 已存档 <a href="'+rec.export_url+'" target="_blank">查看</a></span>';
+  h += '</div>';
+  h += '<details style="margin:8px 0"'+(opts.openProblem?' open':'')+'><summary style="cursor:pointer;color:var(--sub);font-size:13px">查看题目原文'+(rec.note?'（含备注）':'')+'</summary><div class="problem-box">'+esc(rec.problem)+'</div></details>';
+  if(rec.image_url) h += '<img src="'+rec.image_url+'" style="max-width:300px;border-radius:8px;margin:6px 0;display:block" alt="题目图片">';
+  h += '<div class="answer-box"><b>✅ 最终答案：</b><span class="tex">'+esc(sol.answer||'—')+'</span></div>';
+  if(sol.summary) h += '<div class="summary">💡 <b style="color:var(--txt)">思路：</b><span class="tex">'+esc(sol.summary)+'</span></div>';
+  h += '<h2 style="font-size:15px;color:var(--gold);margin:18px 0 6px">📖 详细解答</h2>';
+  (sol.steps||[]).forEach((st,i) => {
+    h += '<div class="step"><div class="step-h"><span class="n">'+(i+1)+'</span><span class="tex">'+esc(st.heading)+'</span></div>';
+    h += '<div class="step-d tex">'+esc(st.detail).replace(/\n/g,'<br>')+'</div></div>';
+  });
+  (sol.svgs||[]).forEach(s => {
+    h += '<div class="svgfig">'+s.code+'<div class="cap">'+esc(s.caption||'')+'</div></div>';
+  });
+  el.innerHTML = h;
+  typeset(el);
+}
+
+/* ── 对话纠偏 ── */
+function renderChats(chats){
+  const box = $('chatlog');
+  box.innerHTML = (chats||[]).map(c => {
+    const u = c.role==='user';
+    return '<div class="msg '+(u?'u':'a')+'"><div class="who">'+(u?'🙋 我':'🤖 AI 老师')
+      +(c.corrected?'<span class="fixed">✔ 已据此修正解答</span>':'')+'</div><span class="tex">'
+      +esc(c.text).replace(/\n/g,'<br>')+'</span></div>';
+  }).join('');
+  box.scrollTop = box.scrollHeight;
+  typeset(box);
+}
+
+async function sendChat(){
+  if(!curRecord){ setSt('st-input','请先解题',true); return; }
+  const ta = $('chat-msg');
+  const msg = ta.value.trim();
+  if(!msg) return;
+  ta.value = '';
+  const box = $('chatlog');
+  box.insertAdjacentHTML('beforeend','<div class="msg u"><div class="who">🙋 我</div>'+esc(msg)+'</div>');
+  box.insertAdjacentHTML('beforeend','<div class="msg a" id="chat-wait"><div class="who">🤖 AI 老师</div><span class="spin"></span> 正在复核…</div>');
+  box.scrollTop = box.scrollHeight;
+  setBtn('btn-chat', true, '…');
+  const r = await api('/api/math/chat', {id: curRecord.id, message: msg});
+  setBtn('btn-chat', false, '发送');
+  const w = $('chat-wait'); if(w) w.remove();
+  if(!r.ok){
+    box.insertAdjacentHTML('beforeend','<div class="msg a"><div class="who">🤖 AI 老师</div><span style="color:var(--red)">'+esc(r.error||'请求失败')+'</span></div>');
+  } else {
+    box.insertAdjacentHTML('beforeend','<div class="msg a"><div class="who">🤖 AI 老师'+(r.updated?'<span class="fixed">✔ 已据此修正解答</span>':'')+'</div><span class="tex">'+esc(r.reply).replace(/\n/g,'<br>')+'</span></div>');
+    box.scrollTop = box.scrollHeight;
+    typeset(box);
+    if(r.updated && r.solution){
+      curRecord.solution = r.solution;
+      curRecord.updated_at = Math.floor(Date.now()/1000);
+      renderSolution($('sol-card'), curRecord);
+    }
+  }
+}
+
+/* ── 一键清除：清空输入 + 输出（2026-09-24 用户需求） ── */
+function clearAll(){
+  if(curRecord && !curRecord.exported){
+    if(!confirm('当前解答还未保存为 HTML 存档，清除后本题不会进入历史档案。确定清除？')) return;
+  }
+  // 停计时/轮询
+  stopPoll(); stopElapsed('solve'); stopElapsed('anim');
+  // 输入区
+  $('problem').value = '';
+  $('problem-img').value = '';
+  $('note').value = '';
+  $('subject').value = '';
+  curDataUrl = null;
+  $('preview').classList.add('hidden'); $('preview').src = '';
+  $('drop-text').classList.remove('hidden');
+  $('reco-zone').classList.add('hidden');
+  $('reco-hint').textContent = '';
+  if(fileInput) fileInput.value = '';
+  // 输出区
+  curRecord = null;
+  $('solution-area').classList.add('hidden');
+  $('sol-card').innerHTML = '';
+  $('chatlog').innerHTML = '';
+  $('chat-msg').value = '';
+  $('anim-card').classList.add('hidden');
+  $('anim-body').innerHTML = '';
+  setBtn('btn-solve', false, '🚀 开始解题');
+  setBtn('btn-anim', false, '🎬 生成动画');
+  setBtn('btn-export', false, '💾 保存为 HTML');
+  setBtn('btn-chat', false, '发送');
+  setSt('st-input', '🧹 已清除输入与输出，可开始新题目');
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+/* ── 保存 HTML ── */
+async function exportHtml(id){
+  const rid = id || (curRecord && curRecord.id);
+  if(!rid) return;
+  const btn = id ? null : $('btn-export');
+  if(btn) setBtn('btn-export', true, '保存中…');
+  const r = await api('/api/math/export', {id: rid});
+  if(btn) setBtn('btn-export', false, '💾 保存为 HTML');
+  if(!r.ok){ alert('保存失败：'+(r.error||'')); return; }
+  if(!id){
+    curRecord.exported = true; curRecord.export_url = r.export_url;
+    renderSolution($('sol-card'), curRecord);
+  }
+  const sizeMB = ((r.size||0)/1048576).toFixed(1);
+  alert('✅ 已保存为 HTML 存档（'+sizeMB+'MB'+(r.has_video?'，动画已内嵌，可离线播放':'')+'）\n\n地址：'+location.origin+r.export_url+'\n\n点确定后在新标签页打开');
+  window.open(r.export_url, '_blank');
+}
+
+/* ── 动画 ── */
+async function startAnim(id){
+  const rid = id || (curRecord && curRecord.id);
+  if(!rid) return;
+  const card = id ? $('hist-anim-card') : $('anim-card');
+  const body = id ? $('hist-anim-body') : $('anim-body');
+  card.classList.remove('hidden');
+  body.innerHTML = '<div class="row"><span class="spin"></span><span class="anim-lbl" style="font-size:13px;color:var(--sub)">正在编写分镜脚本…</span><span class="elapsed"></span></div><div class="prog-wrap" style="margin-top:10px"><div class="prog-bar" style="width:2%"></div></div>';
+  startElapsed('anim', body.querySelector('.elapsed'), 0);
+  card.scrollIntoView({behavior:'smooth'});
+  if(!id) setBtn('btn-anim', true, '生成中…');
+  const voice = pickedVoice(id ? 'hist-voice-sel' : 'voice-sel');
+  const r = await api('/api/math/animate', {id: rid, voice});
+  if(!r.ok){
+    stopElapsed('anim');
+    body.innerHTML = '<div style="color:var(--red);font-size:13px">启动失败：'+esc(r.error||'')+'</div>';
+    if(!id) setBtn('btn-anim', false, '🎬 生成动画');
+    return;
+  }
+  startPoll(rid, body, id);
+}
+
+function startPoll(rid, body, isHist){
+  stopPoll();
+  pollTimer = setInterval(async () => {
+    const s = await api('/api/math/anim-status', {id: rid});
+    if(!s.ok) return;
+    const bar = body.querySelector('.prog-bar');
+    if(bar) bar.style.width = (s.progress||0)+'%';
+    const lbl = body.querySelector('.anim-lbl');
+    if(s.status==='voicing'){
+      if(lbl) lbl.textContent = '🎤 AI 配音合成中（逐场景生成语音）…';
+    }
+    if(s.status==='rendering'){
+      if(lbl) lbl.textContent = '🎞️ HyperFrames 渲染中… '+ (s.progress||0) +'%（约需 1~3 分钟）';
+    }
+    if(s.status==='done'){
+      const total = elapsedSec('anim');
+      stopPoll(); stopElapsed('anim');
+      if(!isHist) setBtn('btn-anim', false, '🎬 重新生成');
+      body.innerHTML = '<video controls src="'+s.video_url+'?t='+Date.now()+'"></video>'
+        + '<div class="row" style="margin-top:10px"><a class="btn ghost sm" href="'+s.video_url+'" download>⬇️ 下载 MP4</a>'
+        + '<span style="font-size:12px;color:var(--sub)">✅ 动画生成完毕'+(total!=null?'，总耗时 '+fmtDur(total):'')+'，可点「💾 保存为 HTML」把答案+动画一起存档</span></div>';
+    } else if(s.status==='failed'){
+      stopPoll(); stopElapsed('anim');
+      if(!isHist) setBtn('btn-anim', false, '🎬 重试动画');
+      body.innerHTML = '<div style="color:var(--red);font-size:13px">动画生成失败：'+esc(s.error||'')
+        +'</div><button class="btn ghost sm" style="margin-top:8px" onclick="startAnim(\''+rid+'\')">重试</button>';
+    }
+  }, 3000);
+}
+
+function stopPoll(){ if(pollTimer){ clearInterval(pollTimer); pollTimer=null; } }
+
+async function refreshAnimIfRunning(rid){
+  const s = await api('/api/math/anim-status', {id: rid});
+  if(s.ok && (s.status==='building' || s.status==='rendering' || s.status==='voicing')){
+    $('anim-card').classList.remove('hidden');
+    setBtn('btn-anim', true, '生成中…');
+    $('anim-body').innerHTML = '<div class="row"><span class="spin"></span><span class="anim-lbl" style="font-size:13px;color:var(--sub)">动画生成中…</span><span class="elapsed"></span></div><div class="prog-wrap" style="margin-top:10px"><div class="prog-bar" style="width:'+(s.progress||0)+'%"></div></div>';
+    startElapsed('anim', $('anim-body').querySelector('.elapsed'), s.elapsed||0);
+    startPoll(rid, $('anim-body'), false);
+  } else if(s.ok && s.status==='done' && s.video_url){
+    $('anim-card').classList.remove('hidden');
+    setBtn('btn-anim', false, '🎬 重新生成');
+    $('anim-body').innerHTML = '<video controls src="'+s.video_url+'"></video><div class="row" style="margin-top:10px"><a class="btn ghost sm" href="'+s.video_url+'" download>⬇️ 下载 MP4</a></div>';
+  }
+}
+
+/* ── 历史 ── */
+async function loadHistory(){
+  $('hist-list-view').classList.remove('hidden');
+  $('hist-detail-view').classList.add('hidden');
+  const r = await api('/api/math/history');
+  const box = $('hist-list');
+  if(!r.ok || !r.items || !r.items.length){ box.innerHTML='<div class="empty">还没有解题记录，去「解题」页试试吧</div>'; $('hist-count').textContent=''; return; }
+  $('hist-count').textContent = '共 '+r.items.length+' 条';
+  box.innerHTML = r.items.map(it => {
+    let badges = '';
+    if(it.has_video) badges += '<span class="vbadge has">🎬 动画</span>';
+    else if(it.anim_status==='rendering'||it.anim_status==='building') badges += '<span class="vbadge run">⏳ 生成中</span>';
+    if(it.exported) badges += '<span class="vbadge exp">💾 已存档</span>';
+    // 📄 直达已保存的自包含 HTML 存档（新标签页打开）
+    const expBtn = (it.exported && it.export_url)
+      ? '<button class="btn green sm" title="打开保存好的 HTML 存档" onclick="openExport(event,\''+it.export_url+'\')">📄 HTML存档</button>' : '';
+    return '<div class="hist-item" onclick="openRecord(\''+it.id+'\')">'
+      + '<div class="t"><div class="name">'+esc(it.title)+'</div>'
+      + '<div class="meta">'+esc(it.subject||'')+' · '+new Date(it.created_at*1000).toLocaleString('zh-CN')+'</div></div>'
+      + badges + expBtn
+      + '<button class="btn danger sm" onclick="delRecord(event,\''+it.id+'\')">删除</button>'
+      + '</div>';
+  }).join('');
+}
+
+/* 打开保存好的 HTML 存档（阻止冒泡，避免误入详情页） */
+function openExport(ev, url){
+  if(ev) ev.stopPropagation();
+  if(!url){ alert('该题还没有 HTML 存档，请先点「💾 保存为 HTML」'); return; }
+  window.open(url, '_blank');
+}
+
+async function openRecord(rid){
+  const r = await api('/api/math/record', {id: rid});
+  if(!r.ok){ alert('加载失败：'+(r.error||'')); return; }
+  window.__histRid = rid;
+  $('hist-list-view').classList.add('hidden');
+  $('hist-detail-view').classList.remove('hidden');
+  renderSolution($('hist-detail'), r.record, {openProblem:true});
+  const ac = $('hist-anim-card'), ab = $('hist-anim-body');
+  const an = r.record.animation || {};
+  if(an.status==='done' && an.video_url){
+    ac.classList.remove('hidden');
+    ab.innerHTML = '<video controls src="'+an.video_url+'"></video>'
+      + '<div class="row" style="margin-top:10px"><a class="btn ghost sm" href="'+an.video_url+'" download>⬇️ 下载 MP4</a></div>';
+  } else if(an.status==='rendering' || an.status==='building'){
+    ac.classList.remove('hidden');
+    const base = an.started_at ? Math.max(0, Date.now()/1000 - an.started_at) : 0;
+    ab.innerHTML = '<div class="row"><span class="spin"></span><span class="anim-lbl" style="font-size:13px;color:var(--sub)">动画生成中…</span><span class="elapsed"></span></div><div class="prog-wrap" style="margin-top:10px"><div class="prog-bar" style="width:'+(an.progress||0)+'%"></div></div>';
+    startElapsed('anim', ab.querySelector('.elapsed'), base);
+    startPoll(rid, ab, true);
+  } else {
+    ac.classList.add('hidden');
+  }
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+async function delRecord(ev, rid){
+  ev.stopPropagation();
+  if(!confirm('确定删除这条解题档案？（含已生成的动画与存档）')) return;
+  const r = await api('/api/math/delete', {id: rid});
+  if(r.ok) loadHistory(); else alert('删除失败：'+(r.error||''));
+}
+
+function backToList(){ stopPoll(); loadHistory(); }
+
+/* ── 工具 ── */
+function setSt(id, msg, err){
+  const el = $(id);
+  el.textContent = msg || '';
+  el.classList.toggle('err', !!err);
+}
+function setBtn(id, busy, text){
+  const b = $(id);
+  b.disabled = busy;
+  b.innerHTML = busy && !text.includes('…') ? '<span class="spin"></span> '+text : text;
+}
+window.addEventListener('beforeunload', stopPoll);
+loadVoices();
+</script>
+<!-- wb-auth-guard:start -->
+<script>
+/* 统一写接口口令守卫：POST 到 /api/ 的写操作自动带口令，缺口令时询问一次。
+   口令存 localStorage["footprint-token"]（与 travel-map 页面同一个键，全站通用）。*/
+(function () {
+  if (window.__wbAuthGuard) return; window.__wbAuthGuard = 1;
+  var LS = 'footprint-token', LEGACY = 'portalToken';
+  var READONLY = new RegExp('^/api/(?:load|keys|parse-xls|portal/list|routings/list|routings/get'
+    + '|reports/list|sentiment/data|lockup/data|collab/fetch|collab/structured'
+    + '|gzh/trending|gzh/search|gzh/author-rank|gzh/keywords/get'
+    + '|bazi/cities|bazi/lunar-days|bazi/focus-keywords|bazi/records|bazi/record'
+    + '|math/history|math/voices|math/anim-status|math/record)(?:\\?|$)');
+  function effPath(u) {
+    u = String(u || '');
+    var k = u.indexOf('://');
+    if (k >= 0) { var j = u.indexOf('/', k + 3); u = j < 0 ? '' : u.slice(j); }
+    if (u.slice(0, 5) !== '/api/') return null;
+    return u;
+  }
+  function tokFor(u) { return effPath(u) ? getTok() : ''; }
+  function getTok() { try { return localStorage.getItem(LS) || localStorage.getItem(LEGACY) || ''; } catch (e) { return ''; } }
+  function setTok(v) { try { localStorage.setItem(LS, v); } catch (e) {} try { localStorage.removeItem(LEGACY); } catch (e) {} }
+  function clearTok() { try { localStorage.removeItem(LS); localStorage.removeItem(LEGACY); } catch (e) {} }
+  var asked = false, told = false;
+  function toast(m) {
+    try {
+      var d = document.createElement('div'); d.textContent = m;
+      d.style.cssText = 'position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:2147483647;'
+        + 'background:#1f2937;color:#fff;padding:10px 16px;border-radius:8px;'
+        + 'font:14px/1.5 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif;'
+        + 'box-shadow:0 8px 28px rgba(0,0,0,.4);max-width:82vw';
+      document.body.appendChild(d); setTimeout(function () { d.remove(); }, 4600);
+    } catch (e) { console.warn('[auth]', m); }
+  }
+  function isWrite(u) {
+    u = String(u || '');
+    var k = u.indexOf('://');
+    if (k >= 0) { var j = u.indexOf('/', k + 3); u = j < 0 ? '' : u.slice(j); }
+    if (u.slice(0, 5) !== '/api/') return false;   // 只管本站 /api/，别误伤其它服务
+    return !READONLY.test(u);
+  }
+  function ask() {
+    if (asked) return ''; asked = true;
+    try {
+      if (typeof window.prompt !== 'function') return '';
+      var v = window.prompt('此操作需要门户口令：', '');
+      if (v && v.trim()) { v = v.trim(); setTok(v); return v; }
+    } catch (e) {}
+    return '';
+  }
+  function deny() {
+    clearTok();
+    if (!told) { told = true; toast('未保存到服务器：口令缺失或错误。刷新本页后可重新输入口令。'); }
+  }
+  // ── XHR（含同步 XHR：routing.html / index.html 用的是同步请求）──
+  var _open = XMLHttpRequest.prototype.open, _send = XMLHttpRequest.prototype.send;
+  XMLHttpRequest.prototype.open = function (m, u) {
+    this.__wbM = (m || 'GET').toUpperCase(); this.__wbU = u; return _open.apply(this, arguments);
+  };
+  XMLHttpRequest.prototype.send = function (body) {
+    var self = this, m = this.__wbM, u = this.__wbU;
+    var w = (m === 'POST' && isWrite(u));
+    var tok = getTok();
+    if (w && !tok) tok = ask();
+    if (w) { tok = tokFor(u); if (tok) { try { self.setRequestHeader('X-Footprint-Token', tok); } catch (e) {} } }
+    if (w) { try { self.addEventListener('load', function () { if (self.status === 401) deny(); }); } catch (e) {} }
+    return _send.apply(this, arguments);
+  };
+  // ── fetch（math-solver / stock-daily / travel 系）──
+  var _f = window.fetch;
+  if (typeof _f === 'function') {
+    window.fetch = function (input, init) {
+      init = init || {};
+      if (typeof input !== 'string') return _f.call(window, input, init);
+      var m = String(init.method || 'GET').toUpperCase();
+      var w = (m === 'POST' && isWrite(input));
+      var tok = getTok();
+      if (w && !tok) tok = ask();
+      if (w) { tok = tokFor(input); } else { tok = ''; }
+      if (tok) {
+        try { var h = new Headers(init.headers || {}); h.set('X-Footprint-Token', tok); init.headers = h; } catch (e) {}
+        try {
+          if (typeof init.body === 'string' && /^\s*\{/.test(init.body)) {
+            var o = JSON.parse(init.body);
+            if (o && typeof o === 'object' && o.token === undefined) { o.token = tok; init.body = JSON.stringify(o); }
+          }
+        } catch (e) {}
+      }
+      return _f.call(window, input, init).then(function (r) {
+        if (w && r && r.status === 401) deny();
+        return r;
+      });
+    };
+  }
+})();
+</script>
+<!-- wb-auth-guard:end -->
+</body>
+</html>
