@@ -565,14 +565,14 @@ function loadExpo(force){
         if((d.news||[]).length){
           var el=$('news-grid');
           if(el){
-            var oldw=el.querySelector('#live-news-wrap');
-            if(oldw)oldw.remove();
-            var wrap=document.createElement('div');
-            wrap.id='live-news-wrap';
-            wrap.innerHTML=d.news.map(function(x){
-              return '<a class="news-item" href="'+esc(x.url)+'" target="_blank"><span class="tag">🛰️ 实时'+(x.time?' · '+esc(x.time):'')+'</span><span class="nt">'+esc(x.title)+'</span>'+(x.summary?'<span class="ns">'+esc(x.summary)+'</span>':'')+'</a>';
+            var olds=el.querySelectorAll('.news-live');
+            for(var oi=0;oi<olds.length;oi++)olds[oi].remove();
+            var frag=document.createElement('div');
+            frag.innerHTML=d.news.map(function(x){
+              var sm=(x.summary&&x.summary.replace(/\s+/g,'')!==x.title.replace(/\s+/g,''))?'<span class="ns">'+esc(x.summary)+'</span>':'';
+              return '<a class="news-item news-live" href="'+esc(x.url)+'" target="_blank"><span class="tag">🛰️ 实时'+(x.time?' · '+esc(x.time):'')+'</span><span class="nt">'+esc(x.title)+'</span>'+sm+'</a>';
             }).join('');
-            el.insertBefore(wrap,el.firstChild);
+            while(frag.firstChild)el.insertBefore(frag.firstChild,el.firstChild);
           }
         }
         updateExpoNote();setTabDot();
