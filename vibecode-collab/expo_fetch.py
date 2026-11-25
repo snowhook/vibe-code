@@ -68,6 +68,18 @@ def _norm_key(s):
     return ''.join(str(s or '').split())[:32]
 
 
+_SRC_SUFFIX_RE = re.compile(r'\s*[-–—|]\s*\S{2,12}$')
+_PUNCT_RE = re.compile(r'[！？。，、：;,.!?:~～\s]')
+
+
+def _news_key(t):
+    # 新闻去重键：剥掉 " - 凤凰网"/" - 腾讯新闻" 等来源后缀与标点，
+    # 同一情报多源转载（成都11月排期表！-腾讯 vs -凤凰）只留一条。
+    t = _SRC_SUFFIX_RE.sub('', str(t or ''))
+    return _PUNCT_RE.sub('', t)[:24]
+
+
+
 # ── DeepSeek 调用（token-plan 域）────────────────────────────────
 def _cfg():
     with open(CONFIG_PATH, encoding='utf-8') as f:
@@ -202,7 +214,7 @@ def _gather(extra_q=()):
         for x in items:
             if not any(k in x['title'] for k in EXPO_KW):
                 continue
-            k = _norm_key(x['title'])
+            k = _news_key(x['title'])
             if not k or k in seen:
                 continue
             seen.add(k)
