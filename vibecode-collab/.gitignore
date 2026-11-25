@@ -6,3 +6,5 @@ data/
 .collab-vision-cache.json
 __pycache__/
 *.pyc
+.expo-cache.json
+.collab-queries.json

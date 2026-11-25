@@ -179,7 +179,10 @@ def _fetch_gnews():
 
 
 def _search(q, time_range):
-    params = {'q': q, 'format': 'json', 'language': 'zh-CN', 'safesearch': 0}
+    # 2026-11-25 实测：默认引擎集文本搜索已废（google空/baidu解析错/ddg验证码），
+    # 必须强制 360search+sogou 才有稳定中文结果
+    params = {'q': q, 'format': 'json', 'language': 'zh-CN', 'safesearch': 0,
+              'engines': 'bing,360search,sogou'}
     if time_range:
         params['time_range'] = time_range
     req = urllib.request.Request(
@@ -204,6 +207,17 @@ def _search(q, time_range):
                     'time': pub[:10] if pub else '', 'q': q,
                     'score': item.get('score', 99)})
     return out
+
+
+def _dynamic_queries():
+    """DeepSeek 动态查询词（仅读缓存，绝不在请求路径阻塞）+ 后台触发刷新。
+    详见 expo_fetch 模块头台账：请求路径禁同步 DS 调用（性能红线同 vision）。"""
+    try:
+        import expo_fetch
+        expo_fetch.ensure_queries_async('collab')
+        return expo_fetch.extra_queries('collab', allow_build=False)
+    except Exception:
+        return []
 
 
 def structured_collabs(max_items=30):
@@ -241,7 +255,7 @@ def structured_collabs(max_items=30):
 
     # ② SearXNG 文本情报补足
     with ThreadPoolExecutor(max_workers=3) as ex:
-        futs = {ex.submit(_fetch_one, q): q for q in QUERIES}
+        futs = {ex.submit(_fetch_one, q): q for q in (QUERIES + _dynamic_queries())}
         for f in as_completed(futs):
             try:
                 for it in f.result():
@@ -293,7 +307,7 @@ def fetch_all(max_items=40):
     # 仅在 SearXNG 结果不足时用 Google News 补数量。
     items2 = {}
     with ThreadPoolExecutor(max_workers=3) as ex:
-        futs = {ex.submit(_fetch_one, q): q for q in QUERIES}
+        futs = {ex.submit(_fetch_one, q): q for q in (QUERIES + _dynamic_queries())}
         for f in as_completed(futs):
             try:
                 for it in f.result():
