@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>全网热搜榜 · Hot Radar</title>
+<style>
+:root, html[data-theme="dark"]{
+  --bg:#0c0f1a; --bg2:#121729; --surface:rgba(255,255,255,.035);
+  --card:#151a2b; --card-hover:#1a2138; --line:rgba(255,255,255,.08);
+  --text:#e8ecf7; --text-strong:#fff; --muted:#8a93ab; --faint:#5b6478;
+  --accent:#ff7847; --accent2:#ffb199; --hero:linear-gradient(135deg,#ff7847,#ff4d6d);
+  --shadow:0 14px 32px -16px rgba(0,0,0,.6); --chip:rgba(255,255,255,.05);
+  --ok:#34d399; --warn:#f59e0b; --bad:#f87171;
+  --skel:linear-gradient(90deg,rgba(255,255,255,.04),rgba(255,255,255,.09),rgba(255,255,255,.04));
+}
+html[data-theme="light"]{
+  --bg:#f6f4f0; --bg2:#efe9df; --surface:rgba(60,45,25,.03);
+  --card:#ffffff; --card-hover:#fff8f2; --line:#e5ddd0;
+  --text:#2a2620; --text-strong:#17130d; --muted:#77705f; --faint:#a39a86;
+  --accent:#e8590c; --accent2:#f08c4b; --hero:linear-gradient(135deg,#e8590c,#d6336c);
+  --shadow:0 10px 26px -14px rgba(120,80,40,.28); --chip:rgba(120,80,30,.07);
+  --ok:#0ca678; --warn:#b45309; --bad:#d14343;
+  --skel:linear-gradient(90deg,rgba(0,0,0,.04),rgba(0,0,0,.08),rgba(0,0,0,.04));
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'PingFang SC','Microsoft YaHei','Segoe UI',system-ui,sans-serif;
+  background:radial-gradient(1100px 460px at 78% -10%,var(--bg2),var(--bg)) fixed;
+  color:var(--text);min-height:100vh;transition:color .3s}
+a{color:inherit;text-decoration:none}
+
+/* ── 顶栏 ── */
+.hd{position:sticky;top:0;z-index:20;backdrop-filter:blur(14px);
+  background:color-mix(in srgb,var(--bg) 80%,transparent);
+  border-bottom:1px solid var(--line);padding:13px 26px;
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.logo{display:flex;align-items:center;gap:12px;margin-right:auto}
+.logo .mark{width:40px;height:40px;border-radius:13px;background:var(--hero);
+  display:flex;align-items:center;justify-content:center;font-size:20px;
+  box-shadow:0 6px 18px -6px rgba(255,120,71,.55)}
+.logo h1{font-size:19px;font-weight:800;color:var(--text-strong);letter-spacing:.5px}
+.logo h1 b{background:var(--hero);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.logo p{font-size:10.5px;color:var(--faint);margin-top:2px;letter-spacing:2.5px}
+.hd-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.upd{font-size:11.5px;color:var(--muted)}
+.upd b{color:var(--text);font-weight:600}
+.btn{background:var(--chip);border:1px solid var(--line);color:var(--text);
+  padding:8px 16px;border-radius:11px;cursor:pointer;font-size:13px;font-family:inherit;
+  transition:all .2s;display:flex;align-items:center;gap:6px}
+.btn:hover{border-color:var(--accent);color:var(--text-strong);transform:translateY(-1px)}
+.btn:active{transform:scale(.97)}
+.btn:disabled{opacity:.5;cursor:wait;transform:none}
+.btn.spin .ic{animation:sp .9s linear infinite;display:inline-block}
+@keyframes sp{to{transform:rotate(360deg)}}
+#themeBtn{width:40px;padding:8px 0;justify-content:center;font-size:16px}
+
+/* ── 工具行 ── */
+.wrap{max-width:980px;margin:0 auto;padding:22px 22px 60px}
+.bar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:14px}
+.tab{padding:8px 17px;border-radius:99px;border:1px solid var(--line);background:var(--surface);
+  color:var(--muted);font-size:13.5px;cursor:pointer;font-family:inherit;transition:all .22s;
+  display:flex;align-items:center;gap:7px}
+.tab:hover{color:var(--text-strong);transform:translateY(-1px)}
+.tab.on{background:var(--hero);color:#fff;border-color:transparent;font-weight:700;
+  box-shadow:0 8px 20px -8px rgba(255,90,70,.5)}
+.tab .ct{font-size:11px;opacity:.75;font-variant-numeric:tabular-nums}
+.tab .st{width:7px;height:7px;border-radius:50%;background:var(--faint)}
+.tab .st.ok{background:var(--ok)}.tab .st.ld{background:var(--warn);animation:pulse 1.2s infinite}
+.tab .st.bad{background:var(--bad)}
+@keyframes pulse{50%{opacity:.35}}
+.tab.on .st{outline:1.5px solid rgba(255,255,255,.5)}
+.flt{margin-left:auto;flex:0 1 240px;min-width:150px}
+.flt input{width:100%;padding:8px 14px;border-radius:11px;border:1px solid var(--line);
+  background:var(--surface);color:var(--text);font-size:13px;font-family:inherit;outline:none;transition:border .2s}
+.flt input:focus{border-color:var(--accent)}
+.flt input::placeholder{color:var(--faint)}
+
+/* ── 列表 ── */
+.list{display:flex;flex-direction:column;gap:7px}
+.row{display:flex;align-items:center;gap:13px;padding:11px 16px 13px;background:var(--card);
+  border:1px solid var(--line);border-radius:13px;position:relative;overflow:hidden;
+  transition:all .18s;animation:fadeUp .35s both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.row:hover{background:var(--card-hover);border-color:color-mix(in srgb,var(--accent) 45%,var(--line));
+  transform:translateX(3px);box-shadow:var(--shadow)}
+.rank{width:28px;height:28px;flex-shrink:0;border-radius:9px;display:flex;align-items:center;
+  justify-content:center;font-weight:800;font-size:13px;background:var(--chip);color:var(--muted);
+  font-variant-numeric:tabular-nums}
+.rank.m1{background:linear-gradient(135deg,#f0b90b,#ffd700);color:#3a2b00}
+.rank.m2{background:linear-gradient(135deg,#9aa4b2,#d7dee8);color:#2b3240}
+.rank.m3{background:linear-gradient(135deg,#a9713c,#cd7f32);color:#fff}
+.mid{flex:1;min-width:0}
+.ttl{font-size:14.5px;line-height:1.5;color:var(--text-strong);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.heat{height:3px;border-radius:99px;margin-top:7px;background:var(--chip);overflow:hidden}
+.heat i{display:block;height:100%;border-radius:99px;background:var(--hero);opacity:.8;
+  transition:width .5s cubic-bezier(.16,1,.3,1)}
+.hotv{font-size:12px;color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums;
+  display:flex;align-items:center;gap:4px;flex-shrink:0}
+.hotv .fl{font-size:11px}
+.arrow{color:var(--faint);font-size:13px;flex-shrink:0;transition:transform .18s}
+.row:hover .arrow{transform:translateX(3px);color:var(--accent)}
+
+/* ── 状态 ── */
+.empty{color:var(--muted);text-align:center;padding:46px 20px;font-size:14px}
+.empty .big{font-size:38px;margin-bottom:12px}
+.skel{display:flex;flex-direction:column;gap:7px}
+.skel i{height:52px;border-radius:13px;background:var(--skel);background-size:200% 100%;
+  animation:sh 1.2s linear infinite}
+@keyframes sh{to{background-position:-200% 0}}
+.errbox{text-align:center;padding:40px 20px;color:var(--muted)}
+.errbox .big{font-size:38px;margin-bottom:10px}
+.errbox .btn{margin:14px auto 0}
+
+/* ── 页脚 ── */
+.ft{max-width:980px;margin:0 auto;padding:24px 22px 40px;border-top:1px solid var(--line);
+  font-size:11.5px;color:var(--faint);line-height:2;text-align:center}
+.ft a{color:var(--muted);border-bottom:1px dashed var(--line)}
+.ft b{color:var(--text);font-weight:600}
+
+@media (max-width:640px){
+  .hd{padding:11px 15px}.logo h1{font-size:16.5px}.wrap{padding:16px 13px 46px}
+  .flt{flex:1 1 100%;margin-left:0}.hotv{display:none}.row{padding:10px 12px 12px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="hd">
+  <div class="logo">
+    <div class="mark">🔥</div>
+    <div>
+      <h1><b>全网热搜榜</b> · Hot Radar</h1>
+      <p>REALTIME · WEIBO DOUYIN ZHIHU TOUTIAO</p>
+    </div>
+  </div>
+  <div class="hd-right">
+    <div class="upd"><span id="today"></span> · 更新于 <b id="updTime">--</b></div>
+    <button class="btn" id="refreshBtn" onclick="refreshAll()"><span class="ic">↻</span>刷新</button>
+    <button class="btn" id="themeBtn" onclick="toggleTheme()" title="切换深浅配色">🌙</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="bar">
+    <div id="tabs" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+    <div class="flt"><input id="flt" placeholder="过滤当前榜单…" oninput="onFilter()"></div>
+  </div>
+  <div id="list" class="list" aria-live="polite"></div>
+</div>
+
+<div class="ft">
+  <div>数据来源：<b>60s API</b>（微博 / 抖音 / 知乎 / 今日头条 实时热搜）· 打开即自动刷新，每 10 分钟更新</div>
+  <div>点击条目跳转原平台 · 个人 VIBE CODE 模块 · <a href="/">返回门户</a></div>
+</div>
+
+<script>
+var PLATFORMS=[
+  {key:'weibo',name:'微博',api:'https://60s.viki.moe/v2/weibo'},
+  {key:'douyin',name:'抖音',api:'https://60s.viki.moe/v2/douyin'},
+  {key:'zhihu',name:'知乎',api:'https://60s.viki.moe/v2/zhihu'},
+  {key:'toutiao',name:'今日头条',api:'https://60s.viki.moe/v2/toutiao'}
+];
+var CACHE_KEY='hotsearch_cache_v3',CACHE_TTL=10*60*1000;
+var DATA={},STATUS={},CUR='weibo',FILTER='',autoTimer=null;
+function $(id){return document.getElementById(id)}
+
+/* ── 主题（同 tech-news 模式：localStorage + 系统偏好） ── */
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme',t);
+  $('themeBtn').textContent=(t==='dark')?'🌙':'☀️';
+}
+function toggleTheme(){
+  var t=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';
+  try{localStorage.setItem('hotsearch-theme',t)}catch(e){}
+  applyTheme(t);
+}
+(function(){
+  var saved=null;
+  try{saved=localStorage.getItem('hotsearch-theme')}catch(e){}
+  applyTheme(saved||((window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark'));
+})();
+
+/* ── 缓存 ── */
+function readCache(){
+  try{
+    var c=JSON.parse(localStorage.getItem(CACHE_KEY));
+    if(c&&c.ts&&Date.now()-c.ts<CACHE_TTL){DATA=c.data||{};return true}
+  }catch(e){}
+  return false;
+}
+function writeCache(){
+  try{localStorage.setItem(CACHE_KEY,JSON.stringify({ts:Date.now(),data:DATA}))}catch(e){}
+}
+
+/* ── 取数：错峰 + 失败自动重试一次（60s API 有 Cloudflare 限流，实测并发过猛会 429） ── */
+function fetchOne(p,attempt){
+  attempt=attempt||0;
+  if(!DATA[p.key])STATUS[p.key]='ld';else STATUS[p.key]='ld-keep';
+  renderTabs();
+  var opt={};
+  try{if(AbortSignal.timeout)opt.signal=AbortSignal.timeout(12000)}catch(e){}
+  fetch(p.api,opt).then(function(r){
+    if(!r.ok)throw new Error('http '+r.status);
+    return r.json();
+  }).then(function(j){
+    if(!j||j.code!==200||!j.data||!j.data.length)throw new Error('empty');
+    DATA[p.key]=j.data;STATUS[p.key]='ok';
+    writeCache();renderTabs();
+    if(CUR===p.key)renderList();
+    setUpdTime();
+  }).catch(function(){
+    if(attempt<1){setTimeout(function(){fetchOne(p,attempt+1)},4000);return}
+    STATUS[p.key]='bad';renderTabs();
+    if(CUR===p.key)renderList();
+  });
+}
+function fetchAll(){
+  var delay=0;
+  PLATFORMS.forEach(function(p){
+    setTimeout(function(){fetchOne(p,0)},delay);
+    delay+=700; // 错峰防 429
+  });
+}
+function refreshAll(){
+  var b=$('refreshBtn');b.classList.add('spin');b.disabled=true;
+  fetchAll();
+  setTimeout(function(){b.classList.remove('spin');b.disabled=false},1500);
+  clearInterval(autoTimer);autoTimer=setInterval(fetchAll,10*60*1000);
+}
+
+/* ── Tab ── */
+function renderTabs(){
+  $('tabs').innerHTML=PLATFORMS.map(function(p){
+    var n=(DATA[p.key]||[]).length;
+    var st=STATUS[p.key]||'';
+    var cls=st==='ok'?'ok':(st==='bad'?'bad':(st?'ld':''));
+    return '<button class="tab'+(CUR===p.key?' on':'')+'" onclick="setTab(\''+p.key+'\')">'+
+      '<span class="st '+cls+'"></span>'+p.name+(n?'<span class="ct">'+n+'</span>':'')+'</button>';
+  }).join('');
+}
+function setTab(k){CUR=k;FILTER='';$('flt').value='';renderTabs();renderList()}
+function onFilter(){FILTER=$('flt').value;renderList()}
+
+/* ── 渲染 ── */
+function hotNum(x){
+  var v=(x.hot_value!==undefined&&x.hot_value!==null&&x.hot_value!=='')?x.hot_value:x.hot_value_desc;
+  var n=parseFloat(String(v==null?'':v).replace(/[^\d.]/g,''));
+  return isNaN(n)?0:n;
+}
+function fmtHot(n){
+  if(!n)return '';
+  if(n>=100000000)return (n/100000000).toFixed(1)+'亿';
+  if(n>=10000)return (n/10000).toFixed(1)+'万';
+  return String(Math.round(n));
+}
+function esc(s){var d=document.createElement('div');d.textContent=String(s==null?'':s);return d.innerHTML}
+function rowHtml(x,i,max){
+  var n=hotNum(x);
+  var w=max?Math.max(4,Math.round(n/max*100)):0;
+  var rk=i<3?' m'+(i+1):'';
+  return '<a class="row" style="animation-delay:'+(i*25)+'ms" href="'+esc(x.link||'#')+'" target="_blank" rel="noopener">'+
+    '<span class="rank'+rk+'">'+(i+1)+'</span>'+
+    '<div class="mid"><div class="ttl">'+esc(x.title)+'</div>'+
+    '<div class="heat"><i style="width:'+w+'%"></i></div></div>'+
+    (n?'<span class="hotv"><span class="fl">🔥</span>'+fmtHot(n)+'</span>':'')+
+    '<span class="arrow">›</span></a>';
+}
+function renderList(){
+  var el=$('list'),p=PLATFORMS.filter(function(v){return v.key===CUR})[0];
+  var items=DATA[p.key];
+  if(!items){
+    if(STATUS[p.key]==='bad'){
+      el.innerHTML='<div class="errbox"><div class="big">📡</div>'+p.name+'热搜暂时拉不到<br>'+
+        '<span style="font-size:12px;color:var(--faint)">上游 60s API 限流或波动，稍后自动重试</span>'+
+        '<button class="btn" onclick="fetchOne(PLATFORMS['+PLATFORMS.indexOf(p)+'],0)">立即重试</button></div>';
+    }else{
+      el.innerHTML='<div class="skel">'+'<i></i>'.repeat(8)+'</div>';
+    }
+    return;
+  }
+  items.forEach(function(x,i){x._i=i});
+  var q=FILTER.trim().toLowerCase();
+  var list=q?items.filter(function(x){return String(x.title||'').toLowerCase().indexOf(q)>=0}):items;
+  if(!list.length){
+    el.innerHTML='<div class="empty"><div class="big">🔍</div>没有包含「'+esc(FILTER)+'」的热搜</div>';
+    return;
+  }
+  var max=0;items.forEach(function(x){var n=hotNum(x);if(n>max)max=n});
+  el.innerHTML=list.map(function(x){return rowHtml(x,x._i,max)}).join('');
+}
+function setUpdTime(){
+  var d=new Date();
+  $('updTime').textContent=('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)+':'+('0'+d.getSeconds()).slice(-2);
+}
+function fmtDate(){
+  var d=new Date(),w=['日','一','二','三','四','五','六'][d.getDay()];
+  return d.getFullYear()+'年'+(d.getMonth()+1)+'月'+d.getDate()+'日 星期'+w;
+}
+
+$('today').textContent=fmtDate();
+renderTabs();
+if(readCache()){STATUS.ok=1;PLATFORMS.forEach(function(p){if(DATA[p.key])STATUS[p.key]='ok'});renderTabs();renderList()}
+else renderList();
+fetchAll();
+autoTimer=setInterval(fetchAll,10*60*1000);
+</script>
+</body>
+</html>
