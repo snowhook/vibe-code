@@ -22,9 +22,23 @@ def _get_soup(url: str) -> BeautifulSoup | None:
         return None
 
 
+def _guba_code(code: str) -> str:
+    """东财股吧板块代码：A股 600519 -> '600519'；北交所 920099 -> '920099'（实测裸数字即可）；
+    港股 hk01952 -> 'hk01952'（实测必须带 hk 前缀，剥掉前缀的 list,01952.html 返回 0 帖——
+    旧版 re.sub 剥前缀正是港股全空的 bug 根源）。"""
+    s = str(code).strip().lower()
+    if s.startswith("hk"):
+        return "hk" + re.sub(r"\D", "", s)
+    if s.startswith("bj"):
+        return re.sub(r"\D", "", s)[:6]
+    if s.startswith(("sh", "sz")):
+        return re.sub(r"\D", "", s)[:6]
+    return re.sub(r"\D", "", s)[:6]
+
+
 def fetch_stock_posts(code: str, page: int = 1, limit: int = 40) -> list[dict]:
-    """东财股吧某股票帖子（code: 600519 或 600519.SH）"""
-    code6 = re.sub(r"\D", "", code)[:6]
+    """东财股吧某股票帖子（code: 600519 / hk01952 / SH600519 均可）"""
+    code6 = _guba_code(code)
     url = f"{BASE}/list,{code6}.html" if page == 1 else f"{BASE}/list,{code6},{page}.html"
     soup = _get_soup(url)
     if soup is None:
@@ -39,7 +53,7 @@ def fetch_stock_posts(code: str, page: int = 1, limit: int = 40) -> list[dict]:
         author_el = tr.select_one("div.author a")
         time_el = tr.select_one("div.update")
         href = title_a.get("href", "")
-        m = re.search(r"/news,(\d+),(\d+)\.html", href)
+        m = re.search(r"/news,([a-zA-Z]*\d+),(\d+)\.html", href)
         if not m:
             continue
         post_id = m.group(2)
@@ -73,7 +87,7 @@ def fetch_hot_posts(page: int = 1, limit: int = 40) -> list[dict]:
             if not title_a:
                 continue
             href = title_a.get("href", "")
-            m = re.search(r"/news,(\d+),(\d+)\.html", href)
+            m = re.search(r"/news,([a-zA-Z]*\d+),(\d+)\.html", href)
             if not m:
                 continue
             post_id = m.group(2)
@@ -98,8 +112,35 @@ def fetch_hot_posts(page: int = 1, limit: int = 40) -> list[dict]:
     return all_posts[:limit]
 
 
+def _tencent_quotes(codes: list[str]) -> dict[str, dict]:
+    """腾讯行情批量接口补名称/价格。东财人气榜页面的股票名与行情是 JS 异步渲染，
+    DOM 里是空的（实测 a.stock_name_xxx 文本为空、价格列 "--"）；
+    东财 push2 接口对本服务器 IP 直接拒连，qt.gtimg.cn 实测可用（gbk 编码）。"""
+    if not codes:
+        return {}
+    ids = ",".join(("sh" if c.startswith(("6", "9", "5")) else "sz") + c for c in codes)
+    try:
+        r = requests.get(f"http://qt.gtimg.cn/q={ids}", timeout=10)
+        r.encoding = "gbk"
+    except Exception:
+        return {}
+    out = {}
+    for line in r.text.split(";"):
+        if "=" not in line:
+            continue
+        f = line.split("=", 1)[1].strip('"').split("~")
+        if len(f) > 32 and f[2]:
+            out[f[2]] = {"name": f[1], "price": _to_float(f[3]),
+                         "change": _to_float(f[31]), "change_pct": _to_float(f[32])}
+    return out
+
+
 def fetch_hot_stocks(limit: int = 10) -> list[dict]:
-    """东财个股人气榜 top N（selenium 渲染）"""
+    """东财个股人气榜 top N（selenium 渲染 + 腾讯行情补全）
+
+    2026-11-25 核查重写：排名数字不在 td 文本里而是 icon_rankN 类名；
+    多空比是 left_percent/right_percent 两个 span（旧代码按空格切 fans 文本永远切不开）；
+    名称/价格 DOM 为空，改走 _tencent_quotes 批量补。"""
     from selenium import webdriver
     from selenium.webdriver.chrome.options import Options
     from selenium.webdriver.chrome.service import Service
@@ -116,64 +157,61 @@ def fetch_hot_stocks(limit: int = 10) -> list[dict]:
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=opts)
     try:
         driver.get(f"{BASE}/rank")
-        time.sleep(7)
+        time.sleep(8)
         html = driver.page_source
     finally:
         driver.quit()
 
     soup = BeautifulSoup(html, "lxml")
-    stocks = []
     table = soup.select_one("table.rank_table") or soup.find("table")
     if table is None:
         return []
+    rows = []
     for tr in table.find_all("tr"):
         tds = tr.find_all("td")
-        if len(tds) < 9:
+        if len(tds) < 10:
             continue
-        code_txt = tds[3].get_text(strip=True) if len(tds) > 3 else ""
+        code_txt = tds[3].get_text(strip=True)
         if not re.match(r"^\d{6}$", code_txt):
             continue
-        rank_txt = tds[1].get_text(strip=True) if len(tds) > 1 else ""
-        name_el = tds[4].select_one(f"a.stock_name_{code_txt}") if len(tds) > 4 else None
-        name_txt = name_el.get_text(strip=True) if name_el else (tds[4].get_text(strip=True) if len(tds) > 4 else "")
-        price_txt = tds[6].get_text(strip=True) if len(tds) > 6 else ""
-        change_txt = tds[7].get_text(strip=True) if len(tds) > 7 else ""
-        pct_txt = tds[8].get_text(strip=True) if len(tds) > 8 else ""
-        fans_txt = tds[9].get_text(strip=True).replace("%", "") if len(tds) > 9 else ""
-        fans_parts = fans_txt.split()
-        # 热门话题信息（hastopic 行才有）
-        topic_name = topic_url = topic_discuss = topic_views = ""
-        nametd = tds[4] if len(tds) > 4 else None
-        if nametd:
-            topic_a = nametd.select_one("a.topic-pc-item[href*='topic']")
-            if topic_a:
-                topic_name = topic_a.get_text(strip=True).strip("#")
-                topic_url = topic_a.get("href", "")
-                dissc = nametd.select_one("span.dissc .disnum")
-                views = nametd.select_one("span.views .disnum")
-                topic_discuss = dissc.get_text(strip=True) if dissc else ""
-                topic_views = views.get_text(strip=True) if views else ""
-        try:
-            rank = int(rank_txt) if rank_txt.lstrip("-").isdigit() else 0
-        except ValueError:
-            rank = 0
-        stocks.append({
+        m = re.search(r"icon_rank(\d+)", str(tds[0]))
+        if m:
+            rank = int(m.group(1))
+        else:
+            txt = tds[0].get_text(strip=True)
+            rank = int(txt) if txt.isdigit() else 0
+        left_el = tds[9].select_one("span.left_percent")
+        right_el = tds[9].select_one("span.right_percent")
+        bull = _to_float(left_el.get_text(strip=True)) if left_el else 0.0
+        bear = _to_float(right_el.get_text(strip=True)) if right_el else 0.0
+        topic_name = topic_url = topic_discuss = ""
+        topic_a = tds[4].select_one("a[href*='topic']")
+        if topic_a:
+            topic_name = topic_a.get_text(strip=True).strip("#")
+            href = topic_a.get("href", "")
+            topic_url = ("https:" + href) if href.startswith("//") else href
+            dis = tds[4].select_one("span.disnum")
+            topic_discuss = dis.get_text(strip=True) if dis else ""
+        rows.append({
             "rank": rank,
             "code": code_txt,
-            "name": name_txt,
-            "price": _to_float(price_txt),
-            "change": _to_float(change_txt),
-            "change_pct": _to_float(pct_txt),
-            "bull_ratio": _to_float(fans_parts[0]) if len(fans_parts) > 0 else 0,
-            "bear_ratio": _to_float(fans_parts[1]) if len(fans_parts) > 1 else 0,
+            "name": "", "price": 0.0, "change": 0.0, "change_pct": 0.0,
+            "bull_ratio": bull, "bear_ratio": bear,
             "topic_name": topic_name,
-            "topic_url": ("https:" + topic_url) if topic_url else "",
+            "topic_url": topic_url,
             "topic_discuss": _to_int(topic_discuss),
-            "topic_views": _to_int(topic_views),
+            "topic_views": 0,
             "url": f"{BASE}/list,{code_txt}.html",
         })
-    stocks.sort(key=lambda s: s["rank"] if s["rank"] > 0 else 999)
-    return stocks[:limit]
+    quotes = _tencent_quotes([r["code"] for r in rows])
+    for st in rows:
+        q = quotes.get(st["code"]) or {}
+        st["name"] = q.get("name", "")
+        st["price"] = q.get("price", 0.0)
+        st["change"] = q.get("change", 0.0)
+        st["change_pct"] = q.get("change_pct", 0.0)
+    rows.sort(key=lambda x: x["rank"] if x["rank"] > 0 else 999)
+    return rows[:limit]
 
 
 def _parse_num(el) -> int:
